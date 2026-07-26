@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".ToolkitApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.DataToolkit"
+        android:usesCleartextTraffic="false">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".ui.DashboardActivity" android:exported="false" android:label="Analytics Dashboard" />
+        <activity android:name=".features.datacleaning.DataCleaningActivity" android:exported="false" android:label="Data Cleaning" />
+        <activity android:name=".features.ocr.OcrActivity" android:exported="false" android:label="OCR" />
+        <activity android:name=".features.pdf.PdfActivity" android:exported="false" android:label="PDF Tools" />
+        <activity android:name=".features.excel.ExcelCsvActivity" android:exported="false" android:label="Excel / CSV" />
+        <activity android:name=".features.scraping.WebScrapingActivity" android:exported="false" android:label="Web Scraping" />
+        <activity android:name=".features.email.EmailExtractionActivity" android:exported="false" android:label="Email Extraction" />
+        <activity android:name=".features.batch.BatchProcessingActivity" android:exported="false" android:label="Batch Processing" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+    </application>
+</manifest>

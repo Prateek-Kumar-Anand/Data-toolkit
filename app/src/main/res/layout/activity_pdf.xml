@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Extract Text" android:textStyle="bold" android:textColor="@color/text_primary" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnExtractText"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:layout_marginBottom="16dp"
+            android:text="Pick a PDF and extract text" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Merge PDFs" android:textStyle="bold" android:textColor="@color/text_primary" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMerge"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:layout_marginBottom="16dp"
+            android:text="Pick 2+ PDFs to merge" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Split PDF" android:textStyle="bold" android:textColor="@color/text_primary" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
+            <EditText android:id="@+id/etStartPage" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:hint="Start page" android:inputType="number" android:layout_marginEnd="6dp" />
+            <EditText android:id="@+id/etEndPage" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:hint="End page" android:inputType="number" android:layout_marginStart="6dp" />
+        </LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSplit"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="6dp" android:layout_marginBottom="16dp"
+            android:text="Pick a PDF and split range" />
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Images → PDF" android:textStyle="bold" android:textColor="@color/text_primary" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnImagesToPdf"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp" android:layout_marginBottom="16dp"
+            android:text="Pick images to combine into a PDF" />
+
+        <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:textColor="@color/text_secondary" android:layout_marginBottom="8dp" />
+
+        <EditText
+            android:id="@+id/etOutput"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:background="@color/surface"
+            android:gravity="top|start"
+            android:inputType="textMultiLine"
+            android:padding="10dp" />
+
+    </LinearLayout>
+</ScrollView>

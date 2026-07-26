@@ -1,0 +1,18 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+app/build/
+build/
+*.apk
+*.aab
+
+# Keep the wrapper jar - it's required for CI/local builds without Android Studio.
+!gradle/wrapper/gradle-wrapper.jar

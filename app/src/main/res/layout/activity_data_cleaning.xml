@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Paste CSV or plain rows (comma separated):"
+            android:textColor="@color/text_primary"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etInput"
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:background="@color/surface"
+            android:gravity="top|start"
+            android:hint="name,email,city&#10;Asha, asha@mail.com , Delhi&#10;Asha, asha@mail.com , Delhi"
+            android:inputType="textMultiLine"
+            android:padding="10dp" />
+
+        <CheckBox android:id="@+id/cbTrim" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Trim whitespace" android:checked="true" />
+        <CheckBox android:id="@+id/cbCollapse" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Collapse inner spaces" android:checked="true" />
+        <CheckBox android:id="@+id/cbDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Remove duplicate rows" android:checked="true" />
+        <CheckBox android:id="@+id/cbEmptyRows" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Remove empty rows" android:checked="true" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClean"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Clean Data" />
+
+        <TextView
+            android:id="@+id/tvReport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@color/text_secondary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Cleaned output:"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/etOutput"
+            android:layout_width="match_parent"
+            android:layout_height="160dp"
+            android:background="@color/surface"
+            android:gravity="top|start"
+            android:inputType="textMultiLine"
+            android:padding="10dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Save as .csv" />
+
+    </LinearLayout>
+</ScrollView>
