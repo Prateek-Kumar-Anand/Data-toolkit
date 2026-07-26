@@ -43,8 +43,9 @@ class OcrActivity : AppCompatActivity() {
 
     private fun launchCamera() {
         val file = File(cacheDir, "ocr_capture_${System.currentTimeMillis()}.jpg")
-        cameraImageUri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-        takePicture.launch(cameraImageUri)
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        cameraImageUri = uri
+        takePicture.launch(uri)
     }
 
     private fun loadAndRecognize(uri: Uri) {
