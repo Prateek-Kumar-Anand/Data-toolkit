@@ -88,6 +88,9 @@ object ItemExtractor {
 
     private fun extractRepeatedCards(doc: Document): List<ScrapedItem> {
         val candidates = doc.select("article, li, div, section")
+            .toList() // jsoup's Elements also declares a member filter(NodeFilter) overload, which Kotlin
+            // would otherwise prefer over the stdlib Iterable.filter extension below and try (and fail)
+            // to SAM-convert this one-arg lambda into a two-arg NodeFilter.
             .filter { it.className().isNotBlank() }
             .groupBy { "${it.tagName()}.${it.className()}" }
             .filter { (_, group) -> group.size >= MIN_REPEATED_ELEMENTS }
