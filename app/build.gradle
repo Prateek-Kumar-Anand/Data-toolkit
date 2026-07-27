@@ -62,6 +62,21 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // Several dependencies below (ML Kit/Play Services, CameraX, Room, WorkManager)
+        // transitively pull their own androidx.core/appcompat/material versions. Without
+        // pinning, Gradle can resolve a mismatched combination whose merged resources are
+        // missing entries the others expect (e.g. AAPT2 failing to find
+        // style/TextAppearance.AppCompat.* during resource linking). Forcing one version
+        // of each keeps the whole graph on the same, tested set.
+        force 'androidx.core:core:1.13.1'
+        force 'androidx.core:core-ktx:1.13.1'
+        force 'androidx.appcompat:appcompat:1.7.0'
+        force 'com.google.android.material:material:1.12.0'
+    }
+}
+
 dependencies {
     // Core / UI
     implementation 'androidx.core:core-ktx:1.13.1'
