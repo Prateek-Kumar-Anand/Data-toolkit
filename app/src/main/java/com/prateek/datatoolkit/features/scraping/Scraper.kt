@@ -12,7 +12,10 @@ data class ScrapeResult(
     val text: String,
     val links: List<String>,
     val tables: List<List<List<String>>>, // list of tables, each a list of rows, each a list of cells
-    val attempts: Int
+    val attempts: Int,
+    // Auto-detected structured records on the page (product cards, articles, listings...).
+    // Empty when the page doesn't look like a listing - callers should fall back to text/links/tables.
+    val items: List<ScrapedItem> = emptyList()
 )
 
 /**
@@ -49,7 +52,8 @@ object Scraper {
             text = doc.body()?.text().orEmpty(),
             links = links,
             tables = tables,
-            attempts = result.attempts
+            attempts = result.attempts,
+            items = ItemExtractor.extract(doc, url)
         )
     }
 }

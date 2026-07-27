@@ -29,6 +29,30 @@ object OcrHelper {
             }
             .addOnFailureListener { e -> cont.resumeWithException(e) }
     }
+
+    /**
+     * Runs [recognize] over several images in sequence (each treated as one "page"),
+     * reporting real progress after every page completes - not a simulated/fake
+     * percentage. A page that fails to recognize is skipped (empty result) rather
+     * than aborting the whole batch, so one bad photo doesn't lose everything else.
+     */
+    suspend fun recognizeBatch(
+        bitmaps: List<Bitmap>,
+        onProgress: suspend (done: Int, total: Int) -> Unit = { _, _ -> }
+    ): List<OcrResult> {
+        val results = mutableListOf<OcrResult>()
+        val total = bitmaps.size
+        for ((index, bitmap) in bitmaps.withIndex()) {
+            val result = try {
+                recognize(bitmap)
+            } catch (e: Exception) {
+                OcrResult(text = "", blockCount = 0)
+            }
+            results.add(result)
+            onProgress(index + 1, total)
+        }
+        return results
+    }
 }
 
 data class OcrResult(val text: String, val blockCount: Int)

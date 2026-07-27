@@ -1,8 +1,9 @@
 package com.prateek.datatoolkit.features.email
 
+import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
@@ -10,12 +11,16 @@ import com.prateek.datatoolkit.core.quality.QualityScorer
 import com.prateek.datatoolkit.databinding.ActivityEmailExtractionBinding
 import com.prateek.datatoolkit.features.scraping.Scraper
 import kotlinx.coroutines.launch
-import java.io.File
 
 class EmailExtractionActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityEmailExtractionBinding
     private lateinit var cache: CacheManager
+
+    // Browse-to-save: user picks the destination folder/file via the system UI.
+    private val saveCsvAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let { writeEmailsTo(it) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,10 +85,18 @@ class EmailExtractionActivity : AppCompatActivity() {
             Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
             return
         }
-        val emails = emailsText.lines().filter { it.isNotBlank() }
-        val dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: filesDir
-        val file = File(dir, "emails_${System.currentTimeMillis()}.csv")
-        file.writeText(EmailExtractor.toCsv(emails))
-        Toast.makeText(this, "Saved to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+        saveCsvAs.launch("emails_${System.currentTimeMillis()}.csv")
+    }
+
+    private fun writeEmailsTo(uri: Uri) {
+        try {
+            val emails = binding.etEmails.text.toString().lines().filter { it.isNotBlank() }
+            contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(EmailExtractor.toCsv(emails).toByteArray())
+            } ?: throw IllegalStateException("Could not open destination for writing")
+            Toast.makeText(this, "Saved", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 }

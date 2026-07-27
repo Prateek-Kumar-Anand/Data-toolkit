@@ -1,11 +1,37 @@
 <resources>
-    <color name="primary">#1E3A8A</color>
-    <color name="primary_dark">#152A63</color>
+    <!-- Core brand palette — indigo → violet, matching the app's TD mark -->
+    <color name="primary">#4F46E5</color>
+    <color name="primary_dark">#3730A3</color>
+    <color name="primary_light">#818CF8</color>
+    <color name="secondary">#7C3AED</color>
     <color name="accent">#F59E0B</color>
-    <color name="background">#F5F7FA</color>
+    <color name="accent_dark">#D97706</color>
+
+    <!-- Gradient stops used by header/background drawables -->
+    <color name="gradient_start">#4F46E5</color>
+    <color name="gradient_mid">#6D5CE8</color>
+    <color name="gradient_end">#7C3AED</color>
+
+    <!-- Surfaces & backdrop -->
+    <color name="background">#F3F1FB</color>
+    <color name="background_alt">#EEF0FA</color>
     <color name="surface">#FFFFFF</color>
-    <color name="text_primary">#1A1A1A</color>
-    <color name="text_secondary">#6B7280</color>
-    <color name="success">#16A34A</color>
-    <color name="error">#DC2626</color>
+    <color name="surface_muted">#F7F7FC</color>
+    <color name="stroke">#E7E4F7</color>
+    <color name="stroke_soft">#12000000</color>
+
+    <!-- Text -->
+    <color name="text_primary">#161327</color>
+    <color name="text_secondary">#68647E</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    <color name="text_on_primary_muted">#DCD9FB</color>
+
+    <!-- Status -->
+    <color name="success">#10B981</color>
+    <color name="error">#EF4444</color>
+
+    <!-- Misc -->
+    <color name="white">#FFFFFF</color>
+    <color name="ripple_on_primary">#33FFFFFF</color>
+    <color name="icon_chip_bg">#EDE9FE</color>
 </resources>

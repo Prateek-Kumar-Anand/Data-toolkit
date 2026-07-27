@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Soft, barely-there lavender wash for the whole app backdrop, so screens
+     feel like they have depth instead of flat gray. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="90"
+                android:startColor="#EEF0FA"
+                android:centerColor="#F3F1FB"
+                android:endColor="#F7F5FC" />
+        </shape>
+    </item>
+</layer-list>

@@ -6,6 +6,7 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.tom_roush.pdfbox.multipdf.PDFMergerUtility
@@ -89,6 +90,71 @@ object PdfHelper {
             FileOutputStream(output).use { doc.save(it) }
         }
     }
+
+    /**
+     * Renders plain text (e.g. OCR output) into a simple, paginated PDF - word-wrapped
+     * at [fontSize] with standard margins, breaking to a new page as needed. Used for
+     * the OCR module's "export as PDF" option, where no original page layout exists.
+     */
+    fun textToPdf(text: String, output: File, fontSize: Float = 11f) {
+        val font = PDType1Font.HELVETICA
+        val margin = 50f
+        val pageSize = PDRectangle.A4
+        val maxWidth = pageSize.width - 2 * margin
+        val leading = fontSize * 1.4f
+        val linesPerPage = ((pageSize.height - 2 * margin) / leading).toInt().coerceAtLeast(1)
+
+        val sanitized = sanitizeForWinAnsi(text)
+        val wrapped = mutableListOf<String>()
+        sanitized.split("\n").forEach { paragraph ->
+            if (paragraph.isBlank()) wrapped.add("") else wrapped.addAll(wrapLine(paragraph, font, fontSize, maxWidth))
+        }
+        if (wrapped.isEmpty()) wrapped.add("")
+
+        PDDocument().use { doc ->
+            var index = 0
+            while (index < wrapped.size) {
+                val page = PDPage(pageSize)
+                doc.addPage(page)
+                PDPageContentStream(doc, page).use { cs ->
+                    cs.setFont(font, fontSize)
+                    cs.beginText()
+                    cs.newLineAtOffset(margin, pageSize.height - margin)
+                    var linesOnPage = 0
+                    while (index < wrapped.size && linesOnPage < linesPerPage) {
+                        if (linesOnPage > 0) cs.newLineAtOffset(0f, -leading)
+                        cs.showText(wrapped[index].ifEmpty { " " })
+                        index++
+                        linesOnPage++
+                    }
+                    cs.endText()
+                }
+            }
+            doc.save(output)
+        }
+    }
+
+    private fun wrapLine(line: String, font: PDType1Font, fontSize: Float, maxWidth: Float): List<String> {
+        val words = line.split(" ")
+        val result = mutableListOf<String>()
+        var current = StringBuilder()
+        for (word in words) {
+            val candidate = if (current.isEmpty()) word else "$current $word"
+            val width = font.getStringWidth(candidate) / 1000f * fontSize
+            if (width > maxWidth && current.isNotEmpty()) {
+                result.add(current.toString())
+                current = StringBuilder(word)
+            } else {
+                current = StringBuilder(candidate)
+            }
+        }
+        if (current.isNotEmpty()) result.add(current.toString())
+        return result
+    }
+
+    /** PDType1Font.HELVETICA only supports WinAnsi - swap anything outside it for '?' rather than crash. */
+    private fun sanitizeForWinAnsi(text: String): String =
+        text.map { c -> if (c.code in 32..126 || c.code in 160..255 || c == '\n') c else '?' }.joinToString("")
 
     /** Rotates every page by [degrees] (90/180/270), saving to [output]. */
     fun rotateAll(input: File, degrees: Int, output: File) {

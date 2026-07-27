@@ -2,63 +2,131 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:clipToPadding="false">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
 
-        <EditText
-            android:id="@+id/etUrl"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="https://example.com"
-            android:inputType="textUri" />
+            android:background="@drawable/bg_header_flat"
+            android:paddingStart="20dp" android:paddingEnd="20dp"
+            android:paddingTop="26dp" android:paddingBottom="22dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="🌐  Web Scraping" android:textColor="@color/text_on_primary" android:textSize="22sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                    android:text="Auto-detects fields and exports straight to Excel" android:textColor="@color/text_on_primary_muted" android:textSize="13sp" />
+            </LinearLayout>
+        </FrameLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnScrape"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Scrape Page" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" android:textColor="@color/text_secondary" />
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <EditText
+                        android:id="@+id/etUrl"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minLines="1"
+                        android:maxLines="5"
+                        android:background="@drawable/bg_input_field_focused"
+                        android:hint="https://example.com&#10;One URL per line to scrape several pages"
+                        android:textColorHint="@color/text_secondary"
+                        android:inputType="textUri|textMultiLine" />
 
-        <TextView android:id="@+id/tvTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:textStyle="bold" android:textColor="@color/text_primary" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnScrape"
+                        style="@style/Widget.App.Button.Primary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="🌐  Scrape Page(s)" />
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" android:text="Extracted text:" android:textStyle="bold" />
-        <EditText
-            android:id="@+id/etText"
-            android:layout_width="match_parent"
-            android:layout_height="160dp"
-            android:background="@color/surface"
-            android:gravity="top|start"
-            android:inputType="textMultiLine"
-            android:padding="10dp" />
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:progressTint="@color/primary"
+                        android:max="100" />
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" android:text="Links + tables found:" android:textStyle="bold" />
-        <TextView
-            android:id="@+id/tvLinks"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="80dp"
-            android:background="@color/surface"
-            android:fontFamily="monospace"
-            android:padding="10dp"
-            android:textSize="12sp" />
+                    <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSave"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Save results as .txt" />
+                    <TextView android:id="@+id/tvTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp" android:textStyle="bold" android:textColor="@color/text_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Extracted text" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <EditText
+                        android:id="@+id/etText"
+                        android:layout_width="match_parent"
+                        android:layout_height="150dp"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_input_field_focused"
+                        android:gravity="top|start"
+                        android:textSize="13sp"
+                        android:inputType="textMultiLine" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp" android:text="Links + tables found" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <TextView
+                        android:id="@+id/tvLinks"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:minHeight="80dp"
+                        android:background="@drawable/bg_input_field"
+                        android:fontFamily="monospace"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Auto-detected items" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <TextView
+                        android:id="@+id/tvItemsPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:minHeight="60dp"
+                        android:background="@drawable/bg_input_field"
+                        android:fontFamily="monospace"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveXlsx"
+                style="@style/Widget.App.Button.Primary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:enabled="false"
+                android:text="📊  Save As… (.xlsx)" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSave"
+                style="@style/Widget.App.Button.Outlined"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="💾  Save As… (.txt)" />
+
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

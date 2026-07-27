@@ -1,95 +1,263 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:fillViewport="true"
+    android:clipToPadding="false"
+    android:paddingBottom="24dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Data Toolkit"
-            android:textColor="@color/text_primary"
-            android:textSize="26sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:text="OCR, PDF, Excel/CSV, scraping and more — all on-device."
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDashboard"
-            style="@style/Widget.MaterialComponents.Button"
+        <!-- Hero header -->
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            android:backgroundTint="@color/accent"
-            android:text="📊  Analytics Dashboard" />
+            android:background="@drawable/bg_header_flat"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="28dp"
+            android:paddingBottom="28dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCleaning"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <FrameLayout
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:background="@drawable/bg_icon_chip_on_primary">
+                        <ImageView
+                            android:layout_width="30dp"
+                            android:layout_height="30dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_brand_mark_white"
+                            android:contentDescription="@string/app_name" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="14dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Data Toolkit"
+                            android:textColor="@color/text_on_primary"
+                            android:textSize="24sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="OCR, PDF, Excel/CSV, scraping and more — all on-device."
+                            android:textColor="@color/text_on_primary_muted"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDashboard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    style="@style/Widget.App.Button.Accent"
+                    android:text="📊  Open Analytics Dashboard" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Feature list -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="🧹  Data Cleaning &amp; Processing" />
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="18dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnOcr"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="🔍  OCR — Scanned Documents → Text" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TOOLS"
+                android:textAppearance="@style/TextAppearance.App.Eyebrow"
+                android:layout_marginBottom="8dp"
+                android:layout_marginStart="4dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnPdf"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="📄  PDF Operations" />
+            <!-- Data Cleaning -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnCleaning"
+                style="@style/Widget.App.Card.Feature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_icon_chip">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🧹" android:textSize="20sp" />
+                    </FrameLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Data Cleaning &amp; Processing" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Upload CSV/Excel/JSON/TXT, clean, export" android:textAppearance="@style/TextAppearance.App.Body" android:layout_marginTop="1dp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="22sp" android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnExcel"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="📊  Excel / CSV" />
+            <!-- OCR -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnOcr"
+                style="@style/Widget.App.Card.Feature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_icon_chip">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🔍" android:textSize="20sp" />
+                    </FrameLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OCR — Scanned Documents" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Multi-page, with progress and 4 export formats" android:textAppearance="@style/TextAppearance.App.Body" android:layout_marginTop="1dp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="22sp" android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnScraping"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="🌐  Web Scraping" />
+            <!-- PDF -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnPdf"
+                style="@style/Widget.App.Card.Feature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_icon_chip">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📄" android:textSize="20sp" />
+                    </FrameLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PDF Operations" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Merge, split, extract text, build" android:textAppearance="@style/TextAppearance.App.Body" android:layout_marginTop="1dp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="22sp" android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnEmail"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="✉️  Email Extraction" />
+            <!-- Excel/CSV -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnExcel"
+                style="@style/Widget.App.Card.Feature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_icon_chip">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📊" android:textSize="20sp" />
+                    </FrameLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Excel / CSV" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Open, preview, convert either way" android:textAppearance="@style/TextAppearance.App.Body" android:layout_marginTop="1dp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="22sp" android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnBatch"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="⚡  Batch Processing" />
+            <!-- Web Scraping -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnScraping"
+                style="@style/Widget.App.Card.Feature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_icon_chip">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🌐" android:textSize="20sp" />
+                    </FrameLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Web Scraping" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto-detected fields, exported to Excel" android:textAppearance="@style/TextAppearance.App.Body" android:layout_marginTop="1dp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="22sp" android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
+            <!-- Email Extraction -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnEmail"
+                style="@style/Widget.App.Card.Feature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_icon_chip">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="✉️" android:textSize="20sp" />
+                    </FrameLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Email Extraction" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pull &amp; validate emails from text or a page" android:textAppearance="@style/TextAppearance.App.Body" android:layout_marginTop="1dp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="22sp" android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Batch Processing -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnBatch"
+                style="@style/Widget.App.Card.Feature"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+                    <FrameLayout android:layout_width="46dp" android:layout_height="46dp" android:background="@drawable/bg_icon_chip">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="⚡" android:textSize="20sp" />
+                    </FrameLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Batch Processing" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Queue OCR or PDF jobs in the background" android:textAppearance="@style/TextAppearance.App.Body" android:layout_marginTop="1dp" />
+                    </LinearLayout>
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="›" android:textSize="22sp" android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

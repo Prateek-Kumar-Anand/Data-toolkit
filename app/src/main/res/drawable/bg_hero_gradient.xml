@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="@color/gradient_start"
+                android:centerColor="@color/gradient_mid"
+                android:endColor="@color/gradient_end" />
+        </shape>
+    </item>
+    <!-- soft highlight blob, top-right, for a subtle glow / sheen -->
+    <item android:gravity="top|end" android:width="180dp" android:height="180dp" android:top="-70dp" android:end="-50dp">
+        <shape android:shape="oval">
+            <solid android:color="#14FFFFFF" />
+        </shape>
+    </item>
+    <item android:gravity="bottom|start" android:width="140dp" android:height="140dp" android:bottom="-60dp" android:start="-40dp">
+        <shape android:shape="oval">
+            <solid android:color="#0FFFFFFF" />
+        </shape>
+    </item>
+</layer-list>

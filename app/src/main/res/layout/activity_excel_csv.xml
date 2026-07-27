@@ -2,51 +2,80 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:clipToPadding="false">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
 
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnPickXlsx"
-                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginEnd="6dp" android:text="Open .xlsx" />
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnPickCsv"
-                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginStart="6dp" android:text="Open .csv" />
-        </LinearLayout>
-
-        <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" android:textColor="@color/text_secondary" />
-
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:layout_marginTop="10dp" android:text="Preview (first rows):" android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvPreview"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="160dp"
-            android:background="@color/surface"
-            android:fontFamily="monospace"
-            android:padding="10dp"
-            android:textSize="12sp" />
+            android:background="@drawable/bg_header_flat"
+            android:paddingStart="20dp" android:paddingEnd="20dp"
+            android:paddingTop="26dp" android:paddingBottom="22dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="📊  Excel / CSV" android:textColor="@color/text_on_primary" android:textSize="22sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                    android:text="Open, preview and convert either way" android:textColor="@color/text_on_primary_muted" android:textSize="13sp" />
+            </LinearLayout>
+        </FrameLayout>
 
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="12dp">
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnExportCsv"
-                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginEnd="6dp" android:text="Export as .csv" />
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnExportXlsx"
-                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginStart="6dp" android:text="Export as .xlsx" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPickXlsx"
+                            style="@style/Widget.App.Button.Compact"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:layout_marginEnd="6dp" android:text="Open .xlsx" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnPickCsv"
+                            style="@style/Widget.App.Button.Compact.Outlined"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:layout_marginStart="6dp" android:text="Open .csv" />
+                    </LinearLayout>
+
+                    <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp" android:text="Preview (first rows)" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+
+                    <TextView
+                        android:id="@+id/tvPreview"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:minHeight="150dp"
+                        android:background="@drawable/bg_input_field"
+                        android:fontFamily="monospace"
+                        android:textSize="12sp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="14dp">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnExportCsv"
+                            style="@style/Widget.App.Button.Compact"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:layout_marginEnd="6dp" android:text="💾 Save As .csv" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnExportXlsx"
+                            style="@style/Widget.App.Button.Compact.Outlined"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:layout_marginStart="6dp" android:text="💾 Save As .xlsx" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
-
     </LinearLayout>
 </ScrollView>

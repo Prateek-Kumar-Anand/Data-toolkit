@@ -2,7 +2,6 @@ package com.prateek.datatoolkit.features.excel
 
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -22,11 +21,24 @@ class ExcelCsvActivity : AppCompatActivity() {
     private lateinit var cache: CacheManager
     private var currentRows: List<List<String>> = emptyList()
 
+    // Whichever export just finished writing to a temp file, waiting for the
+    // user to pick its final home via the system "Save As" picker.
+    private var pendingExportFile: File? = null
+
     private val pickXlsx = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { loadXlsx(it) }
     }
     private val pickCsv = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { loadCsv(it) }
+    }
+
+    private val saveCsvAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let { copyPendingExportTo(it) }
+    }
+    private val saveXlsxAs = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    ) { uri ->
+        uri?.let { copyPendingExportTo(it) }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,8 +54,6 @@ class ExcelCsvActivity : AppCompatActivity() {
         binding.btnExportCsv.setOnClickListener { export(asXlsx = false) }
         binding.btnExportXlsx.setOnClickListener { export(asXlsx = true) }
     }
-
-    private fun outputDir(): File = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: filesDir
 
     private fun loadXlsx(uri: Uri) {
         binding.tvStatus.text = "Reading spreadsheet..."
@@ -108,18 +118,42 @@ class ExcelCsvActivity : AppCompatActivity() {
         }
         lifecycleScope.launch {
             try {
-                val outFile = if (asXlsx)
-                    File(outputDir(), "export_${System.currentTimeMillis()}.xlsx")
+                val tempFile = if (asXlsx)
+                    File(cacheDir, "export_${System.currentTimeMillis()}.xlsx")
                 else
-                    File(outputDir(), "export_${System.currentTimeMillis()}.csv")
+                    File(cacheDir, "export_${System.currentTimeMillis()}.csv")
 
                 withContext(Dispatchers.IO) {
-                    if (asXlsx) ExcelCsvHelper.writeXlsx(currentRows, outFile)
-                    else ExcelCsvHelper.writeCsv(currentRows, outFile)
+                    if (asXlsx) ExcelCsvHelper.writeXlsx(currentRows, tempFile)
+                    else ExcelCsvHelper.writeCsv(currentRows, tempFile)
                 }
-                Toast.makeText(this@ExcelCsvActivity, "Saved to ${outFile.absolutePath}", Toast.LENGTH_LONG).show()
+                pendingExportFile = tempFile
+                // Browse-to-save: let the user pick exactly where this file ends up.
+                if (asXlsx) saveXlsxAs.launch(tempFile.name) else saveCsvAs.launch(tempFile.name)
             } catch (e: Exception) {
                 Toast.makeText(this@ExcelCsvActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun copyPendingExportTo(uri: Uri) {
+        val tempFile = pendingExportFile
+        if (tempFile == null || !tempFile.exists()) {
+            Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    contentResolver.openOutputStream(uri)?.use { out ->
+                        tempFile.inputStream().use { input -> input.copyTo(out) }
+                    } ?: throw IllegalStateException("Could not open destination for writing")
+                }
+                Toast.makeText(this@ExcelCsvActivity, "Saved", Toast.LENGTH_LONG).show()
+                tempFile.delete()
+                pendingExportFile = null
+            } catch (e: Exception) {
+                Toast.makeText(this@ExcelCsvActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
