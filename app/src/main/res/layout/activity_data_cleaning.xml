@@ -90,6 +90,33 @@
                             android:text="Remove unwanted characters" android:checked="false" android:buttonTint="@color/primary" />
                     </LinearLayout>
 
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                        android:text="Case standardization (global)" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <Spinner android:id="@+id/spinnerCaseMode" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+                    <EditText
+                        android:id="@+id/etFillMissing"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:background="@drawable/bg_input_field"
+                        android:hint="Fill blank cells with (optional, e.g. N/A)" android:textSize="13sp"
+                        android:inputType="text" />
+
+                    <CheckBox android:id="@+id/cbFuzzyDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:text="Fuzzy match when de-duplicating (ignore case/spacing)"
+                        android:buttonTint="@color/primary" />
+
+                    <EditText
+                        android:id="@+id/etDedupeKeys"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:background="@drawable/bg_input_field"
+                        android:hint="Dedupe by columns (comma-separated, blank = whole row)" android:textSize="13sp"
+                        android:inputType="text" />
+
+                    <CheckBox android:id="@+id/cbFlagInvalid" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:checked="true"
+                        android:text="Flag invalid values (auto-detect email/phone/number/date)"
+                        android:buttonTint="@color/primary" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnClean"
                         style="@style/Widget.App.Button.Primary"
@@ -97,6 +124,63 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="14dp"
                         android:text="✨ Clean Data" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Per-column rules (optional)"
+                        android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Override the global settings above for specific columns"
+                        android:textSize="11.5sp"
+                        android:textColor="@color/text_secondary" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDetectColumns"
+                        style="@style/Widget.App.Button.Compact.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="🔍 Detect Columns" />
+
+                    <LinearLayout
+                        android:id="@+id/columnRulesContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Find &amp; replace rules (optional)"
+                        android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+
+                    <LinearLayout
+                        android:id="@+id/replaceRulesContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="4dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAddReplaceRule"
+                        style="@style/Widget.App.Button.Compact.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="+ Add Rule" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

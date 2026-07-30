@@ -196,7 +196,13 @@ class WebScrapingActivity : AppCompatActivity() {
                 }
                 val file = withContext(Dispatchers.IO) {
                     val f = File(cacheDir, "scrape_${System.currentTimeMillis()}.xlsx")
-                    ExcelCsvHelper.writeXlsx(rows, f, sheetName = "Scraped Data")
+                    if (items.isNotEmpty()) {
+                        ExcelCsvHelper.writeXlsxWithImages(
+                            rows, f, sheetName = "Scraped Data", imageColumn = ItemExtractor.IMAGE_COLUMN_INDEX
+                        )
+                    } else {
+                        ExcelCsvHelper.writeXlsx(rows, f, sheetName = "Scraped Data")
+                    }
                     f
                 }
                 pendingXlsxFile = file

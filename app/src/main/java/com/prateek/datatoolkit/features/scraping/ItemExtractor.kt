@@ -40,6 +40,9 @@ object ItemExtractor {
 
     private const val MIN_REPEATED_ELEMENTS = 3
 
+    /** Zero-based column index of "Image" in [toRows]'s header - used by the xlsx image-embedding export. */
+    const val IMAGE_COLUMN_INDEX = 5
+
     fun extract(doc: Document, baseUri: String): List<ScrapedItem> {
         val microdata = extractMicrodata(doc)
         if (microdata.isNotEmpty()) return microdata
@@ -87,22 +90,36 @@ object ItemExtractor {
     // --- Strategy 2: repeated same-tag/same-class siblings ------------------------------------
 
     private fun extractRepeatedCards(doc: Document): List<ScrapedItem> {
-        val candidates = doc.select("article, li, div, section")
-            .toList() // jsoup's Elements also declares a member filter(NodeFilter) overload, which Kotlin
-            // would otherwise prefer over the stdlib Iterable.filter extension below and try (and fail)
-            // to SAM-convert this one-arg lambda into a two-arg NodeFilter.
-            .filter { it.className().isNotBlank() }
-            .groupBy { "${it.tagName()}.${it.className()}" }
-            .filter { (_, group) -> group.size >= MIN_REPEATED_ELEMENTS }
+        val candidates = doc.select("article, li, div, section").toList()
+        // jsoup's Elements also declares a member filter(NodeFilter) overload, which Kotlin
+        // would otherwise prefer over the stdlib Iterable.filter extension and try (and fail)
+        // to SAM-convert a one-arg lambda into a two-arg NodeFilter - hence the .toList() above
+        // before any .filter{} call in this function.
 
-        if (candidates.isEmpty()) return emptyList()
+        // Group by (parent, tag, one individual class token) rather than the whole raw class
+        // attribute string. Real card grids very often give each card an extra one-off modifier
+        // class ("product-card featured" vs "product-card sale" vs plain "product-card"), so
+        // matching the full concatenated className() string required every card's classes to be
+        // byte-for-byte identical - which almost never happens on real sites - and silently fell
+        // back to a single whole-page item, losing every per-card name/description in the process.
+        val groups = LinkedHashMap<Triple<Element?, String, String>, MutableList<Element>>()
+        for (el in candidates) {
+            val parent = el.parent()
+            for (token in el.classNames()) {
+                if (token.isBlank()) continue
+                groups.getOrPut(Triple(parent, el.tagName(), token)) { mutableListOf() }.add(el)
+            }
+        }
+
+        val sizeable = groups.values.filter { it.size >= MIN_REPEATED_ELEMENTS }
+        if (sizeable.isEmpty()) return emptyList()
 
         // Prefer the group whose members actually look like content cards (a link + some text),
         // not just the single largest group (which is often layout wrapper divs).
-        val best = candidates.values
+        val best = sizeable
             .filter { group -> group.count { hasLinkOrHeading(it) } >= (group.size / 2).coerceAtLeast(1) }
             .maxByOrNull { it.size }
-            ?: candidates.values.maxByOrNull { it.size }
+            ?: sizeable.maxByOrNull { it.size }
             ?: return emptyList()
 
         val items = best.map { el -> extractFromCard(el) }.filter { it.isMeaningful() }
@@ -113,10 +130,12 @@ object ItemExtractor {
         el.select("a[href]").isNotEmpty() || el.select("h1, h2, h3, h4").isNotEmpty()
 
     private fun extractFromCard(el: Element): ScrapedItem {
-        val name = el.select("h1, h2, h3, h4, [class*=title], [class*=name]").firstOrNull()?.text()
-            ?: el.select("a[href]").firstOrNull()?.text()
+        val name = el.select("h1, h2, h3, h4, h5, [class*=title], [class*=name], [class*=heading]").firstOrNull()?.text()
+            ?: el.select("a[href]").firstOrNull()?.let { it.text().ifBlank { it.attr("title") } }
+            ?: el.select("img[alt]").firstOrNull()?.attr("alt")
 
-        val description = el.select("p, [class*=desc], [class*=summary]").firstOrNull()?.text()
+        val description = el.select("p, [class*=desc], [class*=summary], [class*=subtitle], [class*=excerpt]")
+            .firstOrNull()?.text()
 
         val price = el.select("[class*=price], [itemprop=price]").firstOrNull()?.text()
             ?: PRICE_REGEX.find(el.text())?.value

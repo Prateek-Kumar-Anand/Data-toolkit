@@ -117,8 +117,10 @@ dependencies {
     implementation 'org.jsoup:jsoup:1.17.2'
 
     // Excel (xlsx) read/write - pure Java, no AWT, works on Android
-    implementation 'org.dhatim:fastexcel:0.17.0'
-    implementation 'org.dhatim:fastexcel-reader:0.17.0'
+    // 0.20.2: bumped from 0.17.0 to get real image-embedding support (Worksheet.addImage),
+    // used by ExcelCsvHelper.writeXlsxWithImages() for the scraper's thumbnail export.
+    implementation 'org.dhatim:fastexcel:0.20.2'
+    implementation 'org.dhatim:fastexcel-reader:0.20.2'
 
     // Charts for the analytics dashboard
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'

@@ -1,10 +1,18 @@
 package com.prateek.datatoolkit.features.excel
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.dhatim.fastexcel.Workbook
 import org.dhatim.fastexcel.reader.ReadableWorkbook
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Excel/CSV: reads and writes both formats into a common `List<List<String>>`
@@ -46,6 +54,61 @@ object ExcelCsvHelper {
             // twice, which throws a duplicate-entry error and corrupts the .xlsx on export.
             wb.finish()
         }
+    }
+
+    /**
+     * Like [writeXlsx], but for tables that have a column of raw image URLs (e.g. the scraper's
+     * "Image" column - see ItemExtractor.IMAGE_COLUMN_INDEX): each URL is downloaded (up to 6 at
+     * once, so a page with dozens of items doesn't wait on dozens of sequential network round
+     * trips) and embedded as an actual thumbnail picture in that cell, instead of the URL just
+     * sitting there as text. The URL itself is still written as the cell's value too (so CSV
+     * round-trips and DataCleaner/QualityScorer keep working unchanged) - the picture is simply
+     * drawn on top. A broken/unreachable image link never fails the whole export: it silently
+     * falls back to plain URL text for that one row.
+     */
+    suspend fun writeXlsxWithImages(rows: List<List<String>>, output: File, sheetName: String = "Sheet1", imageColumn: Int) {
+        val imagesByRow = withContext(Dispatchers.IO) {
+            val semaphore = Semaphore(6)
+            rows.indices.drop(1) // row 0 is the header - never has an image to fetch
+                .mapNotNull { r -> rows[r].getOrNull(imageColumn)?.takeIf { it.isNotBlank() }?.let { r to it } }
+                .map { (r, url) -> async { semaphore.withPermit { downloadImageBytes(url) }?.let { r to it } } }
+                .awaitAll()
+                .filterNotNull()
+                .toMap()
+        }
+
+        FileOutputStream(output).use { out ->
+            val wb = Workbook(out, "DataToolkit", "1.0")
+            val ws = wb.newWorksheet(sheetName)
+            ws.width(imageColumn, 16.0)
+            for (r in rows.indices) {
+                val row = rows[r]
+                if (r > 0) ws.rowHeight(r, 60.0) // room for a thumbnail below the header row
+                for (c in row.indices) {
+                    ws.value(r, c, row[c])
+                }
+                imagesByRow[r]?.let { bytes ->
+                    try {
+                        ws.addImage(r, imageColumn, bytes, 90, 70)
+                    } catch (_: Exception) {
+                        // Unsupported/corrupt image bytes - the URL text written above stays as-is.
+                    }
+                }
+            }
+            wb.finish()
+        }
+    }
+
+    private fun downloadImageBytes(url: String): ByteArray? = try {
+        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 8000
+            readTimeout = 8000
+            instanceFollowRedirects = true
+            setRequestProperty("User-Agent", "Mozilla/5.0 (DataToolkit Android App)")
+        }
+        if (connection.responseCode in 200..299) connection.inputStream.use { it.readBytes() } else null
+    } catch (_: Exception) {
+        null
     }
 
     fun readCsv(file: File): List<List<String>> =
