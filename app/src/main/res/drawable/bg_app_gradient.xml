@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Soft, barely-there lavender wash for the whole app backdrop, so screens
-     feel like they have depth instead of flat gray. -->
+     feel like they have depth instead of flat gray. Stops reference @color so this
+     automatically switches to the dark palette in values-night/colors.xml. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
             <gradient
                 android:type="linear"
                 android:angle="90"
-                android:startColor="#EEF0FA"
-                android:centerColor="#F3F1FB"
-                android:endColor="#F7F5FC" />
+                android:startColor="@color/background_alt"
+                android:centerColor="@color/background"
+                android:endColor="@color/background_soft" />
         </shape>
     </item>
 </layer-list>

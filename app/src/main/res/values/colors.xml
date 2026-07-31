@@ -15,6 +15,7 @@
     <!-- Surfaces & backdrop -->
     <color name="background">#F3F1FB</color>
     <color name="background_alt">#EEF0FA</color>
+    <color name="background_soft">#F7F5FC</color>
     <color name="surface">#FFFFFF</color>
     <color name="surface_muted">#F7F7FC</color>
     <color name="stroke">#E7E4F7</color>
@@ -34,4 +35,31 @@
     <color name="white">#FFFFFF</color>
     <color name="ripple_on_primary">#33FFFFFF</color>
     <color name="icon_chip_bg">#EDE9FE</color>
+
+    <!-- Workflow screen's distinct gradient (fuchsia -> violet, resolves back into brand violet) -->
+    <color name="workflow_gradient_start">#C026D3</color>
+    <color name="workflow_gradient_mid">#9333EA</color>
+    <color name="workflow_gradient_end">#6D28D9</color>
+    <color name="accent_workflow">#C026D3</color>
+
+    <!-- Per-feature accent colors, used as icon-chip tints on the home screen's tool grid -->
+    <color name="accent_cleaning">#7C3AED</color>
+    <color name="accent_ocr">#2563EB</color>
+    <color name="accent_pdf">#E11D48</color>
+    <color name="accent_excel">#059669</color>
+    <color name="accent_scraping">#0891B2</color>
+    <color name="accent_email">#DB2777</color>
+    <color name="accent_batch">#D97706</color>
+    <color name="accent_dashboard">#4F46E5</color>
+
+    <!-- Soft chip-background tint to match each accent above -->
+    <color name="accent_cleaning_bg">#EDE9FE</color>
+    <color name="accent_ocr_bg">#DBEAFE</color>
+    <color name="accent_pdf_bg">#FFE1E6</color>
+    <color name="accent_excel_bg">#D1FAE5</color>
+    <color name="accent_scraping_bg">#CFFAFE</color>
+    <color name="accent_email_bg">#FCE7F3</color>
+    <color name="accent_batch_bg">#FEF3C7</color>
+    <color name="accent_dashboard_bg">#E0E7FF</color>
+    <color name="accent_workflow_bg">#F5D0FE</color>
 </resources>

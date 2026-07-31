@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-mode overrides. Every style/theme in this app already reads colors through
+     @color/name references rather than hardcoded hex, so simply re-declaring the same
+     names here (with dark-appropriate values) is enough to make every screen dark-mode
+     aware with no other resource changes needed. Brand colors (primary/secondary/accent/
+     the header gradients) are intentionally left the same as light mode - the colorful
+     headers are meant to stay vivid regardless of system theme, the same way most polished
+     apps keep a brand-colored top bar unchanged in dark mode. -->
+<resources>
+
+    <!-- Surfaces & backdrop -->
+    <color name="background">#121022</color>
+    <color name="background_alt">#17142B</color>
+    <color name="background_soft">#19152E</color>
+    <color name="surface">#1C1830</color>
+    <color name="surface_muted">#221D3B</color>
+    <color name="stroke">#332C54</color>
+    <color name="stroke_soft">#1AFFFFFF</color>
+
+    <!-- Text -->
+    <color name="text_primary">#F1EFFA</color>
+    <color name="text_secondary">#A9A3C7</color>
+
+    <!-- The pale lavender chip wash reads too light on a dark card, so it gets a deeper tone. -->
+    <color name="icon_chip_bg">#2A2350</color>
+
+    <!-- Soft per-feature chip tints, darkened to keep contrast against dark tile backgrounds. -->
+    <color name="accent_cleaning_bg">#2E2555</color>
+    <color name="accent_ocr_bg">#1E3A5F</color>
+    <color name="accent_pdf_bg">#4A1620</color>
+    <color name="accent_excel_bg">#0F3D30</color>
+    <color name="accent_scraping_bg">#0E3B42</color>
+    <color name="accent_email_bg">#4A1638</color>
+    <color name="accent_batch_bg">#4A3410</color>
+    <color name="accent_dashboard_bg">#262157</color>
+    <color name="accent_workflow_bg">#3B1447</color>
+</resources>

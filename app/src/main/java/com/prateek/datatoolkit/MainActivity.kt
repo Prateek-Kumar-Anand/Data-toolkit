@@ -11,6 +11,7 @@ import com.prateek.datatoolkit.features.excel.ExcelCsvActivity
 import com.prateek.datatoolkit.features.ocr.OcrActivity
 import com.prateek.datatoolkit.features.pdf.PdfActivity
 import com.prateek.datatoolkit.features.scraping.WebScrapingActivity
+import com.prateek.datatoolkit.features.workflow.WorkflowActivity
 import com.prateek.datatoolkit.ui.DashboardActivity
 
 class MainActivity : AppCompatActivity() {
@@ -22,13 +23,21 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.btnDashboard.setOnClickListener { startActivity(Intent(this, DashboardActivity::class.java)) }
-        binding.btnCleaning.setOnClickListener { startActivity(Intent(this, DataCleaningActivity::class.java)) }
-        binding.btnOcr.setOnClickListener { startActivity(Intent(this, OcrActivity::class.java)) }
-        binding.btnPdf.setOnClickListener { startActivity(Intent(this, PdfActivity::class.java)) }
-        binding.btnExcel.setOnClickListener { startActivity(Intent(this, ExcelCsvActivity::class.java)) }
-        binding.btnScraping.setOnClickListener { startActivity(Intent(this, WebScrapingActivity::class.java)) }
-        binding.btnEmail.setOnClickListener { startActivity(Intent(this, EmailExtractionActivity::class.java)) }
-        binding.btnBatch.setOnClickListener { startActivity(Intent(this, BatchProcessingActivity::class.java)) }
+        binding.btnWorkflow.setOnClickListener { open(WorkflowActivity::class.java) }
+        binding.btnCleaning.setOnClickListener { open(DataCleaningActivity::class.java) }
+        binding.btnOcr.setOnClickListener { open(OcrActivity::class.java) }
+        binding.btnPdf.setOnClickListener { open(PdfActivity::class.java) }
+        binding.btnExcel.setOnClickListener { open(ExcelCsvActivity::class.java) }
+        binding.btnScraping.setOnClickListener { open(WebScrapingActivity::class.java) }
+        binding.btnEmail.setOnClickListener { open(EmailExtractionActivity::class.java) }
+        binding.btnBatch.setOnClickListener { open(BatchProcessingActivity::class.java) }
+        binding.btnDashboard.setOnClickListener { open(DashboardActivity::class.java) }
+    }
+
+    /** Starts [cls] with a subtle slide+fade instead of the platform's default abrupt cut. */
+    private fun open(cls: Class<*>) {
+        startActivity(Intent(this, cls))
+        @Suppress("DEPRECATION")
+        overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
     }
 }

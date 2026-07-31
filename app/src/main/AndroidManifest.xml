@@ -28,6 +28,7 @@
         </activity>
 
         <activity android:name=".ui.DashboardActivity" android:exported="false" android:label="Analytics Dashboard" />
+        <activity android:name=".features.workflow.WorkflowActivity" android:exported="false" android:label="Workflow Builder" />
         <activity android:name=".features.datacleaning.DataCleaningActivity" android:exported="false" android:label="Data Cleaning" />
         <activity android:name=".features.ocr.OcrActivity" android:exported="false" android:label="OCR" />
         <activity android:name=".features.pdf.PdfActivity" android:exported="false" android:label="PDF Tools" />

@@ -5,9 +5,9 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.view.Gravity
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -188,6 +188,67 @@ class DataCleaningActivity : AppCompatActivity() {
         Toast.makeText(this, "${header.size} column(s) detected", Toast.LENGTH_SHORT).show()
     }
 
+    /** dp -> px, so the hand-built cards below use real dp values instead of raw pixels. */
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun colorOf(resId: Int) = ContextCompat.getColor(this, resId)
+
+    /** Small bold caption placed above a boxed spinner, e.g. "Case override" / "Type". */
+    private fun captionLabel(text: String): TextView = TextView(this).apply {
+        this.text = text
+        setTextColor(colorOf(R.color.text_secondary))
+        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+        textSize = 10.5f
+        letterSpacing = 0.02f
+    }
+
+    /** A boxed Spinner matching the app's input-field styling, instead of the bare system default. */
+    private fun boxedSpinner(options: List<String>): Spinner = Spinner(this).apply {
+        adapter = ArrayAdapter(this@DataCleaningActivity, android.R.layout.simple_spinner_dropdown_item, options)
+        background = ContextCompat.getDrawable(this@DataCleaningActivity, R.drawable.bg_input_field)
+        setPopupBackgroundResource(R.drawable.bg_input_field)
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            .apply { topMargin = dp(4) }
+    }
+
+    /** A thin 1dp divider line, matching the settings-row dividers used elsewhere on this screen. */
+    private fun divider(): View = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1))
+            .apply { topMargin = dp(10); bottomMargin = dp(10) }
+        setBackgroundColor(colorOf(R.color.stroke))
+    }
+
+    /** A "settings row": bold title + small caption on the left, a plain checkbox on the right. */
+    private fun toggleRow(title: String, caption: String): Pair<LinearLayout, CheckBox> {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        val textCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        textCol.addView(TextView(this).apply {
+            text = title
+            setTextColor(colorOf(R.color.text_primary))
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 13.5f
+        })
+        textCol.addView(TextView(this).apply {
+            text = caption
+            setTextColor(colorOf(R.color.text_secondary))
+            textSize = 11f
+        })
+        val check = CheckBox(this).apply {
+            text = ""
+            buttonTintList = ContextCompat.getColorStateList(this@DataCleaningActivity, R.color.primary)
+        }
+        row.addView(textCol)
+        row.addView(check)
+        return row to check
+    }
+
     /** Rebuilds the "Per-column rules" cards, one per header name, replacing whatever was there before. */
     private fun renderColumnRules(header: List<String>) {
         lastHeader = header
@@ -198,45 +259,65 @@ class DataCleaningActivity : AppCompatActivity() {
         val typeOptions = listOf("Auto-detect", "Text (no validation)", "Number", "Email", "Phone", "URL", "Date")
 
         for (col in header) {
-            val row = LinearLayout(this).apply {
+            val card = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(12, 12, 12, 12)
+                setPadding(dp(14), dp(14), dp(14), dp(14))
                 background = ContextCompat.getDrawable(this@DataCleaningActivity, R.drawable.bg_input_field)
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = 8 }
+                ).apply { topMargin = dp(10) }
             }
 
-            val title = TextView(this).apply {
+            // Column-name pill badge, so each card reads clearly at a glance.
+            card.addView(TextView(this).apply {
                 text = col
+                setTextColor(colorOf(R.color.primary))
                 setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-                textSize = 13f
-            }
-            val skipCheck = CheckBox(this).apply { text = "Skip this column (leave untouched)" }
+                textSize = 12.5f
+                background = ContextCompat.getDrawable(this@DataCleaningActivity, R.drawable.bg_pill_muted)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            })
 
-            val spinnerRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            val caseSpinner = Spinner(this).apply {
-                adapter = ArrayAdapter(this@DataCleaningActivity, android.R.layout.simple_spinner_dropdown_item, caseOptions)
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            val (skipRow, skipCheck) = toggleRow("Skip this column", "Leave it completely untouched by every cleaning step")
+            (skipRow.layoutParams as LinearLayout.LayoutParams).topMargin = dp(12)
+            card.addView(skipRow)
+            card.addView(divider())
+
+            val spinnerRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
-            val typeSpinner = Spinner(this).apply {
-                adapter = ArrayAdapter(this@DataCleaningActivity, android.R.layout.simple_spinner_dropdown_item, typeOptions)
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            val caseCol = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(6) }
             }
-            spinnerRow.addView(caseSpinner)
-            spinnerRow.addView(typeSpinner)
+            val caseSpinner = boxedSpinner(caseOptions)
+            caseCol.addView(captionLabel("Case override"))
+            caseCol.addView(caseSpinner)
+
+            val typeCol = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(6) }
+            }
+            val typeSpinner = boxedSpinner(typeOptions)
+            typeCol.addView(captionLabel("Type"))
+            typeCol.addView(typeSpinner)
+
+            spinnerRow.addView(caseCol)
+            spinnerRow.addView(typeCol)
+            card.addView(spinnerRow)
 
             val fillInput = EditText(this).apply {
                 hint = "Fill blanks in this column with (optional)"
+                setTextColor(colorOf(R.color.text_primary))
+                textSize = 13f
+                background = ContextCompat.getDrawable(this@DataCleaningActivity, R.drawable.bg_input_field)
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = dp(10) }
             }
+            card.addView(fillInput)
 
-            row.addView(title)
-            row.addView(skipCheck)
-            row.addView(spinnerRow)
-            row.addView(fillInput)
-            binding.columnRulesContainer.addView(row)
-
+            binding.columnRulesContainer.addView(card)
             columnRuleViews += ColumnRuleView(col, skipCheck, caseSpinner, typeSpinner, fillInput)
         }
     }
@@ -260,43 +341,101 @@ class DataCleaningActivity : AppCompatActivity() {
             )
         }
 
-    /** Adds one blank find/replace rule row, with a "remove" button that deletes just that row. */
+    /** Adds one blank find/replace rule row, with a "remove" link that deletes just that row. */
     private fun addReplaceRuleRow(columns: List<String>) {
-        val row = LinearLayout(this).apply {
+        val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(12, 12, 12, 12)
+            setPadding(dp(14), dp(14), dp(14), dp(14))
             background = ContextCompat.getDrawable(this@DataCleaningActivity, R.drawable.bg_input_field)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 8 }
+            ).apply { topMargin = dp(10) }
         }
 
-        val findInput = EditText(this).apply { hint = "Find text or regex pattern" }
-        val replaceInput = EditText(this).apply { hint = "Replace with" }
+        // Header: "Rule N" label with a small, unobtrusive remove link on the right,
+        // instead of a full-width button competing with the primary actions on screen.
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        headerRow.addView(TextView(this).apply {
+            text = "Rule ${replaceRuleViews.size + 1}"
+            setTextColor(colorOf(R.color.text_secondary))
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 11.5f
+            letterSpacing = 0.04f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        val removeBtn = TextView(this).apply {
+            text = "✕ Remove"
+            setTextColor(colorOf(R.color.error))
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 12f
+            setPadding(dp(6), dp(2), dp(6), dp(2))
+            isClickable = true
+            isFocusable = true
+            val outValue = android.util.TypedValue()
+            this@DataCleaningActivity.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+            setBackgroundResource(outValue.resourceId)
+        }
+        headerRow.addView(removeBtn)
+        card.addView(headerRow)
 
-        val checksRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val regexCheck = CheckBox(this).apply { text = "Regex" }
-        val ignoreCaseCheck = CheckBox(this).apply { text = "Ignore case" }
+        // Find / replace side-by-side, instead of stacked full-width fields.
+        val fieldsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(8) }
+        }
+        val findInput = EditText(this).apply {
+            hint = "Find text or regex"
+            setTextColor(colorOf(R.color.text_primary))
+            textSize = 13f
+            background = ContextCompat.getDrawable(this@DataCleaningActivity, R.drawable.bg_input_field)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(6) }
+        }
+        val replaceInput = EditText(this).apply {
+            hint = "Replace with"
+            setTextColor(colorOf(R.color.text_primary))
+            textSize = 13f
+            background = ContextCompat.getDrawable(this@DataCleaningActivity, R.drawable.bg_input_field)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(6) }
+        }
+        fieldsRow.addView(findInput)
+        fieldsRow.addView(replaceInput)
+        card.addView(fieldsRow)
+
+        val checksRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(2) }
+        }
+        val regexCheck = CheckBox(this).apply {
+            text = "Regex"
+            textSize = 12.5f
+            buttonTintList = ContextCompat.getColorStateList(this@DataCleaningActivity, R.color.primary)
+        }
+        val ignoreCaseCheck = CheckBox(this).apply {
+            text = "Ignore case"
+            textSize = 12.5f
+            buttonTintList = ContextCompat.getColorStateList(this@DataCleaningActivity, R.color.primary)
+        }
         checksRow.addView(regexCheck)
         checksRow.addView(ignoreCaseCheck)
+        card.addView(checksRow)
 
-        val columnSpinner = Spinner(this).apply {
-            adapter = ArrayAdapter(this@DataCleaningActivity, android.R.layout.simple_spinner_dropdown_item, listOf("All columns") + columns)
+        val columnSpinner = boxedSpinner(listOf("All columns") + columns).apply {
+            (layoutParams as LinearLayout.LayoutParams).topMargin = dp(6)
         }
+        card.addView(columnSpinner)
 
-        val removeBtn = Button(this).apply { text = "✕ Remove this rule"; textSize = 12f }
+        binding.replaceRulesContainer.addView(card)
 
-        row.addView(findInput)
-        row.addView(replaceInput)
-        row.addView(checksRow)
-        row.addView(columnSpinner)
-        row.addView(removeBtn)
-        binding.replaceRulesContainer.addView(row)
-
-        val view = ReplaceRuleView(findInput, replaceInput, regexCheck, ignoreCaseCheck, columnSpinner, row)
+        val view = ReplaceRuleView(findInput, replaceInput, regexCheck, ignoreCaseCheck, columnSpinner, card)
         replaceRuleViews += view
         removeBtn.setOnClickListener {
-            binding.replaceRulesContainer.removeView(row)
+            binding.replaceRulesContainer.removeView(card)
             replaceRuleViews.remove(view)
         }
     }

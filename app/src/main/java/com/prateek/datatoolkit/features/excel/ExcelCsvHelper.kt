@@ -24,7 +24,15 @@ object ExcelCsvHelper {
     fun readXlsx(file: File, sheetIndex: Int = 0): List<List<String>> {
         FileInputStream(file).use { input ->
             ReadableWorkbook(input).use { wb ->
-                val sheet = wb.sheets.toList().getOrNull(sheetIndex) ?: return emptyList()
+                // NOTE: wb.sheets is a java.util.stream.Stream<Sheet>, not a Kotlin collection.
+                // Calling .toList() on it needs the kotlin.streams.toList() extension, and even
+                // with that import, newer JDKs can resolve it to Java 16's native Stream.toList()
+                // instead - a method that doesn't exist on Android's runtime (minSdk 24) and
+                // throws NoSuchMethodError the moment a file is read. forEach() is unambiguous
+                // and safe on every Android version this app targets.
+                val sheetsList = mutableListOf<org.dhatim.fastexcel.reader.Sheet>()
+                wb.sheets.forEach { sheetsList.add(it) }
+                val sheet = sheetsList.getOrNull(sheetIndex) ?: return emptyList()
                 val rows = mutableListOf<List<String>>()
                 sheet.openStream().use { rowStream ->
                     rowStream.forEach { row ->

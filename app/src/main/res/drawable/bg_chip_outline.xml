@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tappable pill used for "add a step" and file-pick chips: a soft tinted fill with a
+     crisp brand-colored border, so it reads as interactive next to the plain input-field
+     backgrounds used elsewhere on the same screen. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/icon_chip_bg" />
+    <stroke android:width="1.2dp" android:color="@color/primary_light" />
+    <corners android:radius="14dp" />
+</shape>

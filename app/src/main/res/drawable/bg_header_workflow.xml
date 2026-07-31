@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Distinct fuchsia -> violet gradient (vs. the app's usual indigo -> violet header),
+     so the newest tool reads visually as something a little special while still
+     resolving into the same brand violet everything else uses. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:bottomLeftRadius="26dp" android:bottomRightRadius="26dp" />
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="@color/workflow_gradient_start"
+                android:centerColor="@color/workflow_gradient_mid"
+                android:endColor="@color/workflow_gradient_end" />
+        </shape>
+    </item>
+    <item android:gravity="top|end" android:width="170dp" android:height="170dp" android:top="-75dp" android:end="-55dp">
+        <shape android:shape="oval">
+            <solid android:color="#16FFFFFF" />
+        </shape>
+    </item>
+    <item android:gravity="bottom|start" android:width="130dp" android:height="130dp" android:bottom="-55dp" android:start="-40dp">
+        <shape android:shape="oval">
+            <solid android:color="#0FFFFFFF" />
+        </shape>
+    </item>
+</layer-list>

@@ -20,6 +20,12 @@
         <item name="backgroundTint">@color/accent</item>
     </style>
 
+    <!-- Fuchsia CTA button - used for the Workflow entry points, so the newest feature
+         stands out at a glance next to the app's usual indigo buttons. -->
+    <style name="Widget.App.Button.Workflow" parent="Widget.App.Button.Primary">
+        <item name="backgroundTint">@color/accent_workflow</item>
+    </style>
+
     <!-- Destructive action -->
     <style name="Widget.App.Button.Danger" parent="Widget.App.Button.Primary">
         <item name="backgroundTint">@color/error</item>
@@ -74,6 +80,16 @@
         <item name="android:foreground">?attr/selectableItemBackground</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
+    </style>
+
+    <!-- Large title on a gradient header (hero card, feature screen headers). Medium
+         weight + slightly tightened tracking reads a bit more refined at this size than
+         the system default bold, while staying legible against the colored backdrop. -->
+    <style name="TextAppearance.App.HeroTitle" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">-0.01</item>
+        <item name="android:textSize">22sp</item>
     </style>
 
     <!-- Section eyebrow label, e.g. "STEP 1" -->
