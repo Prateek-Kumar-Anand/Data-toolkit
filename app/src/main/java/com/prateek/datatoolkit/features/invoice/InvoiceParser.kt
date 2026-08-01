@@ -1,23 +1,72 @@
 package com.prateek.datatoolkit.features.invoice
 
 /**
- * Turns raw OCR text from a photographed invoice/receipt into structured [ParsedInvoice]
- * fields. This is entirely on-device, regex/heuristic-based (no network call, no cloud
- * document-AI service) - the same "no server round trip" philosophy as the rest of the
- * app's OCR/scraping/cleaning tools. It works well on common, clearly-labeled invoice
- * layouts ("Invoice #: ...", "Bill To: ...", "Total: $...") but - like any OCR-driven
- * pipeline - can miss or misread unusual layouts, which is exactly why every field stays
- * editable in the UI before being added to a batch or exported.
+ * Turns raw OCR text from a photographed invoice/receipt into a [ParsedInvoice]. Entirely
+ * on-device, regex/heuristic-based (no network call, no cloud document-AI service) - the
+ * same "no server round trip" philosophy as the rest of the app's OCR/scraping/cleaning
+ * tools.
+ *
+ * There is no fixed column mapping. A restaurant bill, a retail receipt, and a freelance
+ * invoice all print a different set of labeled fields - one module handles all of them by
+ * scanning every line for a "label -> value" pattern instead of assuming any particular
+ * field will be present. [FIELD_SPECS] lists the field names this parser actively looks
+ * for (with their common label spellings/synonyms so "Invoice No", "Bill No" and "Order #"
+ * all resolve to the same canonical "Invoice Number" column); anything labeled that isn't
+ * on that list - GSTIN, CGST/SGST, a discount line, a payment mode, a table number, a
+ * cashier name, whatever a particular format happens to print - still gets picked up by
+ * the generic fallback pass and added under its own detected name, so nothing is lost to a
+ * hardcoded schema. Every field the caller ends up with came from [ParsedInvoice.fields],
+ * so the set of Excel columns produced downstream is only ever whatever was actually
+ * detected on that batch of scans - never a fixed template.
+ *
+ * Like any OCR-driven pipeline this can miss or misread unusual layouts, which is exactly
+ * why every field stays editable in the UI before being added to a batch or exported.
  */
 object InvoiceParser {
 
     private val moneyPattern = Regex("""\$?\s*([\d,]+\.\d{2})""")
 
-    private val invoiceNumberPatterns = listOf(
-        Regex("""(?i)\binvoice\b(?:\s*(?:no\.?|num(?:ber)?)\s*[:#]?|[\s:#]*[:#])[\s:#]*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})"""),
-        Regex("""(?i)\breceipt\b(?:\s*(?:no\.?|num(?:ber)?)\s*[:#]?|[\s:#]*[:#])[\s:#]*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})"""),
-        Regex("""(?i)\bbill\b(?:\s*(?:no\.?|num(?:ber)?)\s*[:#]?|[\s:#]*[:#])[\s:#]*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})"""),
-        Regex("""(?i)\border\b(?:\s*(?:no\.?|num(?:ber)?)\s*[:#]?|[\s:#]*[:#])[\s:#]*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})""")
+    private enum class FieldKind {
+        /** A short alphanumeric code on the same line as its label, e.g. "Invoice No: INV-2045". */
+        ID_LIKE,
+        /** Free text that may follow the label on the same line, or sit on the next line
+         *  when the label appears alone (e.g. a "Bill To:" line followed by the name). */
+        NAME_LIKE,
+        /** A money value on the line, taking the last (rightmost) amount found. */
+        AMOUNT
+    }
+
+    private data class FieldSpec(
+        val canonicalName: String,
+        val labels: List<String>,
+        val kind: FieldKind,
+        val excludeIfLineContains: List<String> = emptyList()
+    )
+
+    /** Every field this parser actively looks for, in detection order. Order matters for
+     *  the AMOUNT fields in particular - Subtotal is matched before Total so a "Total"
+     *  pattern doesn't also grab the subtotal line, and the GST breakdown is matched before
+     *  the generic "Tax" pattern so "CGST"/"SGST" don't fall through into a plain Tax field. */
+    private val FIELD_SPECS = listOf(
+        FieldSpec(CoreInvoiceFields.INVOICE_NUMBER, listOf("invoice", "receipt", "bill", "order", "txn", "transaction", "reference", "ref"), FieldKind.ID_LIKE),
+        FieldSpec("GSTIN", listOf("gstin", "gst no", "gst number", "tax id", "tin", "vat no"), FieldKind.ID_LIKE),
+        FieldSpec("Phone", listOf("phone", "contact no", "contact", "mobile", "tel"), FieldKind.ID_LIKE),
+        FieldSpec("Table", listOf("table no", "table"), FieldKind.ID_LIKE),
+        FieldSpec(CoreInvoiceFields.CUSTOMER, listOf("bill to", "sold to", "customer name", "customer", "client", "buyer"), FieldKind.NAME_LIKE),
+        FieldSpec("Vendor", listOf("vendor", "seller", "store name", "merchant"), FieldKind.NAME_LIKE),
+        FieldSpec("Cashier", listOf("cashier", "served by", "billed by"), FieldKind.NAME_LIKE),
+        FieldSpec("Payment Mode", listOf("payment mode", "paid via", "payment method", "mode of payment"), FieldKind.NAME_LIKE),
+        FieldSpec(CoreInvoiceFields.SUBTOTAL, listOf("subtotal", "sub total", "sub-total", "taxable value", "taxable amount", "net amount"), FieldKind.AMOUNT),
+        FieldSpec("CGST", listOf("cgst"), FieldKind.AMOUNT),
+        FieldSpec("SGST", listOf("sgst"), FieldKind.AMOUNT),
+        FieldSpec("IGST", listOf("igst"), FieldKind.AMOUNT),
+        FieldSpec(CoreInvoiceFields.TAX, listOf("tax", "gst", "vat", "sales tax", "service tax"), FieldKind.AMOUNT, excludeIfLineContains = listOf("tax id", "taxid", "tin", "gstin", "vat no")),
+        FieldSpec("Discount", listOf("discount"), FieldKind.AMOUNT),
+        FieldSpec("Delivery Charge", listOf("delivery charge", "delivery fee", "shipping"), FieldKind.AMOUNT),
+        FieldSpec("Service Charge", listOf("service charge"), FieldKind.AMOUNT),
+        FieldSpec("Round Off", listOf("round off", "rounding"), FieldKind.AMOUNT),
+        FieldSpec("Change", listOf("change due", "change", "cash tendered", "amount tendered"), FieldKind.AMOUNT),
+        FieldSpec(CoreInvoiceFields.TOTAL, listOf("grand total", "amount due", "balance due", "total due", "net payable", "amount payable", "total"), FieldKind.AMOUNT, excludeIfLineContains = listOf("subtotal", "sub total", "sub-total"))
     )
 
     private val datePatterns = listOf(
@@ -27,52 +76,101 @@ object InvoiceParser {
         Regex("""(?i)\b(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+\d{4})\b""")
     )
 
-    private val customerLabelPattern = Regex("""(?i)^\s*(?:bill\s*to|sold\s*to|customer|client|buyer)\s*[:\-]?\s*(.*)$""")
+    /** Safe generic fallback: any still-unclaimed "Label: value" line, colon required so it
+     *  doesn't collide with item rows (receipts almost never punctuate an item line this
+     *  way). Catches whatever field names [FIELD_SPECS] doesn't know about by name, so a
+     *  format this parser has never seen still contributes its labeled fields instead of
+     *  being silently dropped. */
+    private val genericLabelPattern = Regex("""^\s*([A-Za-z][A-Za-z .]{1,28}?)\s*[:]\s*(.+\S)\s*$""")
+
+    private val itemExcludeWords = listOf(
+        "total", "tax", "gst", "vat", "discount", "round off", "rounding",
+        "service charge", "delivery charge", "delivery fee", "shipping",
+        "change due", "cash tendered", "amount tendered", "balance due", "amount due"
+    )
 
     fun parse(rawText: String, sourceLabel: String = ""): ParsedInvoice {
         val lines = rawText.lines().map { it.trim() }.filter { it.isNotBlank() }
-        val consumedLineIndexes = mutableSetOf<Int>()
+        val consumed = mutableSetOf<Int>()
+        val fields = LinkedHashMap<String, String>()
 
-        val invoiceNumber = firstLabeledMatch(lines, invoiceNumberPatterns, consumedLineIndexes)
-        val date = extractDate(lines, consumedLineIndexes)
-        val customer = extractCustomer(lines, consumedLineIndexes)
-        val subtotal = extractAmount(lines, listOf("subtotal", "sub total", "sub-total"), emptyList(), consumedLineIndexes)
-        val tax = extractAmount(lines, listOf("tax", "gst", "vat", "sales tax"), listOf("tax id", "taxid", "tin", "gstin", "vat no"), consumedLineIndexes)
-        val total = extractAmount(
-            lines,
-            listOf("grand total", "amount due", "balance due", "total due", "total"),
-            listOf("subtotal", "sub total", "sub-total"),
-            consumedLineIndexes
-        )
-        val items = extractLineItems(lines, consumedLineIndexes)
+        for (spec in FIELD_SPECS) {
+            val value = extractField(lines, spec, consumed) ?: continue
+            fields[spec.canonicalName] = value
+        }
 
-        return ParsedInvoice(
-            invoiceNumber = invoiceNumber,
-            date = date,
-            customerName = customer,
-            items = items,
-            subtotal = subtotal,
-            tax = tax,
-            total = total,
-            sourceLabel = sourceLabel,
-            rawText = rawText
-        )
+        extractDate(lines, consumed)?.let { fields[CoreInvoiceFields.DATE] = it }
+
+        // Line items next, before the generic fallback below - a receipt that writes items
+        // as "Coffee: 3.50" should still end up as a line item, not get swallowed as a
+        // one-off "Coffee" field just because it happens to use a colon.
+        val items = extractLineItems(lines, consumed)
+
+        // Anything still unclaimed that looks like "Label: value" is a field this parser
+        // doesn't have a synonym list for - keep it under its own detected name rather than
+        // dropping it, so an unfamiliar receipt format still yields useful columns.
+        for ((index, line) in lines.withIndex()) {
+            if (index in consumed) continue
+            val match = genericLabelPattern.find(line) ?: continue
+            val label = titleCase(match.groupValues[1].trim())
+            val value = match.groupValues[2].trim()
+            if (label.isBlank() || value.isBlank() || label.length > 30) continue
+            if (fields.containsKey(label)) continue
+            fields[label] = value
+            consumed.add(index)
+        }
+
+        return ParsedInvoice(fields = fields, items = items, sourceLabel = sourceLabel, rawText = rawText)
     }
 
-    private fun firstLabeledMatch(lines: List<String>, patterns: List<Regex>, consumed: MutableSet<Int>): String {
+    private fun buildLabelPattern(label: String): String =
+        label.split(" ").joinToString("""\s+""") { Regex.escape(it) }
+
+    private fun extractField(lines: List<String>, spec: FieldSpec, consumed: MutableSet<Int>): String? {
         for ((index, line) in lines.withIndex()) {
-            for (pattern in patterns) {
-                val match = pattern.find(line)
-                if (match != null) {
+            if (index in consumed) continue
+            val lower = line.lowercase()
+            if (spec.excludeIfLineContains.any { lower.contains(it) }) continue
+            val label = spec.labels.firstOrNull { candidate ->
+                Regex("""(?i)\b${buildLabelPattern(candidate)}\b""").containsMatchIn(line)
+            } ?: continue
+
+            when (spec.kind) {
+                FieldKind.AMOUNT -> {
+                    val matches = moneyPattern.findAll(line).toList()
+                    if (matches.isEmpty()) continue
+                    consumed.add(index)
+                    return matches.last().groupValues[1].trim()
+                }
+                FieldKind.ID_LIKE -> {
+                    val pattern = Regex(
+                        """(?i)\b${buildLabelPattern(label)}\b(?:\s*(?:no\.?|num(?:ber)?)\s*[:#]?|[\s:#]*[:#])[\s:#]*([A-Za-z0-9][A-Za-z0-9\-\/]{1,})"""
+                    )
+                    val match = pattern.find(line) ?: continue
                     consumed.add(index)
                     return match.groupValues[1].trim().trim('.', ',')
                 }
+                FieldKind.NAME_LIKE -> {
+                    val pattern = Regex("""(?i)^\s*${buildLabelPattern(label)}\s*[:\-]?\s*(.*)$""")
+                    val match = pattern.find(line) ?: continue
+                    consumed.add(index)
+                    val sameLine = match.groupValues[1].trim()
+                    if (sameLine.isNotBlank()) return sameLine
+                    // Label with nothing after it (e.g. just "Bill To:") - the value is
+                    // usually the very next non-blank line in this style of layout.
+                    val nextIndex = index + 1
+                    if (nextIndex < lines.size && nextIndex !in consumed) {
+                        consumed.add(nextIndex)
+                        return lines[nextIndex]
+                    }
+                    return null
+                }
             }
         }
-        return ""
+        return null
     }
 
-    private fun extractDate(lines: List<String>, consumed: MutableSet<Int>): String {
+    private fun extractDate(lines: List<String>, consumed: MutableSet<Int>): String? {
         // Pass 1: a line explicitly labeled as a date, that isn't a due date.
         for ((index, line) in lines.withIndex()) {
             if (index in consumed) continue
@@ -98,45 +196,7 @@ object InvoiceParser {
                 }
             }
         }
-        return ""
-    }
-
-    private fun extractCustomer(lines: List<String>, consumed: MutableSet<Int>): String {
-        for ((index, line) in lines.withIndex()) {
-            if (index in consumed) continue
-            val match = customerLabelPattern.find(line) ?: continue
-            consumed.add(index)
-            val sameLine = match.groupValues[1].trim()
-            if (sameLine.isNotBlank()) return sameLine
-            // Label with nothing after it (e.g. just "Bill To:") - the name is usually the
-            // very next non-blank line in this style of layout.
-            val nextIndex = index + 1
-            if (nextIndex < lines.size && nextIndex !in consumed) {
-                consumed.add(nextIndex)
-                return lines[nextIndex]
-            }
-        }
-        return ""
-    }
-
-    private fun extractAmount(
-        lines: List<String>,
-        includeLabels: List<String>,
-        excludeLabels: List<String>,
-        consumed: MutableSet<Int>
-    ): String {
-        for ((index, line) in lines.withIndex()) {
-            if (index in consumed) continue
-            val lower = line.lowercase()
-            if (excludeLabels.any { lower.contains(it) }) continue
-            if (includeLabels.none { lower.contains(it) }) continue
-            val matches = moneyPattern.findAll(line).toList()
-            if (matches.isNotEmpty()) {
-                consumed.add(index)
-                return matches.last().groupValues[1].trim()
-            }
-        }
-        return ""
+        return null
     }
 
     /**
@@ -152,7 +212,7 @@ object InvoiceParser {
             val moneyMatches = moneyPattern.findAll(line).toList()
             if (moneyMatches.isEmpty()) continue
             val lower = line.lowercase()
-            if (lower.contains("total") || lower.contains("tax") || lower.contains("gst") || lower.contains("vat")) continue
+            if (itemExcludeWords.any { lower.contains(it) }) continue
 
             val amount = moneyMatches.last().groupValues[1].trim()
             val columns = line.split(Regex("""\s{2,}|\t""")).map { it.trim() }.filter { it.isNotBlank() }
@@ -172,4 +232,9 @@ object InvoiceParser {
         }
         return items
     }
+
+    private fun titleCase(label: String): String =
+        label.lowercase().split(" ").filter { it.isNotBlank() }.joinToString(" ") { word ->
+            word.replaceFirstChar { it.uppercase() }
+        }
 }

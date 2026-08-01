@@ -62,8 +62,56 @@
                     <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
 
+                    <TextView android:id="@+id/tvItemCount" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp" android:textColor="@color/primary" android:textStyle="bold" android:textSize="13sp" />
+
                     <TextView android:id="@+id/tvTitle" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="4dp" android:textStyle="bold" android:textColor="@color/text_primary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Custom scraping: optional manual CSS selectors, used instead of auto-detection
+                 when a "Container selector" is provided. Any field left blank still falls back
+                 to auto-detection for that one field. -->
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="Custom Scraping (optional)" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+                        android:text="Fill in a container selector to scrape with your own CSS selectors instead of auto-detection. Leave any field below blank to keep auto-detecting just that one."
+                        android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+
+                    <EditText android:id="@+id/etContainerSelector"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp"
+                        android:hint="Container selector, e.g. .product-card" android:singleLine="true" android:fontFamily="monospace" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                        <EditText android:id="@+id/etTitleSelector" android:hint="Title selector"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="4dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="12.5sp" android:singleLine="true" android:fontFamily="monospace" />
+                        <EditText android:id="@+id/etPriceSelector" android:hint="Price selector"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="4dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="12.5sp" android:singleLine="true" android:fontFamily="monospace" />
+                    </LinearLayout>
+
+                    <EditText android:id="@+id/etDescriptionSelector" android:hint="Description selector"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="12.5sp" android:singleLine="true" android:fontFamily="monospace" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                        <EditText android:id="@+id/etImageSelector" android:hint="Image selector"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="4dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="12.5sp" android:singleLine="true" android:fontFamily="monospace" />
+                        <EditText android:id="@+id/etLinkSelector" android:hint="Link selector"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="4dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="12.5sp" android:singleLine="true" android:fontFamily="monospace" />
+                    </LinearLayout>
+
+                    <EditText android:id="@+id/etUserAgent"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_input_field" android:padding="10dp" android:textSize="11.5sp"
+                        android:hint="Custom User-Agent (optional)" android:singleLine="true" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -98,16 +146,23 @@
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Auto-detected items" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        android:text="Preview — scraped data (before export)" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+
                     <TextView
-                        android:id="@+id/tvItemsPreview"
+                        android:id="@+id/tvItemsEmptyState"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:minHeight="60dp"
-                        android:background="@drawable/bg_input_field"
-                        android:fontFamily="monospace"
-                        android:textSize="12sp" />
+                        android:text="No structured product/article cards auto-detected yet - scrape a page above. Raw text, links and tables are also available above once you do."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12.5sp" />
+
+                    <LinearLayout
+                        android:id="@+id/itemsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

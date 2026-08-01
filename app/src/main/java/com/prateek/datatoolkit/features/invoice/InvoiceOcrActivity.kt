@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -45,6 +46,11 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
     private var cameraImageUri: Uri? = null
     private val batch = mutableListOf<ParsedInvoice>()
+
+    // Field name -> its live EditText, for whatever this scan detected beyond the six core
+    // boxes above (GSTIN, CGST/SGST, discount, payment mode, table number, ...). Rebuilt on
+    // every populateFields()/clearFields() call since the set of fields differs per scan.
+    private val extraFieldRows = mutableListOf<Pair<String, EditText>>()
 
     private val takePicture = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && cameraImageUri != null) processSingle(cameraImageUri!!)
@@ -190,6 +196,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         binding.etSubtotal.setText(parsed.subtotal)
         binding.etTax.setText(parsed.tax)
         binding.etTotal.setText(parsed.total)
+        renderExtraFields(parsed.extraFields)
     }
 
     private fun clearFields() {
@@ -201,7 +208,43 @@ class InvoiceOcrActivity : AppCompatActivity() {
         binding.etSubtotal.setText("")
         binding.etTax.setText("")
         binding.etTotal.setText("")
+        renderExtraFields(linkedMapOf())
         binding.btnAddToBatch.isEnabled = false
+    }
+
+    /** Rebuilds the "Other detected fields" section for whatever this scan found beyond the
+     *  six core boxes - a different receipt format can mean a different set of rows every
+     *  time, so this is built at runtime rather than laid out fixed in XML. */
+    private fun renderExtraFields(extra: LinkedHashMap<String, String>) {
+        binding.extraFieldsContainer.removeAllViews()
+        extraFieldRows.clear()
+        binding.tvExtraFieldsLabel.visibility = if (extra.isEmpty()) View.GONE else View.VISIBLE
+        for ((label, value) in extra) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = dp(6) }
+            }
+            row.addView(TextView(this).apply {
+                text = label
+                setTextColor(colorOf(R.color.text_secondary))
+                textSize = 12f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.4f)
+            })
+            val editText = EditText(this).apply {
+                setText(value)
+                textSize = 13f
+                setPadding(dp(10), dp(8), dp(10), dp(8))
+                background = ContextCompat.getDrawable(this@InvoiceOcrActivity, R.drawable.bg_input_field_focused)
+                isSingleLine = true
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f)
+                    .apply { marginStart = dp(6) }
+            }
+            row.addView(editText)
+            binding.extraFieldsContainer.addView(row)
+            extraFieldRows.add(label to editText)
+        }
     }
 
     private fun itemsToText(items: List<InvoiceLineItem>): String =
@@ -222,16 +265,22 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
     private fun addCurrentFieldsToBatch() {
         val entry = ParsedInvoice(
-            invoiceNumber = binding.etInvoiceNumber.text.toString().trim(),
-            date = binding.etDate.text.toString().trim(),
-            customerName = binding.etCustomer.text.toString().trim(),
             items = textToItems(binding.etItems.text.toString()),
-            subtotal = binding.etSubtotal.text.toString().trim(),
-            tax = binding.etTax.text.toString().trim(),
-            total = binding.etTotal.text.toString().trim(),
             sourceLabel = lastParsedRawForBatch?.sourceLabel.orEmpty(),
             rawText = lastParsedRawForBatch?.rawText.orEmpty()
         )
+        entry.invoiceNumber = binding.etInvoiceNumber.text.toString().trim()
+        entry.date = binding.etDate.text.toString().trim()
+        entry.customerName = binding.etCustomer.text.toString().trim()
+        entry.subtotal = binding.etSubtotal.text.toString().trim()
+        entry.tax = binding.etTax.text.toString().trim()
+        entry.total = binding.etTotal.text.toString().trim()
+        // Whatever extra fields were detected/edited for this scan - could be empty if
+        // nothing beyond the six core fields was found on this particular receipt.
+        for ((label, editText) in extraFieldRows) {
+            val value = editText.text.toString().trim()
+            if (value.isNotBlank()) entry.fields[label] = value
+        }
         batch.add(entry)
         renderBatch()
         clearFields()
@@ -313,21 +362,32 @@ class InvoiceOcrActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * No fixed column list: the header is the union of whatever fields were actually
+     * detected across this batch, so a stack of mixed formats (a GST retail bill next to a
+     * plain freelance invoice) produces one clean sheet with every field each one
+     * contributed, and blanks wherever a particular receipt didn't have that field. Core
+     * fields come first in a stable order when present, followed by whatever extra fields
+     * were detected, in the order they first appeared in the batch.
+     */
     private fun buildExportRows(): List<List<String>> {
-        val header = listOf("Invoice Number", "Date", "Customer", "Items", "Subtotal", "Tax", "Total", "Source File")
+        val presentCore = CoreInvoiceFields.ORDERED.filter { key -> batch.any { it.fields.containsKey(key) } }
+        val extraColumns = LinkedHashSet<String>()
+        for (invoice in batch) extraColumns.addAll(invoice.extraFields.keys)
+
+        val fieldColumns = presentCore + extraColumns
+        val header = fieldColumns + listOf("Items", "Source File")
         val rows = mutableListOf<List<String>>(header)
+
         for (invoice in batch) {
             val itemsSummary = invoice.items.joinToString("; ") { item ->
                 val qtyPrice = if (item.quantity.isNotBlank() || item.unitPrice.isNotBlank())
                     " (${item.quantity.ifBlank { "1" }} x ${item.unitPrice.ifBlank { "-" }})" else ""
                 "${item.description}$qtyPrice = ${item.amount}"
             }
-            rows.add(
-                listOf(
-                    invoice.invoiceNumber, invoice.date, invoice.customerName, itemsSummary,
-                    invoice.subtotal, invoice.tax, invoice.total, invoice.sourceLabel
-                )
-            )
+            val row = fieldColumns.map { column -> invoice.fields[column].orEmpty() } +
+                listOf(itemsSummary, invoice.sourceLabel)
+            rows.add(row)
         }
         return rows
     }

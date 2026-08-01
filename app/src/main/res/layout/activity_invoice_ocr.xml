@@ -120,6 +120,15 @@
                             android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" android:inputType="numberDecimal" />
                     </LinearLayout>
 
+                    <TextView android:id="@+id/tvExtraFieldsLabel"
+                        android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                        android:text="OTHER DETECTED FIELDS" android:textAppearance="@style/TextAppearance.App.Eyebrow"
+                        android:visibility="gone" />
+
+                    <LinearLayout android:id="@+id/extraFieldsContainer"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp" android:orientation="vertical" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnAddToBatch"
                         style="@style/Widget.App.Button.Compact"

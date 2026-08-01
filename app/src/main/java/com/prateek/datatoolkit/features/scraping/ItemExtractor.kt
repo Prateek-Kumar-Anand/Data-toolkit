@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.scraping
 
+import org.json.JSONArray
+import org.json.JSONObject
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -20,21 +22,41 @@ data class ScrapedItem(
 }
 
 /**
+ * User-supplied CSS selectors for "custom scraping" mode: [containerSelector] picks out each
+ * item card, and the rest are optional per-field selectors *relative to that container*. Any
+ * field left blank still falls back to the same heuristics auto-detection uses, so a user can
+ * override just the one field a site's markup confuses (e.g. only the price) without having to
+ * hand-write selectors for everything else.
+ */
+data class ManualSelectors(
+    val containerSelector: String,
+    val titleSelector: String = "",
+    val priceSelector: String = "",
+    val descriptionSelector: String = "",
+    val imageSelector: String = "",
+    val linkSelector: String = ""
+)
+
+/**
  * Field/Tag Auto-Detection: given a parsed HTML page, finds repeated
  * "item" structures (product cards, article previews, listing rows...) and
  * pulls out common commerce/content fields into named columns, without any
  * site-specific configuration.
  *
- * Three strategies are tried in order, each more heuristic than the last:
- *  1. schema.org microdata (itemscope/itemprop) - most reliable when present.
- *  2. Repeated-sibling heuristic - finds the largest group of same-tag,
+ * Strategies are tried in order, each more heuristic than the last:
+ *  0. Manual CSS selectors (only when the caller supplies one) - an explicit user override.
+ *  1. JSON-LD (schema.org, `<script type="application/ld+json">`) - very common on modern
+ *     e-commerce/publishing sites, and more complete than inline microdata when present.
+ *  2. schema.org microdata (itemscope/itemprop) - reliable when present.
+ *  3. Repeated-sibling heuristic - finds the largest group of same-tag,
  *     same-class elements on the page and treats each as one item.
- *  3. Single-item fallback from page-level <meta> tags (OpenGraph etc.),
+ *  4. Single-item fallback from page-level <meta> tags (OpenGraph, Twitter Card...),
  *     so a plain article/blog page still yields one usable row instead of nothing.
  *
- * This is intentionally best-effort: real-world markup is too varied for
- * perfect field detection, but this covers the common cases (product
- * listings, article grids, search results) reasonably well.
+ * This is intentionally best-effort and entirely rule-based (plain CSS-selector and JSON
+ * parsing, no AI/ML/LLM and no external API calls beyond the one page fetch the caller already
+ * made): real-world markup is too varied for perfect field detection, but this covers the
+ * common cases (product listings, article grids, search results) reasonably well.
  */
 object ItemExtractor {
 
@@ -43,7 +65,17 @@ object ItemExtractor {
     /** Zero-based column index of "Image" in [toRows]'s header - used by the xlsx image-embedding export. */
     const val IMAGE_COLUMN_INDEX = 5
 
-    fun extract(doc: Document, baseUri: String): List<ScrapedItem> {
+    fun extract(doc: Document, baseUri: String, manual: ManualSelectors? = null): List<ScrapedItem> {
+        if (manual != null && manual.containerSelector.isNotBlank()) {
+            val manualItems = extractManual(doc, manual)
+            // A custom selector that matched nothing is most likely a typo/wrong site layout -
+            // fall through to auto-detection rather than showing the user an empty result.
+            if (manualItems.isNotEmpty()) return manualItems
+        }
+
+        val jsonLd = extractJsonLd(doc)
+        if (jsonLd.isNotEmpty()) return jsonLd
+
         val microdata = extractMicrodata(doc)
         if (microdata.isNotEmpty()) return microdata
 
@@ -53,7 +85,168 @@ object ItemExtractor {
         return listOfNotNull(extractPageMeta(doc))
     }
 
-    // --- Strategy 1: schema.org microdata -----------------------------------------------------
+    // --- Strategy 0: manual, user-supplied CSS selectors --------------------------------------
+
+    private fun extractManual(doc: Document, manual: ManualSelectors): List<ScrapedItem> {
+        val containers = try {
+            doc.select(manual.containerSelector)
+        } catch (e: Exception) {
+            // Invalid selector syntax - treat exactly like "no matches" rather than crashing.
+            return emptyList()
+        }
+        if (containers.isEmpty()) return emptyList()
+
+        fun sub(el: Element, selector: String): Element? {
+            if (selector.isBlank()) return null
+            return try {
+                el.selectFirst(selector)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        return containers.map { el ->
+            val title = sub(el, manual.titleSelector)?.text()?.trim()?.ifBlank { null } ?: titleOf(el)
+            val price = sub(el, manual.priceSelector)?.text()?.trim()?.ifBlank { null } ?: priceOf(el)
+            val description = sub(el, manual.descriptionSelector)?.text()?.trim()?.ifBlank { null } ?: descriptionOf(el)
+            val imageScope = sub(el, manual.imageSelector)
+            val image = (imageScope?.let { resolveImageUrl(it) }) ?: resolveImageUrl(el)
+            val linkTarget = sub(el, manual.linkSelector)
+            val link = when {
+                linkTarget != null && linkTarget.tagName().equals("a", ignoreCase = true) -> linkTarget.absUrl("href")
+                linkTarget != null -> linkTarget.selectFirst("a[href]")?.absUrl("href")
+                else -> linkOf(el)
+            }?.ifBlank { null }
+
+            ScrapedItem(
+                name = title,
+                description = description,
+                price = price,
+                rating = ratingOf(el),
+                link = link,
+                image = image,
+                category = categoryOf(el)
+            )
+        }.filter { it.isMeaningful() }
+    }
+
+    // --- Strategy 1: JSON-LD (schema.org) --------------------------------------------------
+
+    private val JSONLD_ITEM_TYPES = setOf(
+        "product", "article", "newsarticle", "blogposting", "recipe", "event", "book", "movie",
+        "jobposting", "restaurant", "localbusiness", "softwareapplication", "offer"
+    )
+
+    private fun extractJsonLd(doc: Document): List<ScrapedItem> {
+        val scripts = doc.select("script[type=application/ld+json]")
+        if (scripts.isEmpty()) return emptyList()
+
+        val found = mutableListOf<ScrapedItem>()
+        for (script in scripts) {
+            val raw = script.data().ifBlank { script.html() }.trim()
+            if (raw.isBlank()) continue
+            val roots: List<Any?> = try {
+                if (raw.startsWith("[")) {
+                    val arr = JSONArray(raw)
+                    (0 until arr.length()).map { arr.opt(it) }
+                } else {
+                    listOf(JSONObject(raw))
+                }
+            } catch (e: Exception) {
+                // Malformed/partial JSON-LD (surprisingly common in the wild) - skip this block,
+                // other scripts or extraction strategies may still succeed.
+                continue
+            }
+            for (root in roots) collectJsonLdEntities(root, doc.baseUri(), found)
+        }
+
+        // Some sites repeat the same product/article JSON-LD in more than one block - collapse
+        // obvious duplicates before deciding whether this strategy "worked".
+        val deduped = found.distinctBy { Triple(it.name, it.link, it.price) }.filter { it.isMeaningful() }
+        return deduped
+    }
+
+    private fun collectJsonLdEntities(node: Any?, baseUri: String, out: MutableList<ScrapedItem>) {
+        when (node) {
+            is JSONObject -> {
+                val typeRaw = node.opt("@type")
+                val types = when (typeRaw) {
+                    is String -> listOf(typeRaw)
+                    is JSONArray -> (0 until typeRaw.length()).mapNotNull { typeRaw.optString(it, null) }
+                    else -> emptyList()
+                }.map { it.lowercase() }
+
+                if (types.any { it in JSONLD_ITEM_TYPES }) {
+                    jsonLdToItem(node, baseUri)?.let { out.add(it) }
+                }
+
+                // Recurse into common nesting points - JSON-LD often wraps the real entities in
+                // one of these rather than listing them at the top level.
+                node.opt("@graph")?.let { collectJsonLdEntities(it, baseUri, out) }
+                node.opt("itemListElement")?.let { collectJsonLdEntities(it, baseUri, out) }
+                node.opt("mainEntity")?.let { collectJsonLdEntities(it, baseUri, out) }
+                (node.opt("item") as? JSONObject)?.let { collectJsonLdEntities(it, baseUri, out) }
+            }
+            is JSONArray -> {
+                for (i in 0 until node.length()) collectJsonLdEntities(node.opt(i), baseUri, out)
+            }
+            else -> {}
+        }
+    }
+
+    private fun jsonLdToItem(obj: JSONObject, baseUri: String): ScrapedItem? {
+        fun str(vararg keys: String): String? {
+            for (k in keys) {
+                when (val v = obj.opt(k)) {
+                    is String -> if (v.isNotBlank()) return v.trim()
+                    is Number -> return v.toString()
+                    else -> {}
+                }
+            }
+            return null
+        }
+
+        val offersNode = obj.opt("offers")
+        val offer = when (offersNode) {
+            is JSONObject -> offersNode
+            is JSONArray -> if (offersNode.length() > 0) offersNode.optJSONObject(0) else null
+            else -> null
+        }
+        val price = offer?.let { o ->
+            val p = o.opt("price") ?: o.opt("lowPrice")
+            val currency = o.optString("priceCurrency", "")
+            val amount = when (p) {
+                is String -> p.takeIf { it.isNotBlank() }
+                is Number -> p.toString()
+                else -> null
+            }
+            amount?.let { if (currency.isNotBlank()) "$currency $it" else it }
+        } ?: str("price", "lowPrice")
+
+        val rating = obj.optJSONObject("aggregateRating")?.opt("ratingValue")?.toString()
+        val image = extractJsonLdImage(obj.opt("image"), baseUri)
+        val link = str("url")?.let { resolveRelative(it, baseUri) }
+
+        val item = ScrapedItem(
+            name = str("name", "headline"),
+            description = str("description"),
+            price = price,
+            rating = rating,
+            link = link,
+            image = image,
+            category = str("category", "articleSection")
+        )
+        return item.takeIf { it.isMeaningful() }
+    }
+
+    private fun extractJsonLdImage(node: Any?, baseUri: String): String? = when (node) {
+        is String -> node.takeIf { it.isNotBlank() }?.let { resolveRelative(it, baseUri) }
+        is JSONObject -> node.optString("url", "").takeIf { it.isNotBlank() }?.let { resolveRelative(it, baseUri) }
+        is JSONArray -> if (node.length() > 0) extractJsonLdImage(node.opt(0), baseUri) else null
+        else -> null
+    }
+
+    // --- Strategy 2: schema.org microdata -----------------------------------------------------
 
     private fun extractMicrodata(doc: Document): List<ScrapedItem> {
         val scopes = doc.select("[itemscope]")
@@ -63,8 +256,8 @@ object ItemExtractor {
             fun prop(name: String): String? =
                 scope.select("[itemprop=$name]").firstOrNull()?.let { el ->
                     when {
+                        el.tagName() == "img" -> resolveImageUrl(el) ?: el.attr("content")
                         el.hasAttr("content") -> el.attr("content")
-                        el.tagName() == "img" -> el.absUrl("src").ifBlank { el.attr("src") }
                         el.tagName() == "a" -> el.absUrl("href").ifBlank { el.attr("href") }
                         el.hasAttr("datetime") -> el.attr("datetime")
                         else -> el.text()
@@ -87,7 +280,7 @@ object ItemExtractor {
         return if (items.size >= MIN_REPEATED_ELEMENTS || (items.size in 1..2 && items.all { it.name != null })) items else emptyList()
     }
 
-    // --- Strategy 2: repeated same-tag/same-class siblings ------------------------------------
+    // --- Strategy 3: repeated same-tag/same-class siblings ------------------------------------
 
     private fun extractRepeatedCards(doc: Document): List<ScrapedItem> {
         val candidates = doc.select("article, li, div, section").toList()
@@ -129,61 +322,126 @@ object ItemExtractor {
     private fun hasLinkOrHeading(el: Element): Boolean =
         el.select("a[href]").isNotEmpty() || el.select("h1, h2, h3, h4").isNotEmpty()
 
-    private fun extractFromCard(el: Element): ScrapedItem {
-        val name = el.select("h1, h2, h3, h4, h5, [class*=title], [class*=name], [class*=heading]").firstOrNull()?.text()
+    private fun extractFromCard(el: Element): ScrapedItem = ScrapedItem(
+        name = titleOf(el)?.trim()?.ifBlank { null },
+        description = descriptionOf(el)?.trim()?.ifBlank { null },
+        price = priceOf(el)?.trim()?.ifBlank { null },
+        rating = ratingOf(el)?.trim()?.ifBlank { null },
+        link = linkOf(el)?.ifBlank { null },
+        image = resolveImageUrl(el)?.ifBlank { null },
+        category = categoryOf(el)?.trim()?.ifBlank { null }
+    )
+
+    // Per-field heuristics, factored out so both the repeated-cards strategy and manual-selector
+    // mode's "leave this field blank to auto-detect it" behaviour share exactly one implementation.
+
+    private fun titleOf(el: Element): String? =
+        el.select("h1, h2, h3, h4, h5, [class*=title], [class*=name], [class*=heading]").firstOrNull()?.text()
             ?: el.select("a[href]").firstOrNull()?.let { it.text().ifBlank { it.attr("title") } }
             ?: el.select("img[alt]").firstOrNull()?.attr("alt")
 
-        val description = el.select("p, [class*=desc], [class*=summary], [class*=subtitle], [class*=excerpt]")
-            .firstOrNull()?.text()
+    private fun descriptionOf(el: Element): String? =
+        el.select("p, [class*=desc], [class*=summary], [class*=subtitle], [class*=excerpt]").firstOrNull()?.text()
 
-        val price = el.select("[class*=price], [itemprop=price]").firstOrNull()?.text()
+    private fun priceOf(el: Element): String? =
+        el.select("[class*=price], [itemprop=price]").firstOrNull()?.text()
             ?: PRICE_REGEX.find(el.text())?.value
 
-        val rating = el.select("[class*=rating], [class*=stars], [aria-label*=rating]").firstOrNull()
+    private fun ratingOf(el: Element): String? =
+        el.select("[class*=rating], [class*=stars], [aria-label*=rating]").firstOrNull()
             ?.let { it.attr("aria-label").ifBlank { it.text() } }
             ?: RATING_REGEX.find(el.text())?.value
 
-        val link = el.select("a[href]").firstOrNull()?.absUrl("href")
+    private fun linkOf(el: Element): String? = el.select("a[href]").firstOrNull()?.absUrl("href")
 
-        val image = el.select("img").firstOrNull()?.let {
-            it.absUrl("src").ifBlank { it.attr("data-src") }
+    private fun categoryOf(el: Element): String? =
+        el.select("[class*=category], [class*=tag], [class*=badge], [class*=breadcrumb]").firstOrNull()?.text()
+
+    // --- Image resolution: handles the lazy-loading patterns a plain img.attr("src") misses ---
+
+    private val LAZY_IMG_ATTRS = listOf("data-src", "data-lazy-src", "data-lazy", "data-original", "data-echo")
+    private val BG_IMAGE_REGEX = Regex("""background-image\s*:\s*url\(([^)]+)\)""", RegexOption.IGNORE_CASE)
+
+    /**
+     * Finds the best image URL within [scope] (an item card, or the image sub-selector's target
+     * in manual mode). Checks, in order: known lazy-load data-* attributes (many sites put a
+     * tiny placeholder in `src` and the real image in one of these), `srcset` (first candidate),
+     * a plain `src` (skipped if it's a base64 `data:` placeholder rather than a real URL),
+     * `<picture><source srcset>`, and finally an inline CSS `background-image`. Returns null
+     * only if none of these are present - not just "if `src` is empty" like a naive check would.
+     */
+    private fun resolveImageUrl(scope: Element): String? {
+        val img = if (scope.tagName().equals("img", ignoreCase = true)) scope else scope.selectFirst("img")
+        if (img != null) {
+            for (attr in LAZY_IMG_ATTRS) {
+                if (img.attr(attr).isNotBlank()) {
+                    val abs = img.absUrl(attr)
+                    if (abs.isNotBlank()) return abs
+                }
+            }
+            if (img.attr("srcset").isNotBlank()) {
+                firstSrcsetUrl(img.attr("srcset"), img.baseUri())?.let { return it }
+            }
+            val src = img.attr("src")
+            if (src.isNotBlank() && !src.startsWith("data:", ignoreCase = true)) {
+                val abs = img.absUrl("src")
+                if (abs.isNotBlank()) return abs
+            }
         }
 
-        val category = el.select("[class*=category], [class*=tag], [class*=badge], [class*=breadcrumb]")
-            .firstOrNull()?.text()
+        val source = (if (scope.tagName().equals("picture", ignoreCase = true)) scope else scope.selectFirst("picture"))
+            ?.selectFirst("source[srcset]")
+        if (source != null && source.attr("srcset").isNotBlank()) {
+            firstSrcsetUrl(source.attr("srcset"), source.baseUri())?.let { return it }
+        }
 
-        return ScrapedItem(
-            name = name?.trim()?.ifBlank { null },
-            description = description?.trim()?.ifBlank { null },
-            price = price?.trim()?.ifBlank { null },
-            rating = rating?.trim()?.ifBlank { null },
-            link = link?.ifBlank { null },
-            image = image?.ifBlank { null },
-            category = category?.trim()?.ifBlank { null }
-        )
+        val bgHolder = if (scope.attr("style").contains("background-image")) scope else scope.selectFirst("[style*=background-image]")
+        bgHolder?.let { holder ->
+            BG_IMAGE_REGEX.find(holder.attr("style")).let { m ->
+                val raw = m?.groupValues?.getOrNull(1)?.trim('\'', '"', ' ')
+                if (!raw.isNullOrBlank()) return resolveRelative(raw, holder.baseUri())
+            }
+        }
+        return null
     }
 
-    // --- Strategy 3: whole-page fallback via <meta> tags --------------------------------------
+    private fun firstSrcsetUrl(srcset: String, baseUri: String): String? {
+        val token = srcset.split(",").firstOrNull()?.trim()?.split(Regex("""\s+"""))?.firstOrNull()
+        return token?.takeIf { it.isNotBlank() }?.let { resolveRelative(it, baseUri) }
+    }
+
+    private fun resolveRelative(url: String, baseUri: String): String = try {
+        if (url.startsWith("http://", true) || url.startsWith("https://", true)) url
+        else java.net.URL(java.net.URL(baseUri), url).toString()
+    } catch (e: Exception) {
+        url
+    }
+
+    // --- Strategy 4: whole-page fallback via <meta> tags (OpenGraph, Twitter Card, generic) ---
 
     private fun extractPageMeta(doc: Document): ScrapedItem? {
-        fun meta(name: String): String? =
-            doc.select("meta[property=$name], meta[name=$name]").firstOrNull()?.attr("content")?.trim()?.ifBlank { null }
+        fun meta(vararg names: String): String? {
+            for (n in names) {
+                val v = doc.select("meta[property=$n], meta[name=$n]").firstOrNull()?.attr("content")?.trim()
+                if (!v.isNullOrBlank()) return v
+            }
+            return null
+        }
 
         val item = ScrapedItem(
-            name = meta("og:title") ?: doc.title().ifBlank { null },
-            description = meta("og:description") ?: meta("description"),
-            price = meta("product:price:amount") ?: meta("og:price:amount"),
+            name = meta("og:title", "twitter:title") ?: doc.title().ifBlank { null },
+            description = meta("og:description", "twitter:description") ?: meta("description"),
+            price = meta("product:price:amount", "og:price:amount"),
             rating = null,
             link = meta("og:url"),
-            image = meta("og:image"),
-            category = meta("article:section") ?: meta("og:type")
+            image = meta("og:image", "twitter:image", "twitter:image:src")?.let { resolveRelative(it, doc.baseUri()) },
+            category = meta("article:section", "og:type")
         )
         return item.takeIf { it.isMeaningful() }
     }
 
-    private val PRICE_REGEX = Regex("(₹|\\$|€|£)\\s?[0-9][0-9,.]*")
-    private val RATING_REGEX = Regex("[0-5](\\.[0-9])?\\s*(out of\\s*5|stars|★)", RegexOption.IGNORE_CASE)
+    private val PRICE_REGEX = Regex("(\u20b9|\\$|\u20ac|\u00a3)\\s?[0-9][0-9,.]*")
+    private val RATING_REGEX = Regex("[0-5](\\.[0-9])?\\s*(out of\\s*5|stars|\u2605)", RegexOption.IGNORE_CASE)
 
     /** Converts a list of items (optionally from several pages) into export rows with a header. */
     fun toRows(items: List<ScrapedItem>, includeSourceColumn: Boolean = false, sources: List<String> = emptyList()): List<List<String>> {
