@@ -79,6 +79,15 @@
                     style="@style/Widget.App.Button.Workflow"
                     android:text="🔀  Build a Workflow — chain tools together" />
 
+                <!-- Invoice & Receipt OCR - the other newest capability, same top billing. -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnInvoice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    style="@style/Widget.App.Button.Invoice"
+                    android:text="🧾  Invoice &amp; Receipt OCR — scan, batch, export" />
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

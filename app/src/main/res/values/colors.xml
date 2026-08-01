@@ -51,6 +51,7 @@
     <color name="accent_email">#DB2777</color>
     <color name="accent_batch">#D97706</color>
     <color name="accent_dashboard">#4F46E5</color>
+    <color name="accent_invoice">#0F766E</color>
 
     <!-- Soft chip-background tint to match each accent above -->
     <color name="accent_cleaning_bg">#EDE9FE</color>
@@ -62,4 +63,5 @@
     <color name="accent_batch_bg">#FEF3C7</color>
     <color name="accent_dashboard_bg">#E0E7FF</color>
     <color name="accent_workflow_bg">#F5D0FE</color>
+    <color name="accent_invoice_bg">#CCFBF1</color>
 </resources>

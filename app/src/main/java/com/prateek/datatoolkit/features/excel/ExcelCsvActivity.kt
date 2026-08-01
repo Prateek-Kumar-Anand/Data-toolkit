@@ -68,7 +68,10 @@ class ExcelCsvActivity : AppCompatActivity() {
                     r
                 }
                 onRowsLoaded(rows, uri.lastPathSegment ?: "sheet.xlsx", start)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Throwable, not just Exception: a bad/corrupt spreadsheet can surface as a
+                // java.lang.Error (e.g. a StAX factory error) rather than a normal Exception,
+                // which would otherwise crash the whole app instead of showing this message.
                 binding.tvStatus.text = "Failed to read xlsx: ${e.message}"
             }
         }

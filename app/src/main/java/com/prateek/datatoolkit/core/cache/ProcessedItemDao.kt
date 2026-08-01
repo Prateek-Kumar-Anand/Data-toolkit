@@ -17,6 +17,10 @@ interface ProcessedItemDao {
     @Query("SELECT * FROM processed_items ORDER BY timestamp DESC LIMIT :limit")
     suspend fun recent(limit: Int = 100): List<ProcessedItem>
 
+    /** Same as [recent], scoped to one feature - backs Workflow Builder's and Invoice OCR's own in-screen History section. */
+    @Query("SELECT * FROM processed_items WHERE feature = :feature ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun recentByFeature(feature: String, limit: Int = 20): List<ProcessedItem>
+
     @Query("SELECT * FROM processed_items ORDER BY timestamp DESC")
     suspend fun all(): List<ProcessedItem>
 

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:clipToPadding="false"
+    android:paddingBottom="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_header_flat"
+            android:paddingStart="20dp" android:paddingEnd="20dp"
+            android:paddingTop="26dp" android:paddingBottom="22dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="🧾  Invoice &amp; Receipt OCR" android:textColor="@color/text_on_primary" android:textSize="22sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                    android:text="Scan invoices/receipts → invoice #, date, customer, items, tax and total — on-device, batch-friendly" android:textColor="@color/text_on_primary_muted" android:textSize="13sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Card 1: capture + OCR progress -->
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCamera"
+                            style="@style/Widget.App.Button.Compact"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:layout_marginEnd="6dp"
+                            android:text="📷 Camera" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnGallery"
+                            style="@style/Widget.App.Button.Compact.Outlined"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                            android:layout_marginStart="6dp"
+                            android:text="🖼 Gallery" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnBatchPick"
+                        style="@style/Widget.App.Button.Compact.Outlined"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="📚 Batch scan (pick several invoices)" />
+
+                    <ImageView
+                        android:id="@+id/ivPreview"
+                        android:layout_width="match_parent" android:layout_height="180dp"
+                        android:layout_marginTop="14dp"
+                        android:background="@drawable/bg_input_field"
+                        android:scaleType="centerInside" />
+
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:progressTint="@color/accent_invoice"
+                        android:max="100" />
+
+                    <TextView
+                        android:id="@+id/tvStatus"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textColor="@color/text_secondary" android:textSize="12.5sp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 2: parsed fields (editable - OCR/heuristic extraction, always user-verifiable) -->
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="DETECTED FIELDS — edit anything OCR got wrong" android:textAppearance="@style/TextAppearance.App.Eyebrow" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                        <EditText android:id="@+id/etInvoiceNumber" android:hint="Invoice #"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" />
+                        <EditText android:id="@+id/etDate" android:hint="Date"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" />
+                    </LinearLayout>
+
+                    <EditText android:id="@+id/etCustomer" android:hint="Customer / Bill To"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                        android:text="Items (one per line — Description | Qty | Unit Price | Amount)" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                    <EditText android:id="@+id/etItems"
+                        android:layout_width="match_parent" android:layout_height="100dp" android:layout_marginTop="4dp"
+                        android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="12.5sp"
+                        android:gravity="top|start" android:inputType="textMultiLine" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+                        <EditText android:id="@+id/etSubtotal" android:hint="Subtotal"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="4dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" android:inputType="numberDecimal" />
+                        <EditText android:id="@+id/etTax" android:hint="Tax"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="4dp" android:layout_marginEnd="4dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" android:inputType="numberDecimal" />
+                        <EditText android:id="@+id/etTotal" android:hint="Total"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="4dp"
+                            android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" android:inputType="numberDecimal" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAddToBatch"
+                        style="@style/Widget.App.Button.Compact"
+                        android:backgroundTint="@color/accent_invoice"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp" android:enabled="false"
+                        android:text="➕ Add to Batch" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 3: this session's batch + export -->
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="THIS SESSION'S BATCH" android:textAppearance="@style/TextAppearance.App.Eyebrow" />
+
+                    <TextView android:id="@+id/tvBatchEmptyState"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                        android:text="No invoices added yet — scan one above, check the fields, then &quot;Add to Batch&quot;."
+                        android:textColor="@color/text_secondary" android:textSize="12.5sp" />
+
+                    <LinearLayout android:id="@+id/batchContainer"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="vertical" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnExportCsv"
+                            style="@style/Widget.App.Button.Compact.Outlined"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp"
+                            android:enabled="false" android:text="Export CSV" />
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnExportXlsx"
+                            style="@style/Widget.App.Button.Compact"
+                            android:backgroundTint="@color/accent_invoice"
+                            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp"
+                            android:enabled="false" android:text="Export Excel" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 4: history -->
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="RECENT ACTIVITY" android:textAppearance="@style/TextAppearance.App.Eyebrow" />
+                    <TextView android:id="@+id/tvHistoryEmptyState"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                        android:text="No invoices processed yet."
+                        android:textColor="@color/text_secondary" android:textSize="12.5sp" />
+                    <LinearLayout android:id="@+id/historyContainer"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

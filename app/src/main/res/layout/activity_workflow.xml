@@ -141,13 +141,30 @@
                             android:text="▶ Run Workflow" />
                     </LinearLayout>
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSaveWorkflow"
+                        style="@style/Widget.App.Button.Compact.Outlined"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="💾 Save This Workflow…" />
+
                     <ProgressBar
                         android:id="@+id/progressBar"
                         style="?android:attr/progressBarStyleHorizontal"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:indeterminate="true"
+                        android:max="100"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvProgressLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11.5sp"
                         android:visibility="gone" />
 
                     <TextView
@@ -160,6 +177,76 @@
 
                     <LinearLayout
                         android:id="@+id/resultsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 4: saved workflows - reload a previously saved chain -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.App.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SAVED WORKFLOWS"
+                        android:textAppearance="@style/TextAppearance.App.Eyebrow" />
+
+                    <TextView
+                        android:id="@+id/tvSavedEmptyState"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Nothing saved yet — build a pipeline above, then &quot;Save This Workflow…&quot;."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12.5sp" />
+
+                    <LinearLayout
+                        android:id="@+id/savedWorkflowsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="vertical" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card 5: run history for this screen -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.App.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="RUN HISTORY"
+                        android:textAppearance="@style/TextAppearance.App.Eyebrow" />
+
+                    <TextView
+                        android:id="@+id/tvHistoryEmptyState"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="No runs yet — run a workflow above to see it here."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12.5sp" />
+
+                    <LinearLayout
+                        android:id="@+id/historyContainer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"

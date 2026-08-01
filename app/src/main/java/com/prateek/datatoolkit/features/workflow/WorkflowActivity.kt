@@ -16,17 +16,24 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.widget.doOnTextChanged
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
+import com.prateek.datatoolkit.core.cache.AppDatabase
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.cache.ProcessedItem
+import com.prateek.datatoolkit.core.cache.SavedWorkflow
 import com.prateek.datatoolkit.databinding.ActivityWorkflowBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Workflow Builder: lets the user chain the app's existing tools into one
@@ -40,9 +47,15 @@ class WorkflowActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityWorkflowBinding
     private lateinit var cache: CacheManager
+    private lateinit var db: AppDatabase
 
     private val steps = mutableListOf<WorkflowStep>()
     private val exportResults = mutableListOf<ExportOutcome>()
+
+    // Set when the current chain was loaded from a saved workflow, so a successful run can
+    // stamp that saved workflow's lastRunAt. Cleared on Start Over / manual chain edits, since
+    // at that point the chain no longer matches what was saved.
+    private var loadedWorkflowId: Long? = null
 
     // Shared pickers - which step is waiting for a result is tracked via the slots below,
     // set right before each launch() call (same "pendingAction" idea PdfActivity uses).
@@ -79,12 +92,16 @@ class WorkflowActivity : AppCompatActivity() {
         binding = ActivityWorkflowBinding.inflate(layoutInflater)
         setContentView(binding.root)
         cache = CacheManager(this)
+        db = AppDatabase.get(this)
 
         binding.btnRunWorkflow.setOnClickListener { runWorkflow() }
         binding.btnResetWorkflow.setOnClickListener { resetWorkflow() }
+        binding.btnSaveWorkflow.setOnClickListener { promptSaveWorkflow() }
 
         renderSteps()
         renderAddStepOptions()
+        renderSavedWorkflows()
+        renderHistory()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -95,6 +112,7 @@ class WorkflowActivity : AppCompatActivity() {
 
     private fun addStep(kind: StepKind) {
         steps.add(WorkflowStep(kind))
+        loadedWorkflowId = null
         renderSteps()
         renderAddStepOptions()
     }
@@ -102,6 +120,7 @@ class WorkflowActivity : AppCompatActivity() {
     private fun removeLastStep() {
         if (steps.isEmpty()) return
         steps.removeAt(steps.size - 1)
+        loadedWorkflowId = null
         renderSteps()
         renderAddStepOptions()
     }
@@ -109,6 +128,7 @@ class WorkflowActivity : AppCompatActivity() {
     private fun resetWorkflow() {
         steps.clear()
         exportResults.clear()
+        loadedWorkflowId = null
         binding.tvRunSummary.text = ""
         binding.resultsContainer.removeAllViews()
         renderSteps()
@@ -373,6 +393,9 @@ class WorkflowActivity : AppCompatActivity() {
         exportResults.clear()
         binding.resultsContainer.removeAllViews()
         binding.tvRunSummary.text = "Running…"
+        binding.progressBar.max = steps.size
+        binding.progressBar.progress = 0
+        binding.tvProgressLabel.text = "Step 1 of ${steps.size} (0%)"
 
         lifecycleScope.launch {
             var current: WorkflowData = WorkflowData.Empty
@@ -380,10 +403,12 @@ class WorkflowActivity : AppCompatActivity() {
             var failCount = 0
             val start = System.currentTimeMillis()
 
-            for (step in steps) {
+            for ((index, step) in steps.withIndex()) {
                 step.status = StepStatus.RUNNING
                 step.errorMessage = null
                 renderSteps()
+                binding.tvProgressLabel.text =
+                    "Step ${index + 1} of ${steps.size} (${(index * 100) / steps.size}%) — ${step.kind.stepLabel}"
                 try {
                     val result = WorkflowEngine.runStep(applicationContext, step, current)
                     step.status = StepStatus.SUCCESS
@@ -391,13 +416,18 @@ class WorkflowActivity : AppCompatActivity() {
                     current = result.data
                     okCount++
                     result.exportedFile?.let { file -> exportResults.add(ExportOutcome(step.kind, file)) }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
+                    // Throwable, not just Exception: a bad input file (e.g. a corrupt
+                    // spreadsheet in a Load Excel/CSV step) can surface as a java.lang.Error,
+                    // which would otherwise crash the whole app instead of just failing this step.
                     step.status = StepStatus.FAILED
                     step.errorMessage = e.message ?: "Unknown error"
                     current = WorkflowData.Empty
                     failCount++
                 }
                 renderSteps()
+                binding.progressBar.progress = index + 1
+                binding.tvProgressLabel.text = "Step ${index + 1} of ${steps.size} (${((index + 1) * 100) / steps.size}%)"
             }
 
             val totalMs = System.currentTimeMillis() - start
@@ -406,6 +436,11 @@ class WorkflowActivity : AppCompatActivity() {
 
             renderResults()
             recordRun(okCount, failCount, totalMs)
+            loadedWorkflowId?.let { id ->
+                withContext(Dispatchers.IO) { db.savedWorkflowDao().markRun(id, System.currentTimeMillis()) }
+                renderSavedWorkflows()
+            }
+            renderHistory()
             setRunning(false)
         }
     }
@@ -488,26 +523,221 @@ class WorkflowActivity : AppCompatActivity() {
     private fun setRunning(running: Boolean) {
         binding.btnRunWorkflow.isEnabled = !running
         binding.btnResetWorkflow.isEnabled = !running
+        binding.btnSaveWorkflow.isEnabled = !running
         binding.progressBar.visibility = if (running) View.VISIBLE else View.GONE
+        binding.tvProgressLabel.visibility = if (running) View.VISIBLE else View.GONE
     }
 
     private fun formatDuration(ms: Long): String = if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)
 
-    private fun recordRun(okCount: Int, failCount: Int, totalMs: Long) {
+    private suspend fun recordRun(okCount: Int, failCount: Int, totalMs: Long) {
+        val label = "${steps.size}-step workflow"
+        val preview = steps.joinToString(" → ") { "${it.kind.emoji}${if (it.status == StepStatus.FAILED) "✗" else "✓"}" }
+        val quality = if (steps.isEmpty()) 0 else (okCount * 100 / steps.size)
+        cache.record(
+            feature = "WORKFLOW",
+            inputText = steps.joinToString(",") { it.kind.name } + "_" + System.currentTimeMillis(),
+            inputLabel = label,
+            outputPreview = preview,
+            outputPath = null,
+            qualityScore = quality,
+            status = if (failCount == 0) "SUCCESS" else if (okCount == 0) "FAILED" else "PARTIAL",
+            durationMs = totalMs
+        )
+    }
+
+    // ---- Saved workflows: persist / reload / delete a named step chain -----------------------
+
+    private fun promptSaveWorkflow() {
+        if (steps.isEmpty()) {
+            Toast.makeText(this, "Add at least one step before saving", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val input = EditText(this).apply {
+            hint = "e.g. \"Scrape → Clean → Excel\""
+            setPadding(dp(20), dp(16), dp(20), dp(4))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Save this workflow")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val name = input.text.toString().trim().ifBlank { "Untitled workflow" }
+                lifecycleScope.launch {
+                    val id = withContext(Dispatchers.IO) {
+                        db.savedWorkflowDao().insert(
+                            SavedWorkflow(
+                                name = name,
+                                stepsJson = WorkflowStorage.encode(steps),
+                                stepCount = steps.size
+                            )
+                        )
+                    }
+                    loadedWorkflowId = id
+                    Toast.makeText(this@WorkflowActivity, "Saved \"$name\"", Toast.LENGTH_SHORT).show()
+                    renderSavedWorkflows()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun renderSavedWorkflows() {
         lifecycleScope.launch {
-            val label = "${steps.size}-step workflow"
-            val preview = steps.joinToString(" → ") { "${it.kind.emoji}${if (it.status == StepStatus.FAILED) "✗" else "✓"}" }
-            val quality = if (steps.isEmpty()) 0 else (okCount * 100 / steps.size)
-            cache.record(
-                feature = "WORKFLOW",
-                inputText = steps.joinToString(",") { it.kind.name } + "_" + System.currentTimeMillis(),
-                inputLabel = label,
-                outputPreview = preview,
-                outputPath = null,
-                qualityScore = quality,
-                status = if (failCount == 0) "SUCCESS" else if (okCount == 0) "FAILED" else "PARTIAL",
-                durationMs = totalMs
-            )
+            val saved = withContext(Dispatchers.IO) { db.savedWorkflowDao().all() }
+            binding.savedWorkflowsContainer.removeAllViews()
+            binding.tvSavedEmptyState.visibility = if (saved.isEmpty()) View.VISIBLE else View.GONE
+            for (workflow in saved) {
+                binding.savedWorkflowsContainer.addView(buildSavedWorkflowRow(workflow))
+            }
         }
     }
+
+    private fun buildSavedWorkflowRow(workflow: SavedWorkflow): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = ContextCompat.getDrawable(this@WorkflowActivity, R.drawable.bg_input_field)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(8) }
+        }
+        val steppedPreview = WorkflowStorage.previewOf(WorkflowStorage.decode(workflow.stepsJson))
+        row.addView(TextView(this).apply {
+            text = workflow.name
+            setTextColor(colorOf(R.color.text_primary))
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 13.5f
+        })
+        row.addView(TextView(this).apply {
+            val runInfo = workflow.lastRunAt?.let { "  •  last run ${dateLabel(it)}" } ?: ""
+            text = "$steppedPreview  •  ${workflow.stepCount} step(s)  •  saved ${dateLabel(workflow.createdAt)}$runInfo"
+            setTextColor(colorOf(R.color.text_secondary))
+            textSize = 11.5f
+            setPadding(0, dp(2), 0, 0)
+        })
+        val actionsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(6) }
+        }
+        actionsRow.addView(actionLabel("🗑 Delete", R.color.error) { deleteSavedWorkflow(workflow) })
+        actionsRow.addView(actionLabel("↻ Load", R.color.primary) { loadSavedWorkflow(workflow) }.apply {
+            (layoutParams as LinearLayout.LayoutParams).marginStart = dp(16)
+        })
+        row.addView(actionsRow)
+        return row
+    }
+
+    private fun actionLabel(label: String, colorRes: Int, onClick: () -> Unit): TextView = TextView(this).apply {
+        text = label
+        setTextColor(colorOf(colorRes))
+        setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+        textSize = 12f
+        isClickable = true
+        isFocusable = true
+        val outValue = TypedValue()
+        this@WorkflowActivity.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+        setBackgroundResource(outValue.resourceId)
+        setPadding(dp(8), dp(4), dp(8), dp(4))
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        setOnClickListener { onClick() }
+    }
+
+    private fun loadSavedWorkflow(workflow: SavedWorkflow) {
+        fun apply() {
+            steps.clear()
+            steps.addAll(WorkflowStorage.decode(workflow.stepsJson))
+            loadedWorkflowId = workflow.id
+            exportResults.clear()
+            binding.resultsContainer.removeAllViews()
+            binding.tvRunSummary.text = ""
+            renderSteps()
+            renderAddStepOptions()
+            val needsPicks = steps.any {
+                it.kind == StepKind.SCAN_IMAGES || it.kind == StepKind.LOAD_PDF || it.kind == StepKind.LOAD_SHEET
+            }
+            Toast.makeText(
+                this,
+                if (needsPicks) "Loaded \"${workflow.name}\" — pick any file(s)/photo(s) it needs, then Run."
+                else "Loaded \"${workflow.name}\"",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        if (steps.isEmpty()) {
+            apply()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Replace current pipeline?")
+                .setMessage("Loading \"${workflow.name}\" will replace the steps you have now.")
+                .setPositiveButton("Load") { _, _ -> apply() }
+                .setNegativeButton("Cancel", null)
+                .show()
+        }
+    }
+
+    private fun deleteSavedWorkflow(workflow: SavedWorkflow) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete \"${workflow.name}\"?")
+            .setMessage("This can't be undone.")
+            .setPositiveButton("Delete") { _, _ ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) { db.savedWorkflowDao().delete(workflow) }
+                    if (loadedWorkflowId == workflow.id) loadedWorkflowId = null
+                    renderSavedWorkflows()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    // ---- Run history: this screen's own slice of the shared ProcessedItem log ----------------
+
+    private fun renderHistory() {
+        lifecycleScope.launch {
+            val recent = withContext(Dispatchers.IO) { db.processedItemDao().recentByFeature("WORKFLOW", 10) }
+            binding.historyContainer.removeAllViews()
+            binding.tvHistoryEmptyState.visibility = if (recent.isEmpty()) View.VISIBLE else View.GONE
+            for (item in recent) {
+                binding.historyContainer.addView(buildHistoryRow(item))
+            }
+        }
+    }
+
+    private fun buildHistoryRow(item: ProcessedItem): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(9), dp(12), dp(9))
+            background = ContextCompat.getDrawable(this@WorkflowActivity, R.drawable.bg_input_field)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(8) }
+        }
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        headerRow.addView(TextView(this).apply {
+            text = item.outputPreview.ifBlank { item.inputLabel }
+            setTextColor(colorOf(R.color.text_primary))
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        headerRow.addView(TextView(this).apply {
+            text = item.status
+            setTextColor(colorOf(if (item.status == "SUCCESS") R.color.success else if (item.status == "FAILED") R.color.error else R.color.accent))
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 10.5f
+        })
+        row.addView(headerRow)
+        row.addView(TextView(this).apply {
+            text = "${dateLabel(item.timestamp)}  •  ${formatDuration(item.durationMs)}"
+            setTextColor(colorOf(R.color.text_secondary))
+            textSize = 11f
+            setPadding(0, dp(2), 0, 0)
+        })
+        return row
+    }
+
+    private fun dateLabel(millis: Long): String =
+        SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(millis))
 }

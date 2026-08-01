@@ -26,6 +26,11 @@
         <item name="backgroundTint">@color/accent_workflow</item>
     </style>
 
+    <!-- Teal CTA button - same "hero" treatment as Workflow, for the other newest feature. -->
+    <style name="Widget.App.Button.Invoice" parent="Widget.App.Button.Primary">
+        <item name="backgroundTint">@color/accent_invoice</item>
+    </style>
+
     <!-- Destructive action -->
     <style name="Widget.App.Button.Danger" parent="Widget.App.Button.Primary">
         <item name="backgroundTint">@color/error</item>

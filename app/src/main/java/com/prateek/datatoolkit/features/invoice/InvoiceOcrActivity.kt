@@ -1,0 +1,424 @@
+package com.prateek.datatoolkit.features.invoice
+
+import android.graphics.Typeface
+import android.net.Uri
+import android.os.Bundle
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
+import com.prateek.datatoolkit.R
+import com.prateek.datatoolkit.core.cache.AppDatabase
+import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.cache.ProcessedItem
+import com.prateek.datatoolkit.databinding.ActivityInvoiceOcrBinding
+import com.prateek.datatoolkit.features.excel.ExcelCsvHelper
+import com.prateek.datatoolkit.features.ocr.OcrHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/**
+ * Invoice & Receipt OCR: photograph or pick invoices/receipts, run the same on-device ML Kit
+ * recognizer [OcrHelper] already used by the plain OCR screen, then run [InvoiceParser] over
+ * the recognized text to pull out invoice number / date / customer / line items / subtotal /
+ * tax / total. Every field stays editable before it's added to this session's batch, which can
+ * then be exported to Excel/CSV in one go - built for a freelancer processing a stack of client
+ * invoices/receipts at once.
+ */
+class InvoiceOcrActivity : AppCompatActivity() {
+
+    private lateinit var binding: ActivityInvoiceOcrBinding
+    private lateinit var cache: CacheManager
+    private lateinit var db: AppDatabase
+
+    private var cameraImageUri: Uri? = null
+    private val batch = mutableListOf<ParsedInvoice>()
+
+    private val takePicture = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success && cameraImageUri != null) processSingle(cameraImageUri!!)
+    }
+    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) processSingle(uri)
+    }
+    private val pickBatch = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (uris.isNotEmpty()) processBatch(uris)
+    }
+
+    private val saveCsvAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        uri?.let { exportTo(it, asXlsx = false) }
+    }
+    private val saveXlsxAs = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    ) { uri -> uri?.let { exportTo(it, asXlsx = true) } }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityInvoiceOcrBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        cache = CacheManager(this)
+        db = AppDatabase.get(this)
+
+        binding.btnCamera.setOnClickListener { launchCamera() }
+        binding.btnGallery.setOnClickListener { pickImage.launch("image/*") }
+        binding.btnBatchPick.setOnClickListener { pickBatch.launch("image/*") }
+        binding.btnAddToBatch.setOnClickListener { addCurrentFieldsToBatch() }
+        binding.btnExportCsv.setOnClickListener { saveCsvAs.launch("invoices_${System.currentTimeMillis()}.csv") }
+        binding.btnExportXlsx.setOnClickListener { saveXlsxAs.launch("invoices_${System.currentTimeMillis()}.xlsx") }
+
+        renderBatch()
+        renderHistory()
+    }
+
+    private fun launchCamera() {
+        val file = File(cacheDir, "invoice_capture_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        cameraImageUri = uri
+        takePicture.launch(uri)
+    }
+
+    // ---- Single-image scan: OCR + parse, then let the user review/edit before adding ---------
+
+    private fun processSingle(uri: Uri) {
+        setBusy(true)
+        clearFields()
+        binding.tvStatus.text = "Recognizing text..."
+        binding.progressBar.max = 100
+        binding.progressBar.progress = 0
+
+        lifecycleScope.launch {
+            val start = System.currentTimeMillis()
+            try {
+                val bitmap = withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                } ?: throw IllegalStateException("Could not decode the selected image")
+
+                binding.ivPreview.setImageBitmap(bitmap)
+
+                val results = OcrHelper.recognizeBatch(listOf(bitmap)) { done, total ->
+                    binding.progressBar.progress = (done * 100) / total
+                    binding.tvStatus.text = "Recognizing text... (${(done * 100) / total}%)"
+                }
+                binding.tvStatus.text = "Parsing invoice fields..."
+                val text = results.first().text
+                val parsed = InvoiceParser.parse(text, sourceLabel = displayNameOf(uri))
+                binding.progressBar.progress = 100
+
+                populateFields(parsed)
+                val quality = qualityOf(parsed)
+                val durationMs = System.currentTimeMillis() - start
+                binding.tvStatus.text = if (parsed.hasAnyDetectedField())
+                    "Done — review the fields below, then \"Add to Batch\" (detected ${quality}% of key fields)"
+                else "Recognized the text, but couldn't confidently detect invoice fields — fill them in manually below"
+                binding.btnAddToBatch.isEnabled = true
+
+                recordScan(uri.toString(), displayNameOf(uri), text, quality, "SUCCESS", durationMs)
+            } catch (e: Throwable) {
+                binding.tvStatus.text = "Scan failed: ${e.message}"
+                recordScan(uri.toString(), displayNameOf(uri), "", 0, "FAILED", System.currentTimeMillis() - start)
+            } finally {
+                setBusy(false)
+            }
+        }
+    }
+
+    // ---- Batch scan: OCR + parse every picked image, adding each straight to the batch -------
+
+    private fun processBatch(uris: List<Uri>) {
+        setBusy(true)
+        clearFields()
+        binding.progressBar.max = 100
+        binding.progressBar.progress = 0
+        binding.tvStatus.text = "Processing 1 of ${uris.size} (0%)..."
+
+        lifecycleScope.launch {
+            var added = 0
+            for ((index, uri) in uris.withIndex()) {
+                val start = System.currentTimeMillis()
+                try {
+                    val bitmap = withContext(Dispatchers.IO) {
+                        contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    } ?: throw IllegalStateException("Could not decode image ${index + 1}")
+
+                    binding.ivPreview.setImageBitmap(bitmap)
+                    val result = OcrHelper.recognize(bitmap)
+                    val parsed = InvoiceParser.parse(result.text, sourceLabel = displayNameOf(uri))
+                    batch.add(parsed)
+                    added++
+                    recordScan(uri.toString(), displayNameOf(uri), result.text, qualityOf(parsed), "SUCCESS", System.currentTimeMillis() - start)
+                } catch (e: Throwable) {
+                    recordScan(uri.toString(), displayNameOf(uri), "", 0, "FAILED", System.currentTimeMillis() - start)
+                }
+                val pct = ((index + 1) * 100) / uris.size
+                binding.progressBar.progress = pct
+                binding.tvStatus.text = "Processing ${index + 1} of ${uris.size} ($pct%)..."
+            }
+            binding.tvStatus.text = "Batch scan done — $added of ${uris.size} invoice(s) added to the batch below"
+            renderBatch()
+            renderHistory()
+            setBusy(false)
+        }
+    }
+
+    private fun qualityOf(parsed: ParsedInvoice): Int {
+        val fields = listOf(parsed.invoiceNumber, parsed.date, parsed.customerName, parsed.total)
+        val detected = fields.count { it.isNotBlank() }
+        return (detected * 100) / fields.size
+    }
+
+    // ---- Card 2: populate / read / clear the editable fields ---------------------------------
+
+    private var lastParsedRawForBatch: ParsedInvoice? = null
+
+    private fun populateFields(parsed: ParsedInvoice) {
+        lastParsedRawForBatch = parsed
+        binding.etInvoiceNumber.setText(parsed.invoiceNumber)
+        binding.etDate.setText(parsed.date)
+        binding.etCustomer.setText(parsed.customerName)
+        binding.etItems.setText(itemsToText(parsed.items))
+        binding.etSubtotal.setText(parsed.subtotal)
+        binding.etTax.setText(parsed.tax)
+        binding.etTotal.setText(parsed.total)
+    }
+
+    private fun clearFields() {
+        lastParsedRawForBatch = null
+        binding.etInvoiceNumber.setText("")
+        binding.etDate.setText("")
+        binding.etCustomer.setText("")
+        binding.etItems.setText("")
+        binding.etSubtotal.setText("")
+        binding.etTax.setText("")
+        binding.etTotal.setText("")
+        binding.btnAddToBatch.isEnabled = false
+    }
+
+    private fun itemsToText(items: List<InvoiceLineItem>): String =
+        items.joinToString("\n") { "${it.description} | ${it.quantity} | ${it.unitPrice} | ${it.amount}" }
+
+    /** Parses the "Description | Qty | Unit Price | Amount" text box back into line items,
+     *  tolerating missing columns (2, 3, or 4 parts) rather than dropping the whole line. */
+    private fun textToItems(text: String): List<InvoiceLineItem> =
+        text.lines().map { it.trim() }.filter { it.isNotBlank() }.map { line ->
+            val parts = line.split("|").map { it.trim() }
+            when (parts.size) {
+                1 -> InvoiceLineItem(description = parts[0])
+                2 -> InvoiceLineItem(description = parts[0], amount = parts[1])
+                3 -> InvoiceLineItem(description = parts[0], unitPrice = parts[1], amount = parts[2])
+                else -> InvoiceLineItem(description = parts[0], quantity = parts.getOrElse(1) { "" }, unitPrice = parts.getOrElse(2) { "" }, amount = parts.getOrElse(3) { "" })
+            }
+        }
+
+    private fun addCurrentFieldsToBatch() {
+        val entry = ParsedInvoice(
+            invoiceNumber = binding.etInvoiceNumber.text.toString().trim(),
+            date = binding.etDate.text.toString().trim(),
+            customerName = binding.etCustomer.text.toString().trim(),
+            items = textToItems(binding.etItems.text.toString()),
+            subtotal = binding.etSubtotal.text.toString().trim(),
+            tax = binding.etTax.text.toString().trim(),
+            total = binding.etTotal.text.toString().trim(),
+            sourceLabel = lastParsedRawForBatch?.sourceLabel.orEmpty(),
+            rawText = lastParsedRawForBatch?.rawText.orEmpty()
+        )
+        batch.add(entry)
+        renderBatch()
+        clearFields()
+        binding.tvStatus.text = "Added to batch (${batch.size} total) — scan another, or export below"
+        Toast.makeText(this, "Added to batch", Toast.LENGTH_SHORT).show()
+    }
+
+    // ---- Card 3: session batch list + export --------------------------------------------------
+
+    private fun renderBatch() {
+        binding.batchContainer.removeAllViews()
+        binding.tvBatchEmptyState.visibility = if (batch.isEmpty()) View.VISIBLE else View.GONE
+        binding.btnExportCsv.isEnabled = batch.isNotEmpty()
+        binding.btnExportXlsx.isEnabled = batch.isNotEmpty()
+        for ((index, invoice) in batch.withIndex()) {
+            binding.batchContainer.addView(buildBatchRow(invoice, index))
+        }
+    }
+
+    private fun buildBatchRow(invoice: ParsedInvoice, index: Int): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(9), dp(12), dp(9))
+            background = ContextCompat.getDrawable(this@InvoiceOcrActivity, R.drawable.bg_input_field)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(8) }
+        }
+        val label = listOfNotNull(
+            invoice.invoiceNumber.ifBlank { null },
+            invoice.customerName.ifBlank { null },
+            invoice.total.ifBlank { null }?.let { "$$it" }
+        ).joinToString("  •  ").ifBlank { invoice.sourceLabel.ifBlank { "Invoice ${index + 1}" } }
+
+        row.addView(TextView(this).apply {
+            text = "🧾  $label"
+            setTextColor(colorOf(R.color.text_primary))
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        row.addView(TextView(this).apply {
+            text = "🗑"
+            setTextColor(colorOf(R.color.error))
+            textSize = 15f
+            setPadding(dp(10), dp(6), dp(10), dp(6))
+            isClickable = true
+            isFocusable = true
+            val outValue = TypedValue()
+            this@InvoiceOcrActivity.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+            setBackgroundResource(outValue.resourceId)
+            setOnClickListener {
+                batch.removeAt(index)
+                renderBatch()
+            }
+        })
+        return row
+    }
+
+    private fun exportTo(uri: Uri, asXlsx: Boolean) {
+        if (batch.isEmpty()) {
+            Toast.makeText(this, "Nothing in the batch to export", Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch {
+            try {
+                val rows = buildExportRows()
+                withContext(Dispatchers.IO) {
+                    val temp = File.createTempFile("invoices_", if (asXlsx) ".xlsx" else ".csv", cacheDir)
+                    if (asXlsx) ExcelCsvHelper.writeXlsx(rows, temp, sheetName = "Invoices") else ExcelCsvHelper.writeCsv(rows, temp)
+                    contentResolver.openOutputStream(uri)?.use { out ->
+                        temp.inputStream().use { input -> input.copyTo(out) }
+                    } ?: throw IllegalStateException("Could not open destination for writing")
+                    temp.delete()
+                }
+                Toast.makeText(this@InvoiceOcrActivity, "Exported ${batch.size} invoice(s)", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@InvoiceOcrActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun buildExportRows(): List<List<String>> {
+        val header = listOf("Invoice Number", "Date", "Customer", "Items", "Subtotal", "Tax", "Total", "Source File")
+        val rows = mutableListOf<List<String>>(header)
+        for (invoice in batch) {
+            val itemsSummary = invoice.items.joinToString("; ") { item ->
+                val qtyPrice = if (item.quantity.isNotBlank() || item.unitPrice.isNotBlank())
+                    " (${item.quantity.ifBlank { "1" }} x ${item.unitPrice.ifBlank { "-" }})" else ""
+                "${item.description}$qtyPrice = ${item.amount}"
+            }
+            rows.add(
+                listOf(
+                    invoice.invoiceNumber, invoice.date, invoice.customerName, itemsSummary,
+                    invoice.subtotal, invoice.tax, invoice.total, invoice.sourceLabel
+                )
+            )
+        }
+        return rows
+    }
+
+    // ---- Card 4: recent activity -------------------------------------------------------------
+
+    private fun renderHistory() {
+        lifecycleScope.launch {
+            val recent = withContext(Dispatchers.IO) { db.processedItemDao().recentByFeature("INVOICE_OCR", 10) }
+            binding.historyContainer.removeAllViews()
+            binding.tvHistoryEmptyState.visibility = if (recent.isEmpty()) View.VISIBLE else View.GONE
+            for (item in recent) {
+                binding.historyContainer.addView(buildHistoryRow(item))
+            }
+        }
+    }
+
+    private fun buildHistoryRow(item: ProcessedItem): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(9), dp(12), dp(9))
+            background = ContextCompat.getDrawable(this@InvoiceOcrActivity, R.drawable.bg_input_field)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(8) }
+        }
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        headerRow.addView(TextView(this).apply {
+            text = item.inputLabel
+            setTextColor(colorOf(R.color.text_primary))
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        })
+        headerRow.addView(TextView(this).apply {
+            text = item.status
+            setTextColor(colorOf(if (item.status == "SUCCESS") R.color.success else R.color.error))
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 10.5f
+        })
+        row.addView(headerRow)
+        row.addView(TextView(this).apply {
+            text = "${dateLabel(item.timestamp)}  •  quality ${item.qualityScore}%  •  ${formatDuration(item.durationMs)}"
+            setTextColor(colorOf(R.color.text_secondary))
+            textSize = 11f
+            setPadding(0, dp(2), 0, 0)
+        })
+        return row
+    }
+
+    // ---- Small shared helpers ------------------------------------------------------------------
+
+    private suspend fun recordScan(inputKey: String, label: String, previewText: String, quality: Int, status: String, durationMs: Long) {
+        cache.record(
+            feature = "INVOICE_OCR",
+            inputText = inputKey,
+            inputLabel = label,
+            outputPreview = previewText.take(300),
+            outputPath = null,
+            qualityScore = quality,
+            status = status,
+            durationMs = durationMs
+        )
+    }
+
+    private fun displayNameOf(uri: Uri): String {
+        var name = uri.lastPathSegment ?: "invoice"
+        try {
+            contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) c.getString(idx)?.let { name = it }
+                }
+            }
+        } catch (_: Exception) {
+            // Fall back to the lastPathSegment already captured above.
+        }
+        return name
+    }
+
+    private fun setBusy(busy: Boolean) {
+        binding.btnCamera.isEnabled = !busy
+        binding.btnGallery.isEnabled = !busy
+        binding.btnBatchPick.isEnabled = !busy
+        if (busy) binding.btnAddToBatch.isEnabled = false
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+    private fun colorOf(resId: Int) = ContextCompat.getColor(this, resId)
+    private fun formatDuration(ms: Long): String = if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)
+    private fun dateLabel(millis: Long): String = SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(millis))
+}

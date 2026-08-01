@@ -8,6 +8,7 @@ import com.prateek.datatoolkit.features.batch.BatchProcessingActivity
 import com.prateek.datatoolkit.features.datacleaning.DataCleaningActivity
 import com.prateek.datatoolkit.features.email.EmailExtractionActivity
 import com.prateek.datatoolkit.features.excel.ExcelCsvActivity
+import com.prateek.datatoolkit.features.invoice.InvoiceOcrActivity
 import com.prateek.datatoolkit.features.ocr.OcrActivity
 import com.prateek.datatoolkit.features.pdf.PdfActivity
 import com.prateek.datatoolkit.features.scraping.WebScrapingActivity
@@ -32,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnEmail.setOnClickListener { open(EmailExtractionActivity::class.java) }
         binding.btnBatch.setOnClickListener { open(BatchProcessingActivity::class.java) }
         binding.btnDashboard.setOnClickListener { open(DashboardActivity::class.java) }
+        binding.btnInvoice.setOnClickListener { open(InvoiceOcrActivity::class.java) }
     }
 
     /** Starts [cls] with a subtle slide+fade instead of the platform's default abrupt cut. */

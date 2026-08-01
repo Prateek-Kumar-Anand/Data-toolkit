@@ -36,6 +36,7 @@
         <activity android:name=".features.scraping.WebScrapingActivity" android:exported="false" android:label="Web Scraping" />
         <activity android:name=".features.email.EmailExtractionActivity" android:exported="false" android:label="Email Extraction" />
         <activity android:name=".features.batch.BatchProcessingActivity" android:exported="false" android:label="Batch Processing" />
+        <activity android:name=".features.invoice.InvoiceOcrActivity" android:exported="false" android:label="Invoice &amp; Receipt OCR" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

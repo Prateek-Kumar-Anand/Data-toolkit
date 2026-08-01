@@ -22,28 +22,46 @@ import java.net.URL
 object ExcelCsvHelper {
 
     fun readXlsx(file: File, sheetIndex: Int = 0): List<List<String>> {
-        FileInputStream(file).use { input ->
-            ReadableWorkbook(input).use { wb ->
-                // NOTE: wb.sheets is a java.util.stream.Stream<Sheet>, not a Kotlin collection.
-                // Calling .toList() on it needs the kotlin.streams.toList() extension, and even
-                // with that import, newer JDKs can resolve it to Java 16's native Stream.toList()
-                // instead - a method that doesn't exist on Android's runtime (minSdk 24) and
-                // throws NoSuchMethodError the moment a file is read. forEach() is unambiguous
-                // and safe on every Android version this app targets.
-                val sheetsList = mutableListOf<org.dhatim.fastexcel.reader.Sheet>()
-                wb.sheets.forEach { sheetsList.add(it) }
-                val sheet = sheetsList.getOrNull(sheetIndex) ?: return emptyList()
-                val rows = mutableListOf<List<String>>()
-                sheet.openStream().use { rowStream ->
-                    rowStream.forEach { row ->
-                        val cells = (0 until row.cellCount).map { i ->
-                            row.getCell(i)?.text ?: ""
+        // Everything below is wrapped because fastexcel-reader's ReadableWorkbook constructor
+        // calls javax.xml.stream.XMLInputFactory.newInstance() to get a StAX parser for each
+        // sheet's XML. ToolkitApp.onCreate() already forces that lookup to resolve to the
+        // aalto-xml engine bundled with this app (see the comment there for the full story),
+        // which is what actually fixes the "opening any .xlsx crashes the whole app" bug. This
+        // try/catch is the second, independent layer: if a factory still can't be resolved on
+        // some device, XMLInputFactory throws a javax.xml.stream.FactoryConfigurationError -
+        // a java.lang.Error, not an Exception - which would otherwise slip past every
+        // "catch (e: Exception)" in ExcelCsvActivity/DataCleaningActivity/WorkflowEngine and
+        // crash the whole process instead of showing a normal, friendly error message.
+        try {
+            FileInputStream(file).use { input ->
+                ReadableWorkbook(input).use { wb ->
+                    // NOTE: wb.sheets is a java.util.stream.Stream<Sheet>, not a Kotlin collection.
+                    // Calling .toList() on it needs the kotlin.streams.toList() extension, and even
+                    // with that import, newer JDKs can resolve it to Java 16's native Stream.toList()
+                    // instead - a method that doesn't exist on Android's runtime (minSdk 24) and
+                    // throws NoSuchMethodError the moment a file is read. forEach() is unambiguous
+                    // and safe on every Android version this app targets.
+                    val sheetsList = mutableListOf<org.dhatim.fastexcel.reader.Sheet>()
+                    wb.sheets.forEach { sheetsList.add(it) }
+                    val sheet = sheetsList.getOrNull(sheetIndex) ?: return emptyList()
+                    val rows = mutableListOf<List<String>>()
+                    sheet.openStream().use { rowStream ->
+                        rowStream.forEach { row ->
+                            val cells = (0 until row.cellCount).map { i ->
+                                row.getCell(i)?.text ?: ""
+                            }
+                            rows.add(cells)
                         }
-                        rows.add(cells)
                     }
+                    return rows
                 }
-                return rows
             }
+        } catch (e: Exception) {
+            throw e
+        } catch (e: Error) {
+            throw java.io.IOException(
+                "Could not read this spreadsheet (${e.javaClass.simpleName}: ${e.message ?: "unknown XML/parser error"})", e
+            )
         }
     }
 

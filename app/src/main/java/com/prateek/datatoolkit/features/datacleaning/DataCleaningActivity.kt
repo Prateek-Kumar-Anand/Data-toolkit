@@ -147,7 +147,10 @@ class DataCleaningActivity : AppCompatActivity() {
                     }
                     renderColumnRules(header)
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Throwable, not just Exception: a bad/corrupt spreadsheet can surface as a
+                // java.lang.Error (e.g. a StAX factory error) rather than a normal Exception,
+                // which would otherwise crash the whole app instead of showing this message.
                 binding.tvColumnsPreview.text = "Failed to read file: ${e.message}"
                 Toast.makeText(this@DataCleaningActivity, "Failed to read file: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
