@@ -48,13 +48,13 @@ object InvoiceParser {
      *  pattern doesn't also grab the subtotal line, and the GST breakdown is matched before
      *  the generic "Tax" pattern so "CGST"/"SGST" don't fall through into a plain Tax field. */
     private val FIELD_SPECS = listOf(
+        FieldSpec(CoreInvoiceFields.COMPANY, listOf("company name", "company", "business name", "billed by", "store name", "vendor", "seller", "merchant name", "merchant"), FieldKind.NAME_LIKE),
         FieldSpec(CoreInvoiceFields.INVOICE_NUMBER, listOf("invoice", "receipt", "bill", "order", "txn", "transaction", "reference", "ref"), FieldKind.ID_LIKE),
         FieldSpec("GSTIN", listOf("gstin", "gst no", "gst number", "tax id", "tin", "vat no"), FieldKind.ID_LIKE),
         FieldSpec("Phone", listOf("phone", "contact no", "contact", "mobile", "tel"), FieldKind.ID_LIKE),
         FieldSpec("Table", listOf("table no", "table"), FieldKind.ID_LIKE),
         FieldSpec(CoreInvoiceFields.CUSTOMER, listOf("bill to", "sold to", "customer name", "customer", "client", "buyer"), FieldKind.NAME_LIKE),
-        FieldSpec("Vendor", listOf("vendor", "seller", "store name", "merchant"), FieldKind.NAME_LIKE),
-        FieldSpec("Cashier", listOf("cashier", "served by", "billed by"), FieldKind.NAME_LIKE),
+        FieldSpec("Cashier", listOf("cashier", "served by"), FieldKind.NAME_LIKE),
         FieldSpec("Payment Mode", listOf("payment mode", "paid via", "payment method", "mode of payment"), FieldKind.NAME_LIKE),
         FieldSpec(CoreInvoiceFields.SUBTOTAL, listOf("subtotal", "sub total", "sub-total", "taxable value", "taxable amount", "net amount"), FieldKind.AMOUNT),
         FieldSpec("CGST", listOf("cgst"), FieldKind.AMOUNT),
@@ -97,6 +97,28 @@ object InvoiceParser {
         for (spec in FIELD_SPECS) {
             val value = extractField(lines, spec, consumed) ?: continue
             fields[spec.canonicalName] = value
+        }
+
+        // Most receipts print the business/company name unlabeled as the very first line -
+        // unlike everything in FIELD_SPECS above, there's usually no "Company:" tag to key
+        // off. If nothing already claimed that role, fall back to whichever of the first few
+        // lines looks like a plausible business name rather than boilerplate ("Tax Invoice"),
+        // a date, or a money line.
+        if (!fields.containsKey(CoreInvoiceFields.COMPANY)) {
+            val boilerplateLines = setOf(
+                "invoice", "tax invoice", "receipt", "cash memo", "bill", "order summary", "estimate", "quotation"
+            )
+            for ((index, line) in lines.withIndex()) {
+                if (index >= 3) break
+                if (index in consumed) continue
+                val trimmed = line.trim()
+                if (trimmed.lowercase() in boilerplateLines || trimmed.length > 60) continue
+                if (moneyPattern.containsMatchIn(trimmed)) continue
+                if (datePatterns.any { it.containsMatchIn(trimmed) }) continue
+                fields[CoreInvoiceFields.COMPANY] = trimmed
+                consumed.add(index)
+                break
+            }
         }
 
         extractDate(lines, consumed)?.let { fields[CoreInvoiceFields.DATE] = it }

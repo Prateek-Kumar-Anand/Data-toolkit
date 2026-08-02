@@ -245,7 +245,8 @@ class WebScrapingActivity : AppCompatActivity() {
         val summary = listOfNotNull(
             item.price?.ifBlank { null }?.let { "💰 $it" },
             item.rating?.ifBlank { null }?.let { "★ $it" },
-            item.category?.ifBlank { null }
+            item.category?.ifBlank { null },
+            item.extra.takeIf { it.isNotEmpty() }?.let { "+${it.size} more field(s)" }
         ).joinToString("   ")
         if (summary.isNotBlank()) {
             row.addView(TextView(this).apply {

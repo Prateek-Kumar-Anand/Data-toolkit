@@ -88,7 +88,11 @@
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="DETECTED FIELDS — edit anything OCR got wrong" android:textAppearance="@style/TextAppearance.App.Eyebrow" />
 
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:orientation="horizontal">
+                    <EditText android:id="@+id/etCompany" android:hint="Company / Vendor"
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
                         <EditText android:id="@+id/etInvoiceNumber" android:hint="Invoice #"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="6dp"
                             android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="13sp" android:singleLine="true" />

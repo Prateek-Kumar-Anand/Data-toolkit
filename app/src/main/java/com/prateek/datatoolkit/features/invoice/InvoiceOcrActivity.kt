@@ -33,10 +33,10 @@ import java.util.Locale
 /**
  * Invoice & Receipt OCR: photograph or pick invoices/receipts, run the same on-device ML Kit
  * recognizer [OcrHelper] already used by the plain OCR screen, then run [InvoiceParser] over
- * the recognized text to pull out invoice number / date / customer / line items / subtotal /
- * tax / total. Every field stays editable before it's added to this session's batch, which can
- * then be exported to Excel/CSV in one go - built for a freelancer processing a stack of client
- * invoices/receipts at once.
+ * the recognized text to pull out company / invoice number / date / customer / line items /
+ * subtotal / tax / total. Every field stays editable before it's added to this session's
+ * batch, which can then be exported to Excel/CSV in one go - built for a freelancer
+ * processing a stack of client invoices/receipts at once.
  */
 class InvoiceOcrActivity : AppCompatActivity() {
 
@@ -47,7 +47,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
     private var cameraImageUri: Uri? = null
     private val batch = mutableListOf<ParsedInvoice>()
 
-    // Field name -> its live EditText, for whatever this scan detected beyond the six core
+    // Field name -> its live EditText, for whatever this scan detected beyond the seven core
     // boxes above (GSTIN, CGST/SGST, discount, payment mode, table number, ...). Rebuilt on
     // every populateFields()/clearFields() call since the set of fields differs per scan.
     private val extraFieldRows = mutableListOf<Pair<String, EditText>>()
@@ -178,7 +178,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
     }
 
     private fun qualityOf(parsed: ParsedInvoice): Int {
-        val fields = listOf(parsed.invoiceNumber, parsed.date, parsed.customerName, parsed.total)
+        val fields = listOf(parsed.company, parsed.invoiceNumber, parsed.date, parsed.customerName, parsed.total)
         val detected = fields.count { it.isNotBlank() }
         return (detected * 100) / fields.size
     }
@@ -189,6 +189,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
     private fun populateFields(parsed: ParsedInvoice) {
         lastParsedRawForBatch = parsed
+        binding.etCompany.setText(parsed.company)
         binding.etInvoiceNumber.setText(parsed.invoiceNumber)
         binding.etDate.setText(parsed.date)
         binding.etCustomer.setText(parsed.customerName)
@@ -201,6 +202,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
     private fun clearFields() {
         lastParsedRawForBatch = null
+        binding.etCompany.setText("")
         binding.etInvoiceNumber.setText("")
         binding.etDate.setText("")
         binding.etCustomer.setText("")
@@ -269,6 +271,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
             sourceLabel = lastParsedRawForBatch?.sourceLabel.orEmpty(),
             rawText = lastParsedRawForBatch?.rawText.orEmpty()
         )
+        entry.company = binding.etCompany.text.toString().trim()
         entry.invoiceNumber = binding.etInvoiceNumber.text.toString().trim()
         entry.date = binding.etDate.text.toString().trim()
         entry.customerName = binding.etCustomer.text.toString().trim()
@@ -310,6 +313,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
                 .apply { topMargin = dp(8) }
         }
         val label = listOfNotNull(
+            invoice.company.ifBlank { null },
             invoice.invoiceNumber.ifBlank { null },
             invoice.customerName.ifBlank { null },
             invoice.total.ifBlank { null }?.let { "$$it" }
@@ -369,6 +373,12 @@ class InvoiceOcrActivity : AppCompatActivity() {
      * contributed, and blanks wherever a particular receipt didn't have that field. Core
      * fields come first in a stable order when present, followed by whatever extra fields
      * were detected, in the order they first appeared in the batch.
+     *
+     * Each line item gets its own row - Item / Quantity / Unit Price / Amount as real
+     * columns, not one comma-separated cell - with the invoice-level fields repeated on
+     * every one of that invoice's rows so the sheet stays sortable/filterable by item
+     * (e.g. "everything above ₹500") the way a flat items register normally works. An
+     * invoice with no line items detected still gets one row, item columns left blank.
      */
     private fun buildExportRows(): List<List<String>> {
         val presentCore = CoreInvoiceFields.ORDERED.filter { key -> batch.any { it.fields.containsKey(key) } }
@@ -376,18 +386,18 @@ class InvoiceOcrActivity : AppCompatActivity() {
         for (invoice in batch) extraColumns.addAll(invoice.extraFields.keys)
 
         val fieldColumns = presentCore + extraColumns
-        val header = fieldColumns + listOf("Items", "Source File")
+        val header = fieldColumns + listOf("Item", "Quantity", "Unit Price", "Amount", "Source File")
         val rows = mutableListOf<List<String>>(header)
 
         for (invoice in batch) {
-            val itemsSummary = invoice.items.joinToString("; ") { item ->
-                val qtyPrice = if (item.quantity.isNotBlank() || item.unitPrice.isNotBlank())
-                    " (${item.quantity.ifBlank { "1" }} x ${item.unitPrice.ifBlank { "-" }})" else ""
-                "${item.description}$qtyPrice = ${item.amount}"
+            val invoiceValues = fieldColumns.map { column -> invoice.fields[column].orEmpty() }
+            if (invoice.items.isEmpty()) {
+                rows.add(invoiceValues + listOf("", "", "", "", invoice.sourceLabel))
+            } else {
+                for (item in invoice.items) {
+                    rows.add(invoiceValues + listOf(item.description, item.quantity, item.unitPrice, item.amount, invoice.sourceLabel))
+                }
             }
-            val row = fieldColumns.map { column -> invoice.fields[column].orEmpty() } +
-                listOf(itemsSummary, invoice.sourceLabel)
-            rows.add(row)
         }
         return rows
     }

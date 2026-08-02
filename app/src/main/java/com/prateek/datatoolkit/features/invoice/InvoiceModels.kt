@@ -16,6 +16,7 @@ data class InvoiceLineItem(
  *  number, whatever a particular store's format happens to print - is *not* on this list,
  *  so it flows into [ParsedInvoice.extraFields] instead of being silently dropped. */
 object CoreInvoiceFields {
+    const val COMPANY = "Company"
     const val INVOICE_NUMBER = "Invoice Number"
     const val DATE = "Date"
     const val CUSTOMER = "Customer"
@@ -23,7 +24,7 @@ object CoreInvoiceFields {
     const val TAX = "Tax"
     const val TOTAL = "Total"
 
-    val ORDERED = listOf(INVOICE_NUMBER, DATE, CUSTOMER, SUBTOTAL, TAX, TOTAL)
+    val ORDERED = listOf(COMPANY, INVOICE_NUMBER, DATE, CUSTOMER, SUBTOTAL, TAX, TOTAL)
 }
 
 /**
@@ -51,10 +52,13 @@ data class ParsedInvoice(
         if (value.isBlank()) fields.remove(key) else fields[key] = value.trim()
     }
 
-    // Convenience accessors for the six fields most receipts/invoices have and that the
+    // Convenience accessors for the seven fields most receipts/invoices have and that the
     // review UI always shows a dedicated box for. Backed by the same [fields] map that
     // drives Excel export, so editing one of these is indistinguishable from editing any
     // other detected field - there's no separate "fixed" storage underneath.
+    var company: String
+        get() = fields[CoreInvoiceFields.COMPANY] ?: ""
+        set(value) = setOrClear(CoreInvoiceFields.COMPANY, value)
     var invoiceNumber: String
         get() = fields[CoreInvoiceFields.INVOICE_NUMBER] ?: ""
         set(value) = setOrClear(CoreInvoiceFields.INVOICE_NUMBER, value)
@@ -74,7 +78,7 @@ data class ParsedInvoice(
         get() = fields[CoreInvoiceFields.TOTAL] ?: ""
         set(value) = setOrClear(CoreInvoiceFields.TOTAL, value)
 
-    /** Whatever this particular scan detected beyond the six core fields, in the order it
+    /** Whatever this particular scan detected beyond the seven core fields, in the order it
      *  was found - GSTIN, CGST/SGST, discount, round off, payment mode, table number, or
      *  any other "Label: value" line the parser didn't recognize as a known field. */
     val extraFields: LinkedHashMap<String, String>

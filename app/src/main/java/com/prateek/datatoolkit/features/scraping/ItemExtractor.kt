@@ -5,7 +5,15 @@ import org.json.JSONObject
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-/** One auto-detected record on a scraped page (e.g. one product/article/listing card). */
+/** One auto-detected record on a scraped page (e.g. one product/article/listing card).
+ *
+ *  The seven named fields cover what most product/article/listing cards have in common,
+ *  but plenty of sites print data that doesn't fit any of them - a job listing's company/
+ *  location/salary, a real-estate card's bedrooms/area, a recipe's prep time. [extra] holds
+ *  whatever [ItemExtractor] additionally detected on a *given* card under its own label
+ *  (from a dt/dd spec list, a schema.org property, a JSON-LD field, or a plain
+ *  "Label: value" line in the markup) instead of that data being silently dropped just
+ *  because it doesn't match one of the seven fixed slots. */
 data class ScrapedItem(
     val name: String? = null,
     val description: String? = null,
@@ -13,12 +21,14 @@ data class ScrapedItem(
     val rating: String? = null,
     val link: String? = null,
     val image: String? = null,
-    val category: String? = null
+    val category: String? = null,
+    val extra: LinkedHashMap<String, String> = LinkedHashMap()
 ) {
-    /** True if at least one field beyond name was actually found - filters out empty noise. */
+    /** True if at least one field - core or site-specific extra - was actually found. */
     fun isMeaningful(): Boolean =
         !name.isNullOrBlank() || !description.isNullOrBlank() || !price.isNullOrBlank() ||
-            !rating.isNullOrBlank() || !link.isNullOrBlank() || !image.isNullOrBlank() || !category.isNullOrBlank()
+            !rating.isNullOrBlank() || !link.isNullOrBlank() || !image.isNullOrBlank() || !category.isNullOrBlank() ||
+            extra.values.any { it.isNotBlank() }
 }
 
 /**
@@ -125,7 +135,8 @@ object ItemExtractor {
                 rating = ratingOf(el),
                 link = link,
                 image = image,
-                category = categoryOf(el)
+                category = categoryOf(el),
+                extra = extraFieldsFromCard(el)
             )
         }.filter { it.isMeaningful() }
     }
@@ -234,9 +245,44 @@ object ItemExtractor {
             rating = rating,
             link = link,
             image = image,
-            category = str("category", "articleSection")
+            category = str("category", "articleSection"),
+            extra = jsonLdExtraFields(obj)
         )
         return item.takeIf { it.isMeaningful() }
+    }
+
+    /** Every other scalar (or name-bearing object/array) property on a JSON-LD entity that
+     *  isn't one of the 7 fields already mapped above - brand, sku, author, datePublished,
+     *  employmentType, isbn, whatever a particular schema.org type happens to carry - kept
+     *  under its own detected name instead of being discarded. */
+    private val JSONLD_CORE_KEYS = setOf(
+        "@context", "@type", "@id", "name", "headline", "description", "price", "lowprice",
+        "pricecurrency", "offers", "aggregaterating", "image", "url", "category", "articlesection"
+    )
+
+    private fun jsonLdExtraFields(obj: JSONObject): LinkedHashMap<String, String> {
+        val extra = LinkedHashMap<String, String>()
+        val keys = obj.keys()
+        while (keys.hasNext()) {
+            if (extra.size >= EXTRA_FIELD_CAP) break
+            val key = keys.next()
+            if (key.lowercase() in JSONLD_CORE_KEYS) continue
+            val text = when (val value = obj.opt(key)) {
+                is String -> value.takeIf { it.isNotBlank() }
+                is Number, is Boolean -> value.toString()
+                is JSONObject -> value.optString("name", "").takeIf { it.isNotBlank() }
+                is JSONArray -> (0 until value.length()).mapNotNull { i ->
+                    when (val v = value.opt(i)) {
+                        is String -> v
+                        is JSONObject -> v.optString("name", null)
+                        else -> null
+                    }
+                }.filter { it.isNotBlank() }.joinToString(", ").takeIf { it.isNotBlank() }
+                else -> null
+            } ?: continue
+            extra[titleCase(key)] = text
+        }
+        return extra
     }
 
     private fun extractJsonLdImage(node: Any?, baseUri: String): String? = when (node) {
@@ -271,13 +317,41 @@ object ItemExtractor {
                 rating = prop("ratingValue") ?: prop("ratingScore"),
                 link = prop("url") ?: scope.select("a[href]").firstOrNull()?.absUrl("href"),
                 image = prop("image"),
-                category = prop("category")
+                category = prop("category"),
+                extra = microdataExtraFields(scope)
             )
             item.takeIf { it.isMeaningful() }
         }
         // Only trust microdata if it actually produced multiple usable, distinct items -
         // a single stray itemscope somewhere in the page (e.g. site nav) isn't a listing.
         return if (items.size >= MIN_REPEATED_ELEMENTS || (items.size in 1..2 && items.all { it.name != null })) items else emptyList()
+    }
+
+    private val MICRODATA_CORE_PROPS = setOf(
+        "name", "headline", "title", "description", "price", "lowprice", "ratingvalue",
+        "ratingscore", "url", "image", "category"
+    )
+
+    /** Every itemprop on a microdata scope beyond the ones already mapped to a core field -
+     *  e.g. brand, sku, availability, author - kept under its own detected name. */
+    private fun microdataExtraFields(scope: Element): LinkedHashMap<String, String> {
+        val extra = LinkedHashMap<String, String>()
+        for (el in scope.select("[itemprop]")) {
+            if (extra.size >= EXTRA_FIELD_CAP) break
+            val propName = el.attr("itemprop").trim()
+            if (propName.isBlank() || propName.lowercase() in MICRODATA_CORE_PROPS) continue
+            val label = titleCase(propName)
+            if (extra.containsKey(label)) continue
+            val value = when {
+                el.tagName() == "img" -> resolveImageUrl(el) ?: el.attr("content")
+                el.hasAttr("content") -> el.attr("content")
+                el.tagName() == "a" -> el.absUrl("href").ifBlank { el.attr("href") }
+                el.hasAttr("datetime") -> el.attr("datetime")
+                else -> el.text()
+            }.trim()
+            if (value.isNotBlank()) extra[label] = value
+        }
+        return extra
     }
 
     // --- Strategy 3: repeated same-tag/same-class siblings ------------------------------------
@@ -329,7 +403,8 @@ object ItemExtractor {
         rating = ratingOf(el)?.trim()?.ifBlank { null },
         link = linkOf(el)?.ifBlank { null },
         image = resolveImageUrl(el)?.ifBlank { null },
-        category = categoryOf(el)?.trim()?.ifBlank { null }
+        category = categoryOf(el)?.trim()?.ifBlank { null },
+        extra = extraFieldsFromCard(el)
     )
 
     // Per-field heuristics, factored out so both the repeated-cards strategy and manual-selector
@@ -356,6 +431,76 @@ object ItemExtractor {
 
     private fun categoryOf(el: Element): String? =
         el.select("[class*=category], [class*=tag], [class*=badge], [class*=breadcrumb]").firstOrNull()?.text()
+
+    // --- Extra-field detection: whatever a card has beyond the 7 core fields --------------------
+
+    /** Cap on how many extra fields one card contributes - keeps a noisy page from exploding
+     *  into dozens of spurious Excel columns. */
+    private const val EXTRA_FIELD_CAP = 8
+
+    private val CORE_LABEL_WORDS = setOf(
+        "name", "title", "heading", "description", "desc", "summary", "subtitle", "excerpt",
+        "price", "rating", "stars", "link", "href", "image", "img", "category", "tag", "badge", "breadcrumb"
+    )
+
+    /** class-token -> canonical label. Covers the common "spec sheet" attributes that show up
+     *  outside plain commerce (real estate, job listings, recipes, directories...). */
+    private val ATTRIBUTE_CLASS_HINTS = listOf(
+        "brand" to "Brand", "sku" to "SKU", "location" to "Location", "address" to "Address",
+        "author" to "Author", "publisher" to "Publisher", "duration" to "Duration",
+        "availability" to "Availability", "stock" to "Stock", "bedroom" to "Bedrooms",
+        "bathroom" to "Bathrooms", "area" to "Area", "salary" to "Salary",
+        "employment" to "Employment Type", "isbn" to "ISBN", "weight" to "Weight",
+        "color" to "Color", "colour" to "Color", "size" to "Size", "material" to "Material",
+        "warranty" to "Warranty", "condition" to "Condition", "seller" to "Seller",
+        "shipping" to "Shipping", "posted" to "Posted"
+    )
+
+    /** Safe generic fallback: a short own-text child written as "Label: value" - colon
+     *  required so it doesn't collide with a plain description sentence. */
+    private val genericCardLabelPattern = Regex("""^\s*([A-Za-z][A-Za-z ]{1,24}?)\s*[:]\s*(.+\S)\s*$""")
+
+    /**
+     * Whatever [el] (one item card) has beyond the 7 core fields, detected in three passes:
+     * definition-list dt/dd pairs (a common "spec sheet" pattern), common attribute-ish class
+     * names not tied to any one site, then a generic "Label: value" scan of the card's direct
+     * children for anything the first two passes missed. One module, no site-specific config.
+     */
+    private fun extraFieldsFromCard(el: Element): LinkedHashMap<String, String> {
+        val extra = LinkedHashMap<String, String>()
+
+        for (dt in el.select("dt")) {
+            if (extra.size >= EXTRA_FIELD_CAP) return extra
+            val dd = dt.nextElementSibling()
+            if (dd == null || !dd.tagName().equals("dd", ignoreCase = true)) continue
+            val label = titleCase(dt.text().trim())
+            val value = dd.text().trim()
+            if (label.isBlank() || value.isBlank() || extra.containsKey(label)) continue
+            extra[label] = value
+        }
+
+        for ((hint, label) in ATTRIBUTE_CLASS_HINTS) {
+            if (extra.size >= EXTRA_FIELD_CAP) return extra
+            if (extra.containsKey(label)) continue
+            val value = el.select("[class*=$hint]").firstOrNull()?.text()?.trim()
+            if (!value.isNullOrBlank()) extra[label] = value
+        }
+
+        for (child in el.children()) {
+            if (extra.size >= EXTRA_FIELD_CAP) break
+            val match = genericCardLabelPattern.find(child.ownText().trim()) ?: continue
+            val label = titleCase(match.groupValues[1].trim())
+            val value = match.groupValues[2].trim()
+            if (label.isBlank() || value.isBlank() || label.lowercase() in CORE_LABEL_WORDS || extra.containsKey(label)) continue
+            extra[label] = value
+        }
+
+        return extra
+    }
+
+    private fun titleCase(label: String): String =
+        label.lowercase().split(Regex("""[\s_-]+""")).filter { it.isNotBlank() }
+            .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
 
     // --- Image resolution: handles the lazy-loading patterns a plain img.attr("src") misses ---
 
@@ -435,7 +580,13 @@ object ItemExtractor {
             rating = null,
             link = meta("og:url"),
             image = meta("og:image", "twitter:image", "twitter:image:src")?.let { resolveRelative(it, doc.baseUri()) },
-            category = meta("article:section", "og:type")
+            category = meta("article:section", "og:type"),
+            extra = linkedMapOf<String, String>().apply {
+                meta("og:site_name")?.let { put("Site Name", it) }
+                meta("article:author")?.let { put("Author", it) }
+                meta("article:published_time")?.let { put("Published", it) }
+                meta("product:brand", "og:brand")?.let { put("Brand", it) }
+            }
         )
         return item.takeIf { it.isMeaningful() }
     }
@@ -443,10 +594,20 @@ object ItemExtractor {
     private val PRICE_REGEX = Regex("(\u20b9|\\$|\u20ac|\u00a3)\\s?[0-9][0-9,.]*")
     private val RATING_REGEX = Regex("[0-5](\\.[0-9])?\\s*(out of\\s*5|stars|\u2605)", RegexOption.IGNORE_CASE)
 
-    /** Converts a list of items (optionally from several pages) into export rows with a header. */
+    /**
+     * Converts a list of items (optionally from several pages) into export rows with a header.
+     * No fixed column list beyond the 7 core fields: extra columns are the union of whatever
+     * [ScrapedItem.extra] fields were actually detected across the batch, appended after the
+     * fixed columns so [IMAGE_COLUMN_INDEX] stays valid - and blank wherever a given item
+     * didn't have that particular field.
+     */
     fun toRows(items: List<ScrapedItem>, includeSourceColumn: Boolean = false, sources: List<String> = emptyList()): List<List<String>> {
         val header = mutableListOf("Name", "Description", "Price", "Rating", "Link", "Image", "Category")
         if (includeSourceColumn) header.add("Source URL")
+
+        val extraColumns = LinkedHashSet<String>()
+        for (item in items) extraColumns.addAll(item.extra.keys)
+        header.addAll(extraColumns)
 
         val rows = items.mapIndexed { index, item ->
             val row = mutableListOf(
@@ -459,6 +620,7 @@ object ItemExtractor {
                 item.category.orEmpty()
             )
             if (includeSourceColumn) row.add(sources.getOrElse(index) { "" })
+            for (column in extraColumns) row.add(item.extra[column].orEmpty())
             row
         }
         return listOf(header) + rows
