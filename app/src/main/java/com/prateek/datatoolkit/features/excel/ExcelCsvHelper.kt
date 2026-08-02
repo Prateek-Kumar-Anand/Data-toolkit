@@ -66,8 +66,15 @@ object ExcelCsvHelper {
         } catch (e: Exception) {
             throw e
         } catch (e: Error) {
+            // Include e.cause too: NoClassDefFoundError's own .message only names the class that
+            // failed to *verify* (e.g. AsyncXMLInputFactory), not necessarily the class actually
+            // missing from the classpath (e.g. a stax2-api class its superclass chain needs) -
+            // that detail usually only shows up in the wrapped cause, if present.
+            val detail = listOfNotNull(e.message, e.cause?.let { "caused by ${it.javaClass.simpleName}: ${it.message}" })
+                .joinToString(" - ")
+                .ifBlank { "unknown XML/parser error" }
             throw java.io.IOException(
-                "Could not read this spreadsheet (${e.javaClass.simpleName}: ${e.message ?: "unknown XML/parser error"})", e
+                "Could not read this spreadsheet (${e.javaClass.simpleName}: $detail)", e
             )
         }
     }

@@ -135,10 +135,11 @@ dependencies {
     // if stax2-api doesn't end up on the final runtime classpath, loading InputFactoryImpl
     // fails verification with "NoClassDefFoundError: Failed resolution of:
     // Lcom/fasterxml/aalto/AsyncXMLInputFactory;" - not because that class is missing, but
-    // because ITS superclass is. Declaring it explicitly (version matches what aalto-xml
-    // 1.4.0 itself pins) guarantees it lands in the APK instead of relying on transitive
-    // resolution - this is what was actually causing every .xlsx read to fail.
-    implementation 'org.codehaus.woodstox:stax2-api:4.2.2'
+    // because ITS superclass is. Declaring it explicitly (4.3.0 - confirmed against the
+    // actual aalto-xml-1.4.0 release tag's own pom.xml, not just its main branch, which has
+    // since moved on to 4.2.2) guarantees it lands in the APK instead of relying on
+    // transitive resolution - this is what was actually causing every .xlsx read to fail.
+    implementation 'org.codehaus.woodstox:stax2-api:4.3.0'
 
     // Charts for the analytics dashboard
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
