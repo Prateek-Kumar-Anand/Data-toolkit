@@ -125,7 +125,20 @@ dependencies {
     // direct dependency (rather than left as transitive-only) because ToolkitApp.onCreate()
     // forces javax.xml.stream.XMLInputFactory to resolve to this exact class - see the
     // comment there for why (fixes the app-wide crash on opening any .xlsx file).
-    implementation 'com.fasterxml:aalto-xml:1.3.2'
+    // 1.4.0: matches what fastexcel-reader:0.20.2 itself declares (its own POM moved from
+    // 1.3.2 to 1.4.0) - this was previously left at the stale 1.3.2.
+    implementation 'com.fasterxml:aalto-xml:1.4.0'
+    // aalto-xml's AsyncXMLInputFactory (which InputFactoryImpl, forced above, extends)
+    // itself extends org.codehaus.stax2.XMLInputFactory2 - a required (non-test-scoped)
+    // dependency of aalto-xml, not an optional add-on. On a normal JVM this resolves
+    // transitively without issue, but Android's ART verifier resolves superclasses eagerly:
+    // if stax2-api doesn't end up on the final runtime classpath, loading InputFactoryImpl
+    // fails verification with "NoClassDefFoundError: Failed resolution of:
+    // Lcom/fasterxml/aalto/AsyncXMLInputFactory;" - not because that class is missing, but
+    // because ITS superclass is. Declaring it explicitly (version matches what aalto-xml
+    // 1.4.0 itself pins) guarantees it lands in the APK instead of relying on transitive
+    // resolution - this is what was actually causing every .xlsx read to fail.
+    implementation 'org.codehaus.woodstox:stax2-api:4.2.2'
 
     // Charts for the analytics dashboard
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
