@@ -261,39 +261,41 @@ object ExcelCsvHelper {
      *
      * Returns null if the bytes can't be decoded as an image at all.
      */
-    private fun buildThumbnail(bytes: ByteArray): Thumbnail? = try {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        val originalWidth = bounds.outWidth
-        val originalHeight = bounds.outHeight
-        if (originalWidth <= 0 || originalHeight <= 0) {
-            null
-        } else {
-            val scale = minOf(1.0, THUMBNAIL_MAX_PX.toDouble() / maxOf(originalWidth, originalHeight))
-            val targetWidth = (originalWidth * scale).roundToInt().coerceAtLeast(1)
-            val targetHeight = (originalHeight * scale).roundToInt().coerceAtLeast(1)
-
-            var sampleSize = 1
-            while (originalWidth / (sampleSize * 2) >= targetWidth && originalHeight / (sampleSize * 2) >= targetHeight) {
-                sampleSize *= 2
-            }
-            val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sampleSize })
-                ?: return null
-            val resized = if (decoded.width == targetWidth && decoded.height == targetHeight) {
-                decoded
+    private fun buildThumbnail(bytes: ByteArray): Thumbnail? {
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            val originalWidth = bounds.outWidth
+            val originalHeight = bounds.outHeight
+            if (originalWidth <= 0 || originalHeight <= 0) {
+                null
             } else {
-                Bitmap.createScaledBitmap(decoded, targetWidth, targetHeight, true).also {
-                    if (it !== decoded) decoded.recycle()
-                }
-            }
+                val scale = minOf(1.0, THUMBNAIL_MAX_PX.toDouble() / maxOf(originalWidth, originalHeight))
+                val targetWidth = (originalWidth * scale).roundToInt().coerceAtLeast(1)
+                val targetHeight = (originalHeight * scale).roundToInt().coerceAtLeast(1)
 
-            val out = ByteArrayOutputStream()
-            resized.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            resized.recycle()
-            Thumbnail(out.toByteArray(), targetWidth, targetHeight)
+                var sampleSize = 1
+                while (originalWidth / (sampleSize * 2) >= targetWidth && originalHeight / (sampleSize * 2) >= targetHeight) {
+                    sampleSize *= 2
+                }
+                val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sampleSize })
+                    ?: return null
+                val resized = if (decoded.width == targetWidth && decoded.height == targetHeight) {
+                    decoded
+                } else {
+                    Bitmap.createScaledBitmap(decoded, targetWidth, targetHeight, true).also {
+                        if (it !== decoded) decoded.recycle()
+                    }
+                }
+
+                val out = ByteArrayOutputStream()
+                resized.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+                resized.recycle()
+                Thumbnail(out.toByteArray(), targetWidth, targetHeight)
+            }
+        } catch (_: Exception) {
+            null
         }
-    } catch (_: Exception) {
-        null
     }
 
     /** Rough px -> Excel character-width conversion (~7px per character at the default font). */
