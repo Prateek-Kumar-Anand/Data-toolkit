@@ -34,4 +34,5 @@
     <color name="accent_batch_bg">#4A3410</color>
     <color name="accent_dashboard_bg">#262157</color>
     <color name="accent_workflow_bg">#3B1447</color>
+    <color name="accent_conversion_bg">#3A1D4A</color>
 </resources>

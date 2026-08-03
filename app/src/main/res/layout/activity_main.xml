@@ -63,7 +63,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="2dp"
-                            android:text="OCR, PDF, Excel/CSV, scraping and more — all on-device."
+                            android:text="OCR, PDF, Excel/CSV, file conversion, scraping and more — all on-device."
                             android:textColor="@color/text_on_primary_muted"
                             android:textSize="13sp" />
                     </LinearLayout>
@@ -280,6 +280,32 @@
                             android:text="Analytics" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="1dp"
                             android:text="Totals, quality, activity" android:textAppearance="@style/TextAppearance.App.Body" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Row 5: File Conversion -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="10dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btnConversion"
+                    style="@style/Widget.App.Card.Feature"
+                    android:layout_width="match_parent" android:layout_height="match_parent">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <FrameLayout android:layout_width="42dp" android:layout_height="42dp"
+                            android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_conversion_bg">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🔁" android:textSize="19sp" />
+                        </FrameLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
+                            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                                android:text="File Conversion" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="1dp"
+                                android:text="Documents, images, audio &amp; video — any format to another" android:textAppearance="@style/TextAppearance.App.Body" />
+                        </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>

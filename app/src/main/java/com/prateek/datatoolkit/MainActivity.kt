@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.prateek.datatoolkit.databinding.ActivityMainBinding
 import com.prateek.datatoolkit.features.batch.BatchProcessingActivity
+import com.prateek.datatoolkit.features.conversion.FileConversionActivity
 import com.prateek.datatoolkit.features.datacleaning.DataCleaningActivity
 import com.prateek.datatoolkit.features.email.EmailExtractionActivity
 import com.prateek.datatoolkit.features.excel.ExcelCsvActivity
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnOcr.setOnClickListener { open(OcrActivity::class.java) }
         binding.btnPdf.setOnClickListener { open(PdfActivity::class.java) }
         binding.btnExcel.setOnClickListener { open(ExcelCsvActivity::class.java) }
+        binding.btnConversion.setOnClickListener { open(FileConversionActivity::class.java) }
         binding.btnScraping.setOnClickListener { open(WebScrapingActivity::class.java) }
         binding.btnEmail.setOnClickListener { open(EmailExtractionActivity::class.java) }
         binding.btnBatch.setOnClickListener { open(BatchProcessingActivity::class.java) }
