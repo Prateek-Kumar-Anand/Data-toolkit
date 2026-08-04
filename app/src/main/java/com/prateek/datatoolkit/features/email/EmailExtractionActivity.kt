@@ -2,6 +2,7 @@ package com.prateek.datatoolkit.features.email
 
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -48,6 +49,8 @@ class EmailExtractionActivity : AppCompatActivity() {
             return
         }
         val normalized = if (!url.startsWith("http://") && !url.startsWith("https://")) "https://$url" else url
+        binding.progressBar.visibility = View.VISIBLE
+        binding.btnExtractFromUrl.isEnabled = false
         binding.tvStatus.text = "Scraping (with auto-retry)..."
         lifecycleScope.launch {
             try {
@@ -56,6 +59,9 @@ class EmailExtractionActivity : AppCompatActivity() {
                 showResult(result, normalized, scraped.title.ifBlank { normalized })
             } catch (e: Exception) {
                 binding.tvStatus.text = "Scrape failed: ${e.message}"
+            } finally {
+                binding.progressBar.visibility = View.GONE
+                binding.btnExtractFromUrl.isEnabled = true
             }
         }
     }

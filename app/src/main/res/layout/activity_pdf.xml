@@ -29,78 +29,131 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Extract Text -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Extract Text" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_pdf_bg">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📝" android:textSize="17sp" />
+                        </FrameLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Extract Text" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Pull all readable text out of a PDF" android:textAppearance="@style/TextAppearance.App.Body" />
+                        </LinearLayout>
+                    </LinearLayout>
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnExtractText"
                         style="@style/Widget.App.Button.Outlined"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="Pick a PDF and extract text" />
+                        android:layout_marginTop="12dp"
+                        android:text="Choose a PDF…" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Merge PDFs -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Merge PDFs" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_pdf_bg">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🔗" android:textSize="17sp" />
+                        </FrameLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Merge PDFs" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Combine two or more PDFs, in the order you pick them" android:textAppearance="@style/TextAppearance.App.Body" />
+                        </LinearLayout>
+                    </LinearLayout>
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnMerge"
                         style="@style/Widget.App.Button.Outlined"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="Pick 2+ PDFs to merge" />
+                        android:layout_marginTop="12dp"
+                        android:text="Choose 2+ PDFs…" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Split PDF -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Split PDF" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="10dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_pdf_bg">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="✂️" android:textSize="17sp" />
+                        </FrameLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Split PDF" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Pull out a page range as its own PDF" android:textAppearance="@style/TextAppearance.App.Body" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="12dp">
                         <EditText android:id="@+id/etStartPage" android:layout_width="0dp" android:layout_height="wrap_content"
-                            android:layout_weight="1" android:background="@drawable/bg_input_field_focused" android:hint="Start page" android:textColorHint="@color/text_secondary" android:inputType="number" android:layout_marginEnd="6dp" />
+                            android:layout_weight="1" android:background="@drawable/bg_input_field_focused" android:hint="Start page" android:textColorHint="@color/text_secondary"
+                            android:gravity="center" android:inputType="number" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_marginEnd="10dp"
+                            android:text="→" android:textColor="@color/text_secondary" android:textSize="16sp" />
                         <EditText android:id="@+id/etEndPage" android:layout_width="0dp" android:layout_height="wrap_content"
-                            android:layout_weight="1" android:background="@drawable/bg_input_field_focused" android:hint="End page" android:textColorHint="@color/text_secondary" android:inputType="number" android:layout_marginStart="6dp" />
+                            android:layout_weight="1" android:background="@drawable/bg_input_field_focused" android:hint="End page" android:textColorHint="@color/text_secondary"
+                            android:gravity="center" android:inputType="number" />
                     </LinearLayout>
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSplit"
                         style="@style/Widget.App.Button.Outlined"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="Pick a PDF and split range" />
+                        android:layout_marginTop="12dp"
+                        android:text="Choose a PDF…" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Images -> PDF -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Images → PDF" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_pdf_bg">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🖼️" android:textSize="17sp" />
+                        </FrameLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Images → PDF" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="One page per picture, in the order you pick them" android:textAppearance="@style/TextAppearance.App.Body" />
+                        </LinearLayout>
+                    </LinearLayout>
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnImagesToPdf"
                         style="@style/Widget.App.Button.Outlined"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="Pick images to combine into a PDF" />
+                        android:layout_marginTop="12dp"
+                        android:text="Choose images…" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:progressTint="@color/accent_pdf"
+                android:indeterminate="true"
+                android:visibility="gone" />
 
             <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:textColor="@color/text_secondary" android:textSize="12.5sp" android:layout_marginBottom="10dp" />
 
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Result" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                        <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_pdf_bg">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="✅" android:textSize="17sp" />
+                        </FrameLayout>
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp"
+                            android:text="Result" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    </LinearLayout>
                     <EditText
                         android:id="@+id/etOutput"
                         android:layout_width="match_parent"
                         android:layout_height="180dp"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginTop="12dp"
                         android:background="@drawable/bg_input_field_focused"
                         android:gravity="top|start"
+                        android:hint="Your result will appear here after you run an operation above"
+                        android:textColorHint="@color/text_secondary"
                         android:textSize="13sp"
                         android:inputType="textMultiLine" />
 

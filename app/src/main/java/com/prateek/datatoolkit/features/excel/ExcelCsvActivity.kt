@@ -2,6 +2,7 @@ package com.prateek.datatoolkit.features.excel
 
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -56,6 +57,7 @@ class ExcelCsvActivity : AppCompatActivity() {
     }
 
     private fun loadXlsx(uri: Uri) {
+        binding.progressBar.visibility = View.VISIBLE
         binding.tvStatus.text = "Reading spreadsheet..."
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
@@ -73,11 +75,14 @@ class ExcelCsvActivity : AppCompatActivity() {
                 // java.lang.Error (e.g. a StAX factory error) rather than a normal Exception,
                 // which would otherwise crash the whole app instead of showing this message.
                 binding.tvStatus.text = "Failed to read xlsx: ${e.message}"
+            } finally {
+                binding.progressBar.visibility = View.GONE
             }
         }
     }
 
     private fun loadCsv(uri: Uri) {
+        binding.progressBar.visibility = View.VISIBLE
         binding.tvStatus.text = "Reading CSV..."
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
@@ -89,6 +94,8 @@ class ExcelCsvActivity : AppCompatActivity() {
                 onRowsLoaded(rows, uri.lastPathSegment ?: "data.csv", start)
             } catch (e: Exception) {
                 binding.tvStatus.text = "Failed to read CSV: ${e.message}"
+            } finally {
+                binding.progressBar.visibility = View.GONE
             }
         }
     }
@@ -119,6 +126,8 @@ class ExcelCsvActivity : AppCompatActivity() {
             Toast.makeText(this, "Open a file first", Toast.LENGTH_SHORT).show()
             return
         }
+        binding.progressBar.visibility = View.VISIBLE
+        binding.tvStatus.text = "Exporting..."
         lifecycleScope.launch {
             try {
                 val tempFile = if (asXlsx)
@@ -135,6 +144,8 @@ class ExcelCsvActivity : AppCompatActivity() {
                 if (asXlsx) saveXlsxAs.launch(tempFile.name) else saveCsvAs.launch(tempFile.name)
             } catch (e: Exception) {
                 Toast.makeText(this@ExcelCsvActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.progressBar.visibility = View.GONE
             }
         }
     }

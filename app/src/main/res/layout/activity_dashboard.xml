@@ -29,6 +29,15 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:progressTint="@color/primary"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
                 <TextView
                     android:id="@+id/tvSummary"

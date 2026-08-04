@@ -94,6 +94,22 @@ class DataCleaningActivity : AppCompatActivity() {
             this, android.R.layout.simple_spinner_dropdown_item,
             listOf("None", "lower case", "UPPER CASE", "Title Case")
         )
+        binding.spinnerMissingValues.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            listOf("Leave blank", "Fill with text below", "Flag only (don't change)", "Remove the row")
+        )
+        binding.spinnerInvalidAction.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            listOf("Flag only (don't change)", "Blank the cell", "Remove the row")
+        )
+        binding.spinnerDateOrder.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            listOf("Auto (day first)", "Day first (DD-MM-YYYY)", "Month first (MM-DD-YYYY)")
+        )
+        binding.spinnerBooleanFormat.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_dropdown_item,
+            listOf("Yes / No", "True / False", "1 / 0")
+        )
 
         binding.btnUploadFile.setOnClickListener { pickFile.launch("*/*") }
         binding.btnDetectColumns.setOnClickListener { detectColumns() }
@@ -470,6 +486,20 @@ class DataCleaningActivity : AppCompatActivity() {
         }
         val dedupeKeys = binding.etDedupeKeys.text.toString().split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
+        val missingStrategy = when (binding.spinnerMissingValues.selectedItemPosition) {
+            1 -> MissingValueStrategy.FILL; 2 -> MissingValueStrategy.FLAG; 3 -> MissingValueStrategy.REMOVE_ROW
+            else -> MissingValueStrategy.NONE
+        }
+        val invalidAction = when (binding.spinnerInvalidAction.selectedItemPosition) {
+            1 -> InvalidAction.BLANK; 2 -> InvalidAction.REMOVE_ROW; else -> InvalidAction.FLAG
+        }
+        val dateOrderHint = when (binding.spinnerDateOrder.selectedItemPosition) {
+            1 -> DateOrderHint.DAY_FIRST; 2 -> DateOrderHint.MONTH_FIRST; else -> DateOrderHint.AUTO
+        }
+        val booleanFormat = when (binding.spinnerBooleanFormat.selectedItemPosition) {
+            1 -> BooleanFormat.TRUE_FALSE; 2 -> BooleanFormat.ONE_ZERO; else -> BooleanFormat.YES_NO
+        }
+
         val options = CleaningOptions(
             trimWhitespace = binding.cbTrim.isChecked,
             collapseInnerSpaces = binding.cbCollapse.isChecked,
@@ -480,9 +510,14 @@ class DataCleaningActivity : AppCompatActivity() {
             fillMissingWith = binding.etFillMissing.text.toString().ifBlank { null },
             dedupeKeyColumns = dedupeKeys,
             fuzzyDedupe = binding.cbFuzzyDedupe.isChecked,
+            fuzzySimilarityDedupe = binding.cbSimilarityDedupe.isChecked,
             columnRules = collectColumnRules(),
             replaceRules = collectReplaceRules(),
-            flagInvalidCells = binding.cbFlagInvalid.isChecked
+            flagInvalidCells = binding.cbFlagInvalid.isChecked,
+            dateOrderHint = dateOrderHint,
+            booleanOutputFormat = booleanFormat,
+            invalidAction = invalidAction,
+            missingValueStrategy = missingStrategy
         )
 
         binding.progressBar.isIndeterminate = true
@@ -506,22 +541,48 @@ class DataCleaningActivity : AppCompatActivity() {
                 val quality = QualityScorer.scoreTable(cleaned)
                 binding.tvReport.text = buildString {
                     append("Rows: ${report.rowsIn} → ${report.rowsOut}  |  ")
-                    append("Duplicates removed: ${report.duplicatesRemoved}  |  ")
-                    append("Empty rows removed: ${report.emptyRowsRemoved}  |  ")
-                    append("Blanks filled: ${report.cellsFilled}  |  ")
+                    append("Quality: $quality/100 (${QualityScorer.label(quality)})\n\n")
+
+                    append("DUPLICATES & ROWS REMOVED\n")
+                    append("• Exact duplicates removed: ${report.exactDuplicatesRemoved}\n")
+                    append("• Fuzzy/near-duplicate rows removed: ${report.fuzzyDuplicatesRemoved}")
+                    if (report.similarityDedupeSkipped) append("  (near-duplicate pass skipped - table too large)")
+                    append("\n")
+                    append("• Empty rows removed: ${report.emptyRowsRemoved}\n")
+                    append("• Rows removed (invalid values): ${report.rowsRemovedForInvalidValues}\n")
+                    append("• Rows removed (missing values): ${report.rowsRemovedForMissingValues}\n\n")
+
+                    append("VALIDATION\n")
+                    append("• Invalid emails: ${report.invalidEmails}\n")
+                    append("• Invalid phone numbers: ${report.invalidPhones}  (${report.phonesNormalized} normalized to 10 digits)\n")
+                    append("• Dates standardized to YYYY-MM-DD: ${report.datesStandardized}  (${report.datesUnparseable} unrecognized)\n")
+                    append("• Currency values cleaned to numeric: ${report.currencyCellsCleaned}\n")
+                    append("• Out-of-range numeric values: ${report.invalidNumericValues}\n")
+                    append("• Yes/No/True/False values normalized: ${report.booleansNormalized}\n\n")
+
+                    append("MISSING VALUES\n")
+                    append("• Blank cells found: ${report.missingValuesFound}  |  filled: ${report.missingValuesFilled}  |  flagged: ${report.missingValuesFlagged}\n\n")
+
+                    append("OTHER CLEANUP\n")
+                    append("• Blanks filled (general): ${report.cellsFilled}  |  ")
                     append("Unwanted chars stripped: ${report.unwantedCharsRemoved}  |  ")
-                    append("Replacements made: ${report.replacementsMade}  |  ")
-                    append("Quality: $quality/100 (${QualityScorer.label(quality)})")
+                    append("Replacements made: ${report.replacementsMade}")
+
                     if (report.detectedTypes.isNotEmpty()) {
                         append("\n\nDetected column types: ")
                         append(report.detectedTypes.entries.joinToString(", ") { "${it.key}=${it.value}" })
                     }
                     if (report.invalidCells.isNotEmpty()) {
-                        append("\n\n⚠ ${report.invalidCells.size} value(s) don't match their column's type:\n")
+                        append("\n\n⚠ ${report.invalidCells.size} value(s) flagged:\n")
                         report.invalidCells.take(8).forEach {
-                            append("• Row ${it.rowIndex + 1}, ${it.column}: \"${it.value}\" (expected ${it.expectedType})\n")
+                            append("• Row ${it.rowIndex + 1}, ${it.column}: \"${it.value}\" - ${it.reason.ifBlank { "expected ${it.expectedType}" }}\n")
                         }
-                        if (report.invalidCells.size > 8) append("...and ${report.invalidCells.size - 8} more")
+                        if (report.invalidCells.size > 8) append("...and ${report.invalidCells.size - 8} more\n")
+                    }
+                    if (report.changeLog.isNotEmpty()) {
+                        append("\nCHANGES MADE (sample)\n")
+                        report.changeLog.take(15).forEach { append("• $it\n") }
+                        if (report.changeLog.size > 15) append("...and ${report.changeLog.size - 15} more change(s)")
                     }
                 }
 

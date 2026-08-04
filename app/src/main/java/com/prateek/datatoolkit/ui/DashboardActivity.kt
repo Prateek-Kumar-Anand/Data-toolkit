@@ -1,6 +1,7 @@
 package com.prateek.datatoolkit.ui
 
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -41,6 +42,7 @@ class DashboardActivity : AppCompatActivity() {
     }
 
     private fun loadData() {
+        binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             val dao = AppDatabase.get(applicationContext).processedItemDao()
             val total = withContext(Dispatchers.IO) { dao.totalCount() }
@@ -79,6 +81,7 @@ class DashboardActivity : AppCompatActivity() {
             else recent.joinToString("\n") { item ->
                 "[${item.feature}] ${item.inputLabel.take(30)} — ${item.status}, quality ${item.qualityScore}"
             }
+            binding.progressBar.visibility = View.GONE
         }
     }
 }

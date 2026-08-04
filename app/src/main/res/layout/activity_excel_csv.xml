@@ -45,6 +45,15 @@
                             android:layout_marginStart="6dp" android:text="Open .csv" />
                     </LinearLayout>
 
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:progressTint="@color/accent_excel"
+                        android:indeterminate="true"
+                        android:visibility="gone" />
+
                     <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
 

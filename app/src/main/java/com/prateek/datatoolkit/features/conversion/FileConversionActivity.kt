@@ -3,6 +3,7 @@ package com.prateek.datatoolkit.features.conversion
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -79,6 +80,7 @@ class FileConversionActivity : AppCompatActivity() {
             this, android.R.layout.simple_spinner_dropdown_item, availableTargets.map { it.label }
         )
         binding.tvSourceInfo.text = "Loading $name…"
+        binding.progressBar.visibility = View.VISIBLE
 
         lifecycleScope.launch {
             try {
@@ -90,6 +92,8 @@ class FileConversionActivity : AppCompatActivity() {
                 binding.btnConvert.isEnabled = true
             } catch (e: Exception) {
                 binding.tvSourceInfo.text = "Failed to read $name: ${e.message}"
+            } finally {
+                binding.progressBar.visibility = View.GONE
             }
         }
     }
@@ -103,6 +107,7 @@ class FileConversionActivity : AppCompatActivity() {
         }
         binding.btnConvert.isEnabled = false
         binding.btnSaveAs.isEnabled = false
+        binding.progressBar.visibility = View.VISIBLE
         binding.tvStatus.text = "Converting to ${target.label}…"
 
         lifecycleScope.launch {
@@ -139,6 +144,7 @@ class FileConversionActivity : AppCompatActivity() {
                 )
             } finally {
                 binding.btnConvert.isEnabled = true
+                binding.progressBar.visibility = View.GONE
             }
         }
     }

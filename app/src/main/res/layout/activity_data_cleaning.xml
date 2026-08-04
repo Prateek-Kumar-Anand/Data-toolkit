@@ -183,11 +183,16 @@
                     <Spinner android:id="@+id/spinnerCaseMode" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
 
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp"
+                        android:text="Missing values" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                    <Spinner android:id="@+id/spinnerMissingValues" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
+
                     <EditText
                         android:id="@+id/etFillMissing"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp" android:background="@drawable/bg_input_field"
-                        android:hint="Fill blank cells with (optional, e.g. N/A)" android:textColor="@color/text_primary" android:textSize="13sp"
+                        android:layout_marginTop="10dp" android:background="@drawable/bg_input_field"
+                        android:hint="Fill value, used when strategy above is &quot;Fill with text&quot; (e.g. N/A)" android:textColor="@color/text_primary" android:textSize="13sp"
                         android:inputType="text" />
 
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" android:layout_marginTop="16dp" />
@@ -227,9 +232,54 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- STEP 2B — Data validation & normalization -->
+            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="STEP 2B" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="10dp">
+                        <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="✅" android:textSize="17sp" />
+                        </FrameLayout>
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Data validation &amp; normalization" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Emails, phones, dates, currency, ranges and Yes/No are cleaned automatically" android:textAppearance="@style/TextAppearance.App.Body" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="When a value fails validation" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                    <Spinner android:id="@+id/spinnerInvalidAction" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                        android:text="Ambiguous date order (e.g. 05-06-2024)" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                    <Spinner android:id="@+id/spinnerDateOrder" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                        android:text="Yes/No output format" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                    <Spinner android:id="@+id/spinnerBooleanFormat" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" android:layout_marginTop="16dp" />
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp">
+                        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Catch near-duplicate rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Similarity match beyond exact/normalized - slower on large tables" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                        </LinearLayout>
+                        <CheckBox android:id="@+id/cbSimilarityDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:buttonTint="@color/primary" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- OPTIONAL — Per-column rules -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:text="OPTIONAL" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />

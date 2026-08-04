@@ -57,6 +57,15 @@
                         android:layout_marginTop="12dp"
                         android:enabled="false"
                         android:text="🔁  Convert" />
+                    <ProgressBar
+                        android:id="@+id/progressBar"
+                        style="?android:attr/progressBarStyleHorizontal"
+                        android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:progressTint="@color/accent_conversion"
+                        android:indeterminate="true"
+                        android:visibility="gone" />
+
                     <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
                 </LinearLayout>

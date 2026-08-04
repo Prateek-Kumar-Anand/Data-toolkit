@@ -3,6 +3,7 @@ package com.prateek.datatoolkit.features.pdf
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -79,7 +80,19 @@ class PdfActivity : AppCompatActivity() {
         return file
     }
 
+    /** Drives the progress bar and disables every action button while one operation runs,
+     * so a second tap can't start an overlapping job. */
+    private fun setBusy(busy: Boolean) {
+        binding.progressBar.visibility = if (busy) View.VISIBLE else View.GONE
+        binding.btnExtractText.isEnabled = !busy
+        binding.btnMerge.isEnabled = !busy
+        binding.btnSplit.isEnabled = !busy
+        binding.btnImagesToPdf.isEnabled = !busy
+        binding.btnSaveAs.isEnabled = !busy
+    }
+
     private fun extractText(uri: Uri) {
+        setBusy(true)
         binding.tvStatus.text = "Extracting text..."
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
@@ -97,6 +110,8 @@ class PdfActivity : AppCompatActivity() {
                 cache.record("PDF", text.toByteArray(), uri.lastPathSegment ?: "pdf", text, null, quality, "SUCCESS", durationMs = System.currentTimeMillis() - start)
             } catch (e: Exception) {
                 binding.tvStatus.text = "Failed: ${e.message}"
+            } finally {
+                setBusy(false)
             }
         }
     }
@@ -106,6 +121,7 @@ class PdfActivity : AppCompatActivity() {
             Toast.makeText(this, "Pick at least 2 PDFs", Toast.LENGTH_SHORT).show()
             return
         }
+        setBusy(true)
         binding.tvStatus.text = "Merging ${uris.size} PDFs..."
         lifecycleScope.launch {
             try {
@@ -121,6 +137,8 @@ class PdfActivity : AppCompatActivity() {
                 cache.record("PDF", outFile.readBytes(), "${uris.size} PDFs merged", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Merge failed: ${e.message}"
+            } finally {
+                setBusy(false)
             }
         }
     }
@@ -132,6 +150,7 @@ class PdfActivity : AppCompatActivity() {
             Toast.makeText(this, "Enter a valid page range first", Toast.LENGTH_SHORT).show()
             return
         }
+        setBusy(true)
         binding.tvStatus.text = "Splitting pages $start-$end..."
         lifecycleScope.launch {
             try {
@@ -147,11 +166,14 @@ class PdfActivity : AppCompatActivity() {
                 cache.record("PDF", outFile.readBytes(), uri.lastPathSegment ?: "pdf", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Split failed: ${e.message}"
+            } finally {
+                setBusy(false)
             }
         }
     }
 
     private fun imagesToPdf(uris: List<Uri>) {
+        setBusy(true)
         binding.tvStatus.text = "Building PDF from ${uris.size} images..."
         lifecycleScope.launch {
             try {
@@ -168,6 +190,8 @@ class PdfActivity : AppCompatActivity() {
                 cache.record("PDF", outFile.readBytes(), "${uris.size} images", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Failed: ${e.message}"
+            } finally {
+                setBusy(false)
             }
         }
     }
