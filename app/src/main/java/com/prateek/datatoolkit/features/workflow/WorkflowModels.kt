@@ -97,7 +97,10 @@ enum class StepKind(
     )
 }
 
-enum class StepStatus { PENDING, RUNNING, SUCCESS, FAILED }
+/** SKIPPED means the run never attempted this step because an earlier step in the chain
+ *  already failed - see [com.prateek.datatoolkit.features.workflow.WorkflowActivity.runWorkflow].
+ *  Kept distinct from FAILED so the results/history don't read as "this step itself broke". */
+enum class StepStatus { PENDING, RUNNING, SUCCESS, FAILED, SKIPPED }
 
 /** One configured block in a user-built workflow, plus whatever it produced after running. */
 class WorkflowStep(val kind: StepKind) {

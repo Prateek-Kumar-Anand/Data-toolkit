@@ -2,6 +2,7 @@ package com.prateek.datatoolkit.features.batch
 
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -23,7 +24,6 @@ import java.util.concurrent.TimeUnit
 class BatchProcessingActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityBatchProcessingBinding
-    private var pendingType: String = BatchWorker.TYPE_OCR
 
     private val pickImages = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isNotEmpty()) startBatch(uris, BatchWorker.TYPE_OCR)
@@ -43,6 +43,8 @@ class BatchProcessingActivity : AppCompatActivity() {
 
     private fun startBatch(uris: List<Uri>, type: String) {
         binding.tvStatus.text = "Preparing ${uris.size} file(s)..."
+        binding.progressBar.progress = 0
+        binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
             // Copy each picked file into app-private storage so WorkManager can read it
             // reliably later, without depending on the original content:// URI grant.
@@ -64,6 +66,7 @@ class BatchProcessingActivity : AppCompatActivity() {
 
             if (localUris.isEmpty()) {
                 binding.tvStatus.text = "Could not read any of the selected files"
+                binding.progressBar.visibility = View.GONE
                 return@launch
             }
 
@@ -94,9 +97,14 @@ class BatchProcessingActivity : AppCompatActivity() {
                         val succeeded = info.outputData.getInt("succeeded", 0)
                         val failed = info.outputData.getInt("failed", 0)
                         binding.tvStatus.text = "Done: $succeeded succeeded, $failed failed"
+                        binding.progressBar.visibility = View.GONE
                         loadLog()
                     }
-                    WorkInfo.State.FAILED -> binding.tvStatus.text = "Batch job failed after retries"
+                    WorkInfo.State.FAILED -> {
+                        binding.tvStatus.text = "Batch job failed after retries"
+                        binding.progressBar.visibility = View.GONE
+                    }
+                    WorkInfo.State.CANCELLED -> binding.progressBar.visibility = View.GONE
                     WorkInfo.State.BLOCKED, WorkInfo.State.ENQUEUED -> binding.tvStatus.text = "Queued..."
                     else -> {}
                 }

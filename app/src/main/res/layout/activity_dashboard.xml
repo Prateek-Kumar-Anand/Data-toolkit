@@ -2,7 +2,9 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:clipToPadding="false">
+    android:fillViewport="true"
+    android:clipToPadding="false"
+    android:paddingBottom="24dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -16,8 +18,12 @@
             android:paddingStart="20dp" android:paddingEnd="20dp"
             android:paddingTop="26dp" android:paddingBottom="22dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="📊  Analytics Dashboard" android:textColor="@color/text_on_primary" android:textSize="22sp" android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📊  Analytics Dashboard"
+                    android:textColor="@color/text_on_primary"
+                    android:textAppearance="@style/TextAppearance.App.HeroTitle" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
                     android:text="Totals, quality and per-feature activity" android:textColor="@color/text_on_primary_muted" android:textSize="13sp" />
             </LinearLayout>
@@ -38,15 +44,65 @@
                 android:indeterminate="true"
                 android:visibility="gone" />
 
+            <!-- Stat strip: the three numbers that matter most, at a glance -->
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
-                <TextView
-                    android:id="@+id/tvSummary"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/text_primary"
-                    android:textSize="15sp"
-                    android:lineSpacingExtra="4dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                        android:orientation="vertical" android:gravity="center_horizontal">
+                        <TextView
+                            android:id="@+id/tvTotalJobs"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="0" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+                            android:text="Total jobs" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                    </LinearLayout>
+
+                    <View android:layout_width="1dp" android:layout_height="34dp" android:background="@color/stroke" />
+
+                    <LinearLayout
+                        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                        android:orientation="vertical" android:gravity="center_horizontal">
+                        <TextView
+                            android:id="@+id/tvSuccessRate"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="0%" android:textColor="@color/success" android:textSize="22sp" android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+                            android:text="Success rate" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                    </LinearLayout>
+
+                    <View android:layout_width="1dp" android:layout_height="34dp" android:background="@color/stroke" />
+
+                    <LinearLayout
+                        android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                        android:orientation="vertical" android:gravity="center_horizontal">
+                        <TextView
+                            android:id="@+id/tvAvgQuality"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="0" android:textColor="@color/primary" android:textSize="22sp" android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+                            android:text="Avg. quality" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                    </LinearLayout>
+                </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <!-- Success/failed breakdown, right under the headline numbers -->
+            <TextView
+                android:id="@+id/tvBreakdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp"
+                android:gravity="center"
+                android:textColor="@color/text_secondary"
+                android:textSize="12.5sp" />
 
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
@@ -55,6 +111,16 @@
                         android:layout_height="wrap_content"
                         android:text="Jobs by feature"
                         android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+
+                    <TextView
+                        android:id="@+id/tvChartEmptyState"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="No activity yet — run any tool to see a breakdown here."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
 
                     <com.github.mikephil.charting.charts.BarChart
                         android:id="@+id/barChart"
@@ -73,13 +139,20 @@
                         android:textAppearance="@style/TextAppearance.App.SectionTitle" />
 
                     <TextView
-                        android:id="@+id/tvRecent"
+                        android:id="@+id/tvRecentEmptyState"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:background="@drawable/bg_input_field"
-                        android:fontFamily="monospace"
-                        android:textSize="12sp" />
+                        android:layout_marginTop="8dp"
+                        android:text="No activity yet — try any tool from the home screen."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12.5sp" />
+
+                    <LinearLayout
+                        android:id="@+id/recentContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:orientation="vertical" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnClear"

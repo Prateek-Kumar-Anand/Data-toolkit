@@ -57,7 +57,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:progressTint="@color/primary"
-                        android:max="100" />
+                        android:max="100"
+                        android:visibility="gone" />
 
                     <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="12.5sp" />

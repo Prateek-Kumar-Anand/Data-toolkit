@@ -485,6 +485,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         binding.btnGallery.isEnabled = !busy
         binding.btnBatchPick.isEnabled = !busy
         if (busy) binding.btnAddToBatch.isEnabled = false
+        binding.progressBar.visibility = if (busy) View.VISIBLE else View.GONE
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()

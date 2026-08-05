@@ -3,6 +3,7 @@ package com.prateek.datatoolkit.features.ocr
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -89,6 +90,7 @@ class OcrActivity : AppCompatActivity() {
         setExportEnabled(false)
         binding.progressBar.max = uris.size
         binding.progressBar.progress = 0
+        binding.progressBar.visibility = View.VISIBLE
         binding.tvSummary.text = ""
         binding.tvStatus.text = if (uris.size == 1) "Recognizing text..." else "Processing page 1 of ${uris.size} (0%)..."
 
@@ -148,6 +150,8 @@ class OcrActivity : AppCompatActivity() {
                     qualityScore = 0,
                     status = "FAILED"
                 )
+            } finally {
+                binding.progressBar.visibility = View.GONE
             }
         }
     }

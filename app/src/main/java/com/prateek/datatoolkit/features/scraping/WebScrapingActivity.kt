@@ -325,6 +325,7 @@ class WebScrapingActivity : AppCompatActivity() {
         binding.btnScrape.isEnabled = !busy
         binding.btnSave.isEnabled = !busy
         binding.btnSaveXlsx.isEnabled = !busy && pendingXlsxFile != null
+        binding.progressBar.visibility = if (busy) View.VISIBLE else View.GONE
     }
 
     private fun saveResults() {

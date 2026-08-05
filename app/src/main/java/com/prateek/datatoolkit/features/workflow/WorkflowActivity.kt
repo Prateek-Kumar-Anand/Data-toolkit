@@ -57,6 +57,11 @@ class WorkflowActivity : AppCompatActivity() {
     // at that point the chain no longer matches what was saved.
     private var loadedWorkflowId: Long? = null
 
+    // True for the duration of an active run - guards every action that structurally mutates
+    // [steps] (add/remove/replace) so a tap mid-run can't cause a ConcurrentModificationException
+    // against the coroutine that's currently iterating that same list in runWorkflow().
+    private var isRunning: Boolean = false
+
     // Shared pickers - which step is waiting for a result is tracked via the slots below,
     // set right before each launch() call (same "pendingAction" idea PdfActivity uses).
     private var pendingUriPick: ((Uri) -> Unit)? = null
@@ -111,15 +116,33 @@ class WorkflowActivity : AppCompatActivity() {
     private fun projectedKind(): DataKind = if (steps.isEmpty()) DataKind.NONE else steps.last().kind.produces
 
     private fun addStep(kind: StepKind) {
+        if (isRunning) return
         steps.add(WorkflowStep(kind))
         loadedWorkflowId = null
         renderSteps()
         renderAddStepOptions()
     }
 
-    private fun removeLastStep() {
-        if (steps.isEmpty()) return
-        steps.removeAt(steps.size - 1)
+    /** Removes the step at [index] and every step chained after it, since their input would
+     *  no longer make sense once whatever fed them is gone. Asks for confirmation only when
+     *  that would take more than just the one (last) step with it. */
+    private fun confirmRemoveFrom(index: Int, trailingCount: Int) {
+        if (isRunning) return
+        if (trailingCount <= 0) {
+            removeStepsFrom(index)
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Remove ${trailingCount + 1} steps?")
+            .setMessage("This removes step ${index + 1} and the $trailingCount step(s) chained after it.")
+            .setPositiveButton("Remove") { _, _ -> removeStepsFrom(index) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun removeStepsFrom(index: Int) {
+        if (index !in steps.indices) return
+        while (steps.size > index) steps.removeAt(steps.size - 1)
         loadedWorkflowId = null
         renderSteps()
         renderAddStepOptions()
@@ -184,6 +207,7 @@ class WorkflowActivity : AppCompatActivity() {
             text = when (step.status) {
                 StepStatus.SUCCESS -> step.resultPreview.ifBlank { "Done" }
                 StepStatus.FAILED -> "⚠ ${step.errorMessage ?: "Failed"}"
+                StepStatus.SKIPPED -> "⤼ Skipped — an earlier step in this run failed"
                 else -> step.kind.summary
             }
             setTextColor(if (step.status == StepStatus.FAILED) colorOf(R.color.error) else colorOf(R.color.text_secondary))
@@ -227,28 +251,31 @@ class WorkflowActivity : AppCompatActivity() {
             else -> { /* transforms and exports need no input from the user */ }
         }
 
-        if (isLast) {
-            val removeRow = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.END
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                    .apply { topMargin = dp(6) }
-            }
-            removeRow.addView(TextView(this).apply {
-                text = "✕ Remove this step"
-                setTextColor(colorOf(R.color.error))
-                setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-                textSize = 11.5f
-                isClickable = true
-                isFocusable = true
-                val outValue = TypedValue()
-                this@WorkflowActivity.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
-                setBackgroundResource(outValue.resourceId)
-                setPadding(dp(6), dp(2), dp(6), dp(2))
-                setOnClickListener { removeLastStep() }
-            })
-            card.addView(removeRow)
+        // Every step can be removed, not just the last one - removing an earlier step also
+        // drops everything chained after it (their input would no longer make sense once
+        // what feeds them is gone), so the label says exactly what will happen before it does.
+        val trailingCount = steps.size - index - 1
+        val removeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                .apply { topMargin = dp(6) }
         }
+        removeRow.addView(TextView(this).apply {
+            text = if (isLast) "✕ Remove this step" else "✕ Remove this + $trailingCount step(s) after it"
+            setTextColor(colorOf(R.color.error))
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            textSize = 11.5f
+            alpha = if (isRunning) 0.4f else 1f
+            isClickable = !isRunning
+            isFocusable = !isRunning
+            val outValue = TypedValue()
+            this@WorkflowActivity.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+            setBackgroundResource(outValue.resourceId)
+            setPadding(dp(6), dp(2), dp(6), dp(2))
+            setOnClickListener { confirmRemoveFrom(index, trailingCount) }
+        })
+        card.addView(removeRow)
 
         return card
     }
@@ -259,6 +286,7 @@ class WorkflowActivity : AppCompatActivity() {
             StepStatus.RUNNING -> "RUNNING…"
             StepStatus.SUCCESS -> "DONE"
             StepStatus.FAILED -> "FAILED"
+            StepStatus.SKIPPED -> "SKIPPED"
         }
         textSize = 10f
         setTypeface(Typeface.DEFAULT, Typeface.BOLD)
@@ -273,6 +301,7 @@ class WorkflowActivity : AppCompatActivity() {
                 StepStatus.RUNNING -> R.color.primary
                 StepStatus.SUCCESS -> R.color.success
                 StepStatus.FAILED -> R.color.error
+                StepStatus.SKIPPED -> R.color.text_secondary
             }
         )
     }
@@ -350,8 +379,9 @@ class WorkflowActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER
                 background = ContextCompat.getDrawable(this@WorkflowActivity, R.drawable.bg_chip_outline)
                 setPadding(dp(10), dp(10), dp(10), dp(10))
-                isClickable = true
-                isFocusable = true
+                alpha = if (isRunning) 0.4f else 1f
+                isClickable = !isRunning
+                isFocusable = !isRunning
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                     if (i % 2 == 0) marginEnd = dp(6) else marginStart = dp(6)
                 }
@@ -401,9 +431,22 @@ class WorkflowActivity : AppCompatActivity() {
             var current: WorkflowData = WorkflowData.Empty
             var okCount = 0
             var failCount = 0
+            var skipCount = 0
+            var stopped = false
             val start = System.currentTimeMillis()
 
             for ((index, step) in steps.withIndex()) {
+                // Once something upstream has failed, the rest of the chain has nothing valid
+                // to work with - running them anyway just produces a wall of confusing "needs
+                // a table but got nothing" errors. Mark them SKIPPED instead and move on.
+                if (stopped) {
+                    step.status = StepStatus.SKIPPED
+                    step.errorMessage = null
+                    skipCount++
+                    binding.progressBar.progress = index + 1
+                    continue
+                }
+
                 step.status = StepStatus.RUNNING
                 step.errorMessage = null
                 renderSteps()
@@ -424,18 +467,21 @@ class WorkflowActivity : AppCompatActivity() {
                     step.errorMessage = e.message ?: "Unknown error"
                     current = WorkflowData.Empty
                     failCount++
+                    stopped = true
                 }
                 renderSteps()
                 binding.progressBar.progress = index + 1
                 binding.tvProgressLabel.text = "Step ${index + 1} of ${steps.size} (${((index + 1) * 100) / steps.size}%)"
             }
+            if (skipCount > 0) renderSteps()
 
             val totalMs = System.currentTimeMillis() - start
             binding.tvRunSummary.text = "Finished in ${formatDuration(totalMs)}  •  $okCount step(s) succeeded" +
-                if (failCount > 0) ", $failCount failed" else ""
+                (if (failCount > 0) ", $failCount failed" else "") +
+                (if (skipCount > 0) ", $skipCount skipped" else "")
 
             renderResults()
-            recordRun(okCount, failCount, totalMs)
+            recordRun(okCount, failCount, skipCount, totalMs)
             loadedWorkflowId?.let { id ->
                 withContext(Dispatchers.IO) { db.savedWorkflowDao().markRun(id, System.currentTimeMillis()) }
                 renderSavedWorkflows()
@@ -521,18 +567,30 @@ class WorkflowActivity : AppCompatActivity() {
     }
 
     private fun setRunning(running: Boolean) {
+        isRunning = running
         binding.btnRunWorkflow.isEnabled = !running
         binding.btnResetWorkflow.isEnabled = !running
         binding.btnSaveWorkflow.isEnabled = !running
         binding.progressBar.visibility = if (running) View.VISIBLE else View.GONE
         binding.tvProgressLabel.visibility = if (running) View.VISIBLE else View.GONE
+        renderSteps()
+        renderAddStepOptions()
     }
 
     private fun formatDuration(ms: Long): String = if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)
 
-    private suspend fun recordRun(okCount: Int, failCount: Int, totalMs: Long) {
+    private suspend fun recordRun(okCount: Int, failCount: Int, skipCount: Int, totalMs: Long) {
         val label = "${steps.size}-step workflow"
-        val preview = steps.joinToString(" → ") { "${it.kind.emoji}${if (it.status == StepStatus.FAILED) "✗" else "✓"}" }
+        val preview = steps.joinToString(" → ") { step ->
+            "${step.kind.emoji}${
+                when (step.status) {
+                    StepStatus.SUCCESS -> "✓"
+                    StepStatus.FAILED -> "✗"
+                    StepStatus.SKIPPED -> "⤼"
+                    else -> "•"
+                }
+            }"
+        }
         val quality = if (steps.isEmpty()) 0 else (okCount * 100 / steps.size)
         cache.record(
             feature = "WORKFLOW",
@@ -644,6 +702,10 @@ class WorkflowActivity : AppCompatActivity() {
     }
 
     private fun loadSavedWorkflow(workflow: SavedWorkflow) {
+        if (isRunning) {
+            Toast.makeText(this, "Wait for the current run to finish first", Toast.LENGTH_SHORT).show()
+            return
+        }
         fun apply() {
             steps.clear()
             steps.addAll(WorkflowStorage.decode(workflow.stepsJson))
