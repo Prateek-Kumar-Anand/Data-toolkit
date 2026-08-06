@@ -49,13 +49,9 @@ class ExcelCsvActivity : AppCompatActivity() {
         cache = CacheManager(this)
 
         binding.btnPickXlsx.setOnClickListener {
-            // */* rather than the exact OOXML MIME type: many document providers (Downloads,
-            // some cloud providers) report .xlsx as application/octet-stream, which makes the
-            // file unselectable if we filter on the precise spreadsheet MIME type. Same pattern
-            // already used for file picking in DataCleaningActivity and WorkflowActivity.
-            pickXlsx.launch("*/*")
+            pickXlsx.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         }
-        binding.btnPickCsv.setOnClickListener { pickCsv.launch("*/*") }
+        binding.btnPickCsv.setOnClickListener { pickCsv.launch("text/*") }
         binding.btnExportCsv.setOnClickListener { export(asXlsx = false) }
         binding.btnExportXlsx.setOnClickListener { export(asXlsx = true) }
     }
