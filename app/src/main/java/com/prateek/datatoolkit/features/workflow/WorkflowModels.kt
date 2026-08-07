@@ -38,62 +38,72 @@ sealed class WorkflowData(val kind: DataKind) {
  * step legally follow one - so a single workflow run can chain several
  * independent source -> ... -> export branches back to back.
  */
+/** Groups steps into the three stages a pipeline is actually built from, so the "add a
+ *  step" picker can read as three short, labeled sections instead of one flat pile of
+ *  same-looking options. */
+enum class StepCategory(val label: String) {
+    SOURCE("Start with"),
+    TRANSFORM("Then"),
+    EXPORT("Finish by exporting")
+}
+
 enum class StepKind(
     val stepLabel: String,
     val emoji: String,
     val summary: String,
     val accepts: Set<DataKind>,
-    val produces: DataKind
+    val produces: DataKind,
+    val category: StepCategory
 ) {
     SCAN_IMAGES(
         "Scan Photos (OCR)", "📷", "Pick photos, recognize the text on them",
-        setOf(DataKind.NONE), DataKind.TEXT
+        setOf(DataKind.NONE), DataKind.TEXT, StepCategory.SOURCE
     ),
     LOAD_PDF(
         "Load a PDF", "📄", "Pick a PDF, pull out its text",
-        setOf(DataKind.NONE), DataKind.TEXT
+        setOf(DataKind.NONE), DataKind.TEXT, StepCategory.SOURCE
     ),
     LOAD_SHEET(
         "Load Excel / CSV", "📊", "Pick a spreadsheet to use as a table",
-        setOf(DataKind.NONE), DataKind.TABLE
+        setOf(DataKind.NONE), DataKind.TABLE, StepCategory.SOURCE
     ),
     SCRAPE_URL(
         "Scrape a URL", "🌐", "Fetch a page — auto-detects product/article cards",
-        setOf(DataKind.NONE), DataKind.TABLE
+        setOf(DataKind.NONE), DataKind.TABLE, StepCategory.SOURCE
     ),
     PASTE_TEXT(
         "Paste Text", "✍️", "Type or paste in the starting text",
-        setOf(DataKind.NONE), DataKind.TEXT
+        setOf(DataKind.NONE), DataKind.TEXT, StepCategory.SOURCE
     ),
 
     CLEAN_TABLE(
         "Clean the Data", "🧹", "Trim, de-duplicate, drop blank rows",
-        setOf(DataKind.TABLE), DataKind.TABLE
+        setOf(DataKind.TABLE), DataKind.TABLE, StepCategory.TRANSFORM
     ),
     EXTRACT_EMAILS(
         "Extract Emails", "✉️", "Pull out valid, de-duplicated emails",
-        setOf(DataKind.TEXT, DataKind.TABLE), DataKind.EMAILS
+        setOf(DataKind.TEXT, DataKind.TABLE), DataKind.EMAILS, StepCategory.TRANSFORM
     ),
 
     EXPORT_CSV(
         "Export as CSV", "💾", "Save as a .csv file",
-        setOf(DataKind.TABLE, DataKind.TEXT, DataKind.EMAILS), DataKind.NONE
+        setOf(DataKind.TABLE, DataKind.TEXT, DataKind.EMAILS), DataKind.NONE, StepCategory.EXPORT
     ),
     EXPORT_XLSX(
         "Export as Excel", "💾", "Save as an .xlsx file",
-        setOf(DataKind.TABLE, DataKind.TEXT, DataKind.EMAILS), DataKind.NONE
+        setOf(DataKind.TABLE, DataKind.TEXT, DataKind.EMAILS), DataKind.NONE, StepCategory.EXPORT
     ),
     EXPORT_TXT(
         "Export as Text", "💾", "Save as a plain .txt file",
-        setOf(DataKind.TEXT, DataKind.TABLE, DataKind.EMAILS), DataKind.NONE
+        setOf(DataKind.TEXT, DataKind.TABLE, DataKind.EMAILS), DataKind.NONE, StepCategory.EXPORT
     ),
     EXPORT_PDF(
         "Export as PDF", "💾", "Save as a .pdf file",
-        setOf(DataKind.TEXT, DataKind.TABLE, DataKind.EMAILS), DataKind.NONE
+        setOf(DataKind.TEXT, DataKind.TABLE, DataKind.EMAILS), DataKind.NONE, StepCategory.EXPORT
     ),
     EXPORT_DOCX(
         "Export as Word", "💾", "Save as a .docx file",
-        setOf(DataKind.TEXT, DataKind.TABLE, DataKind.EMAILS), DataKind.NONE
+        setOf(DataKind.TEXT, DataKind.TABLE, DataKind.EMAILS), DataKind.NONE, StepCategory.EXPORT
     )
 }
 

@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.TextViewCompat
 import androidx.core.widget.doOnTextChanged
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
@@ -360,34 +361,53 @@ class WorkflowActivity : AppCompatActivity() {
         binding.addStepChipsContainer.removeAllViews()
         val kind = projectedKind()
         val options = StepKind.values().filter { kind in it.accepts }
+        val groups = options.groupBy { it.category }
 
-        var row: LinearLayout? = null
-        for ((i, stepKind) in options.withIndex()) {
-            if (i % 2 == 0) {
-                row = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                        .apply { topMargin = dp(8) }
+        for ((groupIndex, category) in StepCategory.values().withIndex()) {
+            val stepsInGroup = groups[category] ?: continue
+
+            binding.addStepChipsContainer.addView(TextView(this).apply {
+                text = category.label.uppercase()
+                TextViewCompat.setTextAppearance(this, R.style.TextAppearance_App_Eyebrow)
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(if (groupIndex == 0) 2 else 14) }
+            })
+
+            var row: LinearLayout? = null
+            for ((i, stepKind) in stepsInGroup.withIndex()) {
+                if (i % 2 == 0) {
+                    row = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                            .apply { topMargin = dp(8) }
+                    }
+                    binding.addStepChipsContainer.addView(row)
                 }
-                binding.addStepChipsContainer.addView(row)
-            }
-            val chip = TextView(this).apply {
-                text = "${stepKind.emoji}  ${stepKind.stepLabel}"
-                setTextColor(colorOf(R.color.text_primary))
-                setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-                textSize = 12.5f
-                gravity = Gravity.CENTER
-                background = ContextCompat.getDrawable(this@WorkflowActivity, R.drawable.bg_chip_outline)
-                setPadding(dp(10), dp(10), dp(10), dp(10))
-                alpha = if (isRunning) 0.4f else 1f
-                isClickable = !isRunning
-                isFocusable = !isRunning
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    if (i % 2 == 0) marginEnd = dp(6) else marginStart = dp(6)
+                // Within the export group the header already says "finish by exporting", so
+                // "Export as CSV" on the chip itself would just repeat it - show "CSV" instead.
+                // stepLabel itself stays untouched since the pipeline list and progress text
+                // (elsewhere in this file) need the full "Export as ..." phrase to read clearly
+                // on their own.
+                val label = if (category == StepCategory.EXPORT) stepKind.stepLabel.removePrefix("Export as ") else stepKind.stepLabel
+                val chip = TextView(this).apply {
+                    text = "${stepKind.emoji}  $label"
+                    setTextColor(colorOf(R.color.text_primary))
+                    setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                    textSize = 12.5f
+                    gravity = Gravity.CENTER
+                    background = ContextCompat.getDrawable(this@WorkflowActivity, R.drawable.bg_chip_outline)
+                    setPadding(dp(10), dp(10), dp(10), dp(10))
+                    alpha = if (isRunning) 0.4f else 1f
+                    isClickable = !isRunning
+                    isFocusable = !isRunning
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        if (i % 2 == 0) marginEnd = dp(6) else marginStart = dp(6)
+                    }
+                    setOnClickListener { addStep(stepKind) }
                 }
-                setOnClickListener { addStep(stepKind) }
+                row?.addView(chip)
             }
-            row?.addView(chip)
         }
     }
 

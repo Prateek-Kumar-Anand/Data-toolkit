@@ -168,36 +168,38 @@ object ExcelCsvHelper {
         }
     }
 
-    private fun readSharedStrings(zip: ZipFile): List<String> = try {
-        val entry = zip.getEntry("xl/sharedStrings.xml") ?: return emptyList()
-        val strings = mutableListOf<String>()
-        zip.getInputStream(entry).use { input ->
-            val parser = Xml.newPullParser()
-            parser.setInput(input, "UTF-8")
-            var inItem = false
-            var text: StringBuilder? = null
-            var event = parser.eventType
-            while (event != XmlPullParser.END_DOCUMENT) {
-                when (event) {
-                    XmlPullParser.START_TAG -> if (parser.name == "si") { inItem = true; text = StringBuilder() }
-                    // Every <t> run inside one <si>...</si> (plain or split across rich-text
-                    // <r> runs) gets appended in document order, so multi-run strings come out
-                    // concatenated the same way Excel displays them. CDSECT is included since a
-                    // pull parser reports CDATA-wrapped text separately from plain TEXT.
-                    XmlPullParser.TEXT, XmlPullParser.CDSECT -> if (inItem) text?.append(parser.text)
-                    XmlPullParser.END_TAG -> if (parser.name == "si") {
-                        strings.add(text?.toString() ?: "")
-                        inItem = false
+    private fun readSharedStrings(zip: ZipFile): List<String> {
+        return try {
+            val entry = zip.getEntry("xl/sharedStrings.xml") ?: return emptyList()
+            val strings = mutableListOf<String>()
+            zip.getInputStream(entry).use { input ->
+                val parser = Xml.newPullParser()
+                parser.setInput(input, "UTF-8")
+                var inItem = false
+                var text: StringBuilder? = null
+                var event = parser.eventType
+                while (event != XmlPullParser.END_DOCUMENT) {
+                    when (event) {
+                        XmlPullParser.START_TAG -> if (parser.name == "si") { inItem = true; text = StringBuilder() }
+                        // Every <t> run inside one <si>...</si> (plain or split across rich-text
+                        // <r> runs) gets appended in document order, so multi-run strings come out
+                        // concatenated the same way Excel displays them. CDSECT is included since a
+                        // pull parser reports CDATA-wrapped text separately from plain TEXT.
+                        XmlPullParser.TEXT, XmlPullParser.CDSECT -> if (inItem) text?.append(parser.text)
+                        XmlPullParser.END_TAG -> if (parser.name == "si") {
+                            strings.add(text?.toString() ?: "")
+                            inItem = false
+                        }
                     }
+                    event = parser.next()
                 }
-                event = parser.next()
             }
+            strings
+        } catch (e: Exception) {
+            // A malformed/unexpected sharedStrings.xml shouldn't take down the whole read - cells
+            // that reference it just come back blank instead of the app failing to open the file.
+            emptyList()
         }
-        strings
-    } catch (e: Exception) {
-        // A malformed/unexpected sharedStrings.xml shouldn't take down the whole read - cells
-        // that reference it just come back blank instead of the app failing to open the file.
-        emptyList()
     }
 
     private fun resolveSheetEntry(zip: ZipFile, sheetIndex: Int): String? = try {
