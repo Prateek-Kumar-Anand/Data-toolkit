@@ -2,6 +2,9 @@ package com.prateek.datatoolkit.features.excel
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Xml
+import org.xmlpull.v1.XmlPullParser
+import java.util.zip.ZipFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -29,54 +32,230 @@ import kotlin.math.roundToInt
 object ExcelCsvHelper {
 
     fun readXlsx(file: File, sheetIndex: Int = 0): List<List<String>> {
-        // Everything below is wrapped because fastexcel-reader's ReadableWorkbook constructor
-        // calls javax.xml.stream.XMLInputFactory.newInstance() to get a StAX parser for each
-        // sheet's XML. ToolkitApp.onCreate() already forces that lookup to resolve to the
-        // aalto-xml engine bundled with this app (see the comment there for the full story),
-        // which is what actually fixes the "opening any .xlsx crashes the whole app" bug. This
-        // try/catch is the second, independent layer: if a factory still can't be resolved on
-        // some device, XMLInputFactory throws a javax.xml.stream.FactoryConfigurationError -
-        // a java.lang.Error, not an Exception - which would otherwise slip past every
-        // "catch (e: Exception)" in ExcelCsvActivity/DataCleaningActivity/WorkflowEngine and
-        // crash the whole process instead of showing a normal, friendly error message.
-        try {
-            FileInputStream(file).use { input ->
-                ReadableWorkbook(input).use { wb ->
-                    // NOTE: wb.sheets is a java.util.stream.Stream<Sheet>, not a Kotlin collection.
-                    // Calling .toList() on it needs the kotlin.streams.toList() extension, and even
-                    // with that import, newer JDKs can resolve it to Java 16's native Stream.toList()
-                    // instead - a method that doesn't exist on Android's runtime (minSdk 24) and
-                    // throws NoSuchMethodError the moment a file is read. forEach() is unambiguous
-                    // and safe on every Android version this app targets.
-                    val sheetsList = mutableListOf<org.dhatim.fastexcel.reader.Sheet>()
-                    wb.sheets.forEach { sheetsList.add(it) }
-                    val sheet = sheetsList.getOrNull(sheetIndex) ?: return emptyList()
-                    val rows = mutableListOf<List<String>>()
-                    sheet.openStream().use { rowStream ->
-                        rowStream.forEach { row ->
-                            val cells = (0 until row.cellCount).map { i ->
-                                row.getCell(i)?.text ?: ""
+        // fastexcel-reader's ReadableWorkbook needs javax.xml.stream.XMLInputFactory to resolve
+        // to the aalto-xml engine ToolkitApp.onCreate() forces it to (see the comment there). In
+        // practice that resolution has kept failing on real devices - ART throws
+        // NoClassDefFoundError partway through the aalto-xml/stax2-api class hierarchy even with
+        // both pinned as explicit dependencies - so this no longer trusts that path alone. It's
+        // tried first (it's the fuller-featured reader), but ANY failure - Exception or Error -
+        // falls back to readXlsxViaPlatformXml(), which reads the xlsx zip directly with
+        // android.util.Xml and never touches javax.xml.stream/aalto-xml/stax2-api at all.
+        return try {
+            readXlsxViaFastexcel(file, sheetIndex)
+        } catch (primary: Throwable) {
+            try {
+                readXlsxViaPlatformXml(file, sheetIndex)
+            } catch (fallback: Throwable) {
+                // Both readers failed - report both, not just the primary. (An earlier version
+                // of this only surfaced the primary reader's error here, which meant a bug in
+                // the fallback itself was invisible - the message looked identical whether the
+                // fallback ran and also failed, or never ran at all.)
+                val primaryDetail = listOfNotNull(
+                    primary.message,
+                    primary.cause?.let { "caused by ${it.javaClass.simpleName}: ${it.message}" }
+                ).joinToString(" - ").ifBlank { "unknown error" }
+                val fallbackDetail = listOfNotNull(
+                    fallback.message,
+                    fallback.cause?.let { "caused by ${it.javaClass.simpleName}: ${it.message}" }
+                ).joinToString(" - ").ifBlank { "unknown error" }
+                throw java.io.IOException(
+                    "Could not read this spreadsheet. Primary reader: ${primary.javaClass.simpleName}: " +
+                        "$primaryDetail | Fallback reader: ${fallback.javaClass.simpleName}: $fallbackDetail",
+                    primary
+                )
+            }
+        }
+    }
+
+    private fun readXlsxViaFastexcel(file: File, sheetIndex: Int): List<List<String>> {
+        FileInputStream(file).use { input ->
+            ReadableWorkbook(input).use { wb ->
+                // NOTE: wb.sheets is a java.util.stream.Stream<Sheet>, not a Kotlin collection.
+                // Calling .toList() on it needs the kotlin.streams.toList() extension, and even
+                // with that import, newer JDKs can resolve it to Java 16's native Stream.toList()
+                // instead - a method that doesn't exist on Android's runtime (minSdk 24) and
+                // throws NoSuchMethodError the moment a file is read. forEach() is unambiguous
+                // and safe on every Android version this app targets.
+                val sheetsList = mutableListOf<org.dhatim.fastexcel.reader.Sheet>()
+                wb.sheets.forEach { sheetsList.add(it) }
+                val sheet = sheetsList.getOrNull(sheetIndex) ?: return emptyList()
+                val rows = mutableListOf<List<String>>()
+                sheet.openStream().use { rowStream ->
+                    rowStream.forEach { row ->
+                        val cells = (0 until row.cellCount).map { i ->
+                            row.getCell(i)?.text ?: ""
+                        }
+                        rows.add(cells)
+                    }
+                }
+                return rows
+            }
+        }
+    }
+
+    /** Dependency-free fallback for [readXlsx]. Walks the xlsx zip directly with
+     *  android.util.Xml's pull parser: resolves the target sheet via workbook.xml + its rels
+     *  (falling back to the sheetN.xml naming convention if that resolution comes up empty),
+     *  resolves shared-string cells against sharedStrings.xml, and reads inline/numeric/boolean
+     *  cells straight off the sheet XML. Covers the flat data tables this app actually produces
+     *  and consumes; it isn't a full OOXML implementation (no rich number formatting - dates and
+     *  currency come through as their raw stored value - and no live formula evaluation). */
+    private fun readXlsxViaPlatformXml(file: File, sheetIndex: Int): List<List<String>> {
+        ZipFile(file).use { zip ->
+            val sharedStrings = readSharedStrings(zip)
+            val entryName = resolveSheetEntry(zip, sheetIndex) ?: "xl/worksheets/sheet${sheetIndex + 1}.xml"
+            val entry = zip.getEntry(entryName) ?: return emptyList()
+
+            val rows = mutableListOf<List<String>>()
+            zip.getInputStream(entry).use { input ->
+                val parser = Xml.newPullParser()
+                parser.setInput(input, "UTF-8")
+                var rowCells: MutableMap<Int, String>? = null
+                var maxCol = -1
+                var cellCol = -1
+                var cellType: String? = null
+                var text: StringBuilder? = null
+                var capturing = false
+
+                var event = parser.eventType
+                while (event != XmlPullParser.END_DOCUMENT) {
+                    when (event) {
+                        XmlPullParser.START_TAG -> when (parser.name) {
+                            "row" -> { rowCells = mutableMapOf(); maxCol = -1 }
+                            "c" -> {
+                                cellCol = columnFromCellRef(parser.getAttributeValue(null, "r"))
+                                cellType = parser.getAttributeValue(null, "t")
                             }
-                            rows.add(cells)
+                            "v", "t" -> { capturing = true; text = StringBuilder() }
+                        }
+                        XmlPullParser.TEXT, XmlPullParser.CDSECT -> if (capturing) text?.append(parser.text)
+                        XmlPullParser.END_TAG -> when (parser.name) {
+                            "v" -> {
+                                capturing = false
+                                if (cellCol >= 0) {
+                                    val raw = text?.toString() ?: ""
+                                    val value = when (cellType) {
+                                        "s" -> raw.toIntOrNull()?.let { sharedStrings.getOrNull(it) } ?: ""
+                                        "b" -> if (raw == "1") "TRUE" else "FALSE"
+                                        else -> raw
+                                    }
+                                    rowCells?.put(cellCol, value)
+                                    if (cellCol > maxCol) maxCol = cellCol
+                                }
+                            }
+                            "t" -> {
+                                capturing = false
+                                // Inline strings (t="inlineStr") carry their value in <is><t>
+                                // right on the cell; shared-string <t> runs live inside
+                                // sharedStrings.xml and are handled separately, not here.
+                                if (cellType == "inlineStr" && cellCol >= 0) {
+                                    rowCells?.put(cellCol, text?.toString() ?: "")
+                                    if (cellCol > maxCol) maxCol = cellCol
+                                }
+                            }
+                            "row" -> {
+                                rowCells?.let { cells ->
+                                    rows.add(MutableList(maxCol + 1) { i -> cells[i] ?: "" })
+                                }
+                                rowCells = null
+                            }
                         }
                     }
-                    return rows
+                    event = parser.next()
                 }
             }
-        } catch (e: Exception) {
-            throw e
-        } catch (e: Error) {
-            // Include e.cause too: NoClassDefFoundError's own .message only names the class that
-            // failed to *verify* (e.g. AsyncXMLInputFactory), not necessarily the class actually
-            // missing from the classpath (e.g. a stax2-api class its superclass chain needs) -
-            // that detail usually only shows up in the wrapped cause, if present.
-            val detail = listOfNotNull(e.message, e.cause?.let { "caused by ${it.javaClass.simpleName}: ${it.message}" })
-                .joinToString(" - ")
-                .ifBlank { "unknown XML/parser error" }
-            throw java.io.IOException(
-                "Could not read this spreadsheet (${e.javaClass.simpleName}: $detail)", e
-            )
+            return rows
         }
+    }
+
+    private fun readSharedStrings(zip: ZipFile): List<String> = try {
+        val entry = zip.getEntry("xl/sharedStrings.xml") ?: return emptyList()
+        val strings = mutableListOf<String>()
+        zip.getInputStream(entry).use { input ->
+            val parser = Xml.newPullParser()
+            parser.setInput(input, "UTF-8")
+            var inItem = false
+            var text: StringBuilder? = null
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                when (event) {
+                    XmlPullParser.START_TAG -> if (parser.name == "si") { inItem = true; text = StringBuilder() }
+                    // Every <t> run inside one <si>...</si> (plain or split across rich-text
+                    // <r> runs) gets appended in document order, so multi-run strings come out
+                    // concatenated the same way Excel displays them. CDSECT is included since a
+                    // pull parser reports CDATA-wrapped text separately from plain TEXT.
+                    XmlPullParser.TEXT, XmlPullParser.CDSECT -> if (inItem) text?.append(parser.text)
+                    XmlPullParser.END_TAG -> if (parser.name == "si") {
+                        strings.add(text?.toString() ?: "")
+                        inItem = false
+                    }
+                }
+                event = parser.next()
+            }
+        }
+        strings
+    } catch (e: Exception) {
+        // A malformed/unexpected sharedStrings.xml shouldn't take down the whole read - cells
+        // that reference it just come back blank instead of the app failing to open the file.
+        emptyList()
+    }
+
+    private fun resolveSheetEntry(zip: ZipFile, sheetIndex: Int): String? = try {
+        resolveSheetEntryOrThrow(zip, sheetIndex)
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun resolveSheetEntryOrThrow(zip: ZipFile, sheetIndex: Int): String? {
+        val wbEntry = zip.getEntry("xl/workbook.xml") ?: return null
+        val relsEntry = zip.getEntry("xl/_rels/workbook.xml.rels") ?: return null
+
+        val relIds = mutableListOf<String>()
+        zip.getInputStream(wbEntry).use { input ->
+            val parser = Xml.newPullParser()
+            parser.setInput(input, "UTF-8")
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG && parser.name == "sheet") {
+                    // r:id - match by local name so this doesn't depend on the parser's
+                    // namespace-prefix handling.
+                    val rid = (0 until parser.attributeCount)
+                        .firstOrNull { parser.getAttributeName(it).substringAfterLast(':') == "id" }
+                        ?.let { parser.getAttributeValue(it) }
+                    if (rid != null) relIds.add(rid)
+                }
+                event = parser.next()
+            }
+        }
+        val targetId = relIds.getOrNull(sheetIndex) ?: return null
+
+        var target: String? = null
+        zip.getInputStream(relsEntry).use { input ->
+            val parser = Xml.newPullParser()
+            parser.setInput(input, "UTF-8")
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG && parser.name == "Relationship" &&
+                    parser.getAttributeValue(null, "Id") == targetId
+                ) {
+                    target = parser.getAttributeValue(null, "Target")
+                }
+                event = parser.next()
+            }
+        }
+        val t = target ?: return null
+        return if (t.startsWith("/")) t.removePrefix("/") else "xl/${t.removePrefix("./")}"
+    }
+
+    /** "C7" -> 2 (0-based column index; ignores the row digits). */
+    private fun columnFromCellRef(ref: String?): Int {
+        if (ref.isNullOrEmpty()) return -1
+        var col = 0
+        for (ch in ref) {
+            if (ch < 'A' || ch > 'Z') break
+            col = col * 26 + (ch - 'A' + 1)
+        }
+        return col - 1
     }
 
     /** Writes a plain table - every column auto-widened to fit its content (capped so one
