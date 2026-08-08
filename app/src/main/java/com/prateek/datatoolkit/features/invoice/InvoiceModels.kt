@@ -46,7 +46,18 @@ data class ParsedInvoice(
     var fields: LinkedHashMap<String, String> = LinkedHashMap(),
     var items: List<InvoiceLineItem> = emptyList(),
     var sourceLabel: String = "",
-    val rawText: String = ""
+    val rawText: String = "",
+    /** Set by [InvoiceParser] once it's had a chance to check the extracted items against
+     *  this receipt's own subtotal/total: a match, a mismatch worth double-checking, or (if
+     *  neither could be confidently determined) blank. Never blocks adding to the batch or
+     *  exporting - like every other field here, it's surfaced so the user can judge it, not
+     *  enforced automatically. */
+    var itemsValidationNote: String = "",
+    /** True alongside [itemsValidationNote] specifically when that note is a mismatch or an
+     *  alignment warning - i.e. worth a visual flag in the UI - rather than a confirmed match
+     *  or a "nothing to check against" note. Kept as its own field instead of the UI matching
+     *  against [itemsValidationNote]'s wording. */
+    var itemsNeedReview: Boolean = false
 ) {
     private fun setOrClear(key: String, value: String) {
         if (value.isBlank()) fields.remove(key) else fields[key] = value.trim()

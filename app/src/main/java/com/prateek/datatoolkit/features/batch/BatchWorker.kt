@@ -46,8 +46,8 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
 
         for (uriString in uriStrings) {
             val uri = Uri.parse(uriString)
-            val itemResult = RetryPolicy.withRetry(maxAttempts = 3) { attempt ->
-                processOne(type, uri, attempt)
+            val itemResult = RetryPolicy.withRetry(maxAttempts = 3) {
+                processOne(type, uri)
             }
 
             if (itemResult.value != null) {
@@ -98,7 +98,7 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
     }
 
     /** Returns Triple(label, outputPreview, qualityScore) for one processed item. */
-    private fun processOne(type: String, uri: Uri, attempt: Int): Triple<String, String, Int> {
+    private fun processOne(type: String, uri: Uri): Triple<String, String, Int> {
         val resolver = applicationContext.contentResolver
         val label = uri.lastPathSegment ?: uri.toString()
 

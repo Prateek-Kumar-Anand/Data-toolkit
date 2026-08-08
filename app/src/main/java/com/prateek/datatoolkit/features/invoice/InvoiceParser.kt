@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.invoice
 
+import com.prateek.datatoolkit.features.ocr.OcrResult
+
 /**
  * Turns raw OCR text from a photographed invoice/receipt into a [ParsedInvoice]. Entirely
  * on-device, regex/heuristic-based (no network call, no cloud document-AI service) - the
@@ -83,11 +85,77 @@ object InvoiceParser {
      *  being silently dropped. */
     private val genericLabelPattern = Regex("""^\s*([A-Za-z][A-Za-z .]{1,28}?)\s*[:]\s*(.+\S)\s*$""")
 
-    private val itemExcludeWords = listOf(
-        "total", "tax", "gst", "vat", "discount", "round off", "rounding",
-        "service charge", "delivery charge", "delivery fee", "shipping",
-        "change due", "cash tendered", "amount tendered", "balance due", "amount due"
-    )
+    // Shared with ReceiptTableDetector's own item-row filtering, so the text-only fallback
+    // below and the spatial detector agree on where a receipt's item table ends.
+    private val itemExcludeWords = ReceiptTableDetector.FOOTER_KEYWORDS
+
+    /**
+     * Preferred entry point: parses every header field exactly as [parse] below does, then
+     * extracts line items using [ReceiptTableDetector] against [ocr]'s per-line word
+     * positions - detecting the item table's structure from where things actually sit on the
+     * receipt rather than from whitespace in the flattened text. Falls back to the text-only
+     * [extractLineItems] heuristic (already run as part of the base parse) if the spatial
+     * detector doesn't find anything, so an unusual scan still gets a best-effort attempt
+     * rather than zero items. Either way, [ParsedInvoice.itemsValidationNote] ends up set to
+     * whatever could be determined by checking the extracted items against this receipt's own
+     * subtotal/total - not enforced, just surfaced for the user to judge.
+     */
+    fun parse(ocr: OcrResult, sourceLabel: String = ""): ParsedInvoice {
+        val parsed = parse(ocr.text, sourceLabel)
+        if (ocr.lines.isNotEmpty()) {
+            val detected = ReceiptTableDetector.detect(ocr.lines)
+            if (detected.items.isNotEmpty()) parsed.items = detected.items
+            val totalsCheck = validateItems(parsed.items, parsed.fields)
+            val alignmentWarning = !detected.wellAligned
+            parsed.itemsValidationNote = when {
+                alignmentWarning && totalsCheck.note.isBlank() -> "Rows didn't line up cleanly with the detected columns - please verify"
+                alignmentWarning -> "${totalsCheck.note} (rows also didn't line up cleanly - please verify)"
+                else -> totalsCheck.note
+            }
+            parsed.itemsNeedReview = totalsCheck.needsReview || alignmentWarning
+        }
+        return parsed
+    }
+
+    data class ItemsValidation(val note: String, val needsReview: Boolean)
+
+    /**
+     * Sums [items]' amounts and checks that against whichever of [fields]' Subtotal /
+     * (Total - Tax) / Total is available, in that preference order (Subtotal is the most
+     * directly comparable - it's the same "before tax" figure the item amounts sum to). A
+     * small tolerance absorbs rounding; anything else is reported as a mismatch worth a
+     * second look rather than silently accepted or silently dropped.
+     *
+     * Public (not just used internally by [parse]) so the UI can re-run this after the user
+     * hand-edits the item list before adding it to the batch - the exported "Totals Check"
+     * column should reflect what's actually being written, not a stale OCR-time result.
+     */
+    fun validateItems(items: List<InvoiceLineItem>, fields: Map<String, String>): ItemsValidation {
+        if (items.isEmpty()) return ItemsValidation("", needsReview = false)
+        val sum = items.sumOf { parseMoney(it.amount) ?: 0.0 }
+        if (items.none { parseMoney(it.amount) != null }) return ItemsValidation("", needsReview = false)
+
+        val subtotal = fields[CoreInvoiceFields.SUBTOTAL]?.let { parseMoney(it) }
+        val tax = fields[CoreInvoiceFields.TAX]?.let { parseMoney(it) }
+        val total = fields[CoreInvoiceFields.TOTAL]?.let { parseMoney(it) }
+
+        val (target, label) = when {
+            subtotal != null -> subtotal to CoreInvoiceFields.SUBTOTAL
+            total != null && tax != null -> (total - tax) to "Total minus Tax"
+            total != null -> total to CoreInvoiceFields.TOTAL
+            else -> return ItemsValidation("Items detected (${items.size}) - no subtotal/total to verify against", needsReview = false)
+        }
+
+        val diff = kotlin.math.abs(sum - target)
+        val tolerance = maxOf(0.02, target * 0.01)
+        return if (diff <= tolerance) {
+            ItemsValidation("Items total (${"%.2f".format(sum)}) matches $label", needsReview = false)
+        } else {
+            ItemsValidation("Items sum to ${"%.2f".format(sum)}, but $label is ${"%.2f".format(target)} - check quantities/prices", needsReview = true)
+        }
+    }
+
+    private fun parseMoney(value: String): Double? = value.replace(",", "").trim().toDoubleOrNull()
 
     fun parse(rawText: String, sourceLabel: String = ""): ParsedInvoice {
         val lines = rawText.lines().map { it.trim() }.filter { it.isNotBlank() }

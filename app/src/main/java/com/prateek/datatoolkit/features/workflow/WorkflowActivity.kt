@@ -501,7 +501,7 @@ class WorkflowActivity : AppCompatActivity() {
                 (if (skipCount > 0) ", $skipCount skipped" else "")
 
             renderResults()
-            recordRun(okCount, failCount, skipCount, totalMs)
+            recordRun(okCount, failCount, totalMs)
             loadedWorkflowId?.let { id ->
                 withContext(Dispatchers.IO) { db.savedWorkflowDao().markRun(id, System.currentTimeMillis()) }
                 renderSavedWorkflows()
@@ -599,7 +599,7 @@ class WorkflowActivity : AppCompatActivity() {
 
     private fun formatDuration(ms: Long): String = if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)
 
-    private suspend fun recordRun(okCount: Int, failCount: Int, skipCount: Int, totalMs: Long) {
+    private suspend fun recordRun(okCount: Int, failCount: Int, totalMs: Long) {
         val label = "${steps.size}-step workflow"
         val preview = steps.joinToString(" → ") { step ->
             "${step.kind.emoji}${

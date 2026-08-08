@@ -117,19 +117,25 @@ class InvoiceOcrActivity : AppCompatActivity() {
                     binding.tvStatus.text = "Recognizing text... (${(done * 100) / total}%)"
                 }
                 binding.tvStatus.text = "Parsing invoice fields..."
-                val text = results.first().text
-                val parsed = InvoiceParser.parse(text, sourceLabel = displayNameOf(uri))
+                val ocrResult = results.first()
+                // Passing the full OcrResult (not just its flattened text) lets the parser
+                // detect the item table's structure from where words actually sit on the
+                // receipt - see ReceiptTableDetector.
+                val parsed = InvoiceParser.parse(ocrResult, sourceLabel = displayNameOf(uri))
                 binding.progressBar.progress = 100
 
                 populateFields(parsed)
                 val quality = qualityOf(parsed)
                 val durationMs = System.currentTimeMillis() - start
-                binding.tvStatus.text = if (parsed.hasAnyDetectedField())
+                val statusLine = if (parsed.hasAnyDetectedField())
                     "Done — review the fields below, then \"Add to Batch\" (detected ${quality}% of key fields)"
                 else "Recognized the text, but couldn't confidently detect invoice fields — fill them in manually below"
+                binding.tvStatus.text = if (parsed.itemsValidationNote.isNotBlank())
+                    "$statusLine\n${parsed.itemsValidationNote}"
+                else statusLine
                 binding.btnAddToBatch.isEnabled = true
 
-                recordScan(uri.toString(), displayNameOf(uri), text, quality, "SUCCESS", durationMs)
+                recordScan(uri.toString(), displayNameOf(uri), ocrResult.text, quality, "SUCCESS", durationMs)
             } catch (e: Throwable) {
                 binding.tvStatus.text = "Scan failed: ${e.message}"
                 recordScan(uri.toString(), displayNameOf(uri), "", 0, "FAILED", System.currentTimeMillis() - start)
@@ -159,7 +165,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
                     binding.ivPreview.setImageBitmap(bitmap)
                     val result = OcrHelper.recognize(bitmap)
-                    val parsed = InvoiceParser.parse(result.text, sourceLabel = displayNameOf(uri))
+                    val parsed = InvoiceParser.parse(result, sourceLabel = displayNameOf(uri))
                     batch.add(parsed)
                     added++
                     recordScan(uri.toString(), displayNameOf(uri), result.text, qualityOf(parsed), "SUCCESS", System.currentTimeMillis() - start)
@@ -284,6 +290,12 @@ class InvoiceOcrActivity : AppCompatActivity() {
             val value = editText.text.toString().trim()
             if (value.isNotBlank()) entry.fields[label] = value
         }
+        // Re-check items against totals using whatever the user ended up with here - they may
+        // have hand-edited the items box, so the exported "Totals Check" column should reflect
+        // what's actually being added, not the original OCR pass's now-possibly-stale result.
+        val validation = InvoiceParser.validateItems(entry.items, entry.fields)
+        entry.itemsValidationNote = validation.note
+        entry.itemsNeedReview = validation.needsReview
         batch.add(entry)
         renderBatch()
         clearFields()
@@ -318,9 +330,10 @@ class InvoiceOcrActivity : AppCompatActivity() {
             invoice.customerName.ifBlank { null },
             invoice.total.ifBlank { null }?.let { "$$it" }
         ).joinToString("  •  ").ifBlank { invoice.sourceLabel.ifBlank { "Invoice ${index + 1}" } }
+        val icon = if (invoice.itemsNeedReview) "⚠️" else "🧾"
 
         row.addView(TextView(this).apply {
-            text = "🧾  $label"
+            text = "$icon  $label"
             setTextColor(colorOf(R.color.text_primary))
             textSize = 13f
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -379,6 +392,8 @@ class InvoiceOcrActivity : AppCompatActivity() {
      * every one of that invoice's rows so the sheet stays sortable/filterable by item
      * (e.g. "everything above ₹500") the way a flat items register normally works. An
      * invoice with no line items detected still gets one row, item columns left blank.
+     * "Totals Check" is ReceiptTableDetector's own row-alignment/subtotal cross-check for
+     * that invoice, repeated per row the same way - blank when there was nothing to check.
      */
     private fun buildExportRows(): List<List<String>> {
         val presentCore = CoreInvoiceFields.ORDERED.filter { key -> batch.any { it.fields.containsKey(key) } }
@@ -386,16 +401,16 @@ class InvoiceOcrActivity : AppCompatActivity() {
         for (invoice in batch) extraColumns.addAll(invoice.extraFields.keys)
 
         val fieldColumns = presentCore + extraColumns
-        val header = fieldColumns + listOf("Item", "Quantity", "Unit Price", "Amount", "Source File")
+        val header = fieldColumns + listOf("Item", "Quantity", "Unit Price", "Amount", "Source File", "Totals Check")
         val rows = mutableListOf<List<String>>(header)
 
         for (invoice in batch) {
             val invoiceValues = fieldColumns.map { column -> invoice.fields[column].orEmpty() }
             if (invoice.items.isEmpty()) {
-                rows.add(invoiceValues + listOf("", "", "", "", invoice.sourceLabel))
+                rows.add(invoiceValues + listOf("", "", "", "", invoice.sourceLabel, invoice.itemsValidationNote))
             } else {
                 for (item in invoice.items) {
-                    rows.add(invoiceValues + listOf(item.description, item.quantity, item.unitPrice, item.amount, invoice.sourceLabel))
+                    rows.add(invoiceValues + listOf(item.description, item.quantity, item.unitPrice, item.amount, invoice.sourceLabel, invoice.itemsValidationNote))
                 }
             }
         }

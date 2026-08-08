@@ -24,7 +24,12 @@ object OcrHelper {
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
     }
 
-    /** Returns the recognized text plus a rough per-line confidence proxy (line count / block count). */
+    /** Returns the recognized text plus a rough per-line confidence proxy (line count / block
+     *  count), and [OcrResult.lines] - the same recognition broken into lines/words with their
+     *  on-image positions, for callers (like [com.prateek.datatoolkit.features.invoice.ReceiptTableDetector])
+     *  that need to reason about layout rather than just flattened text. A line/word with no
+     *  bounding box (ML Kit occasionally omits one) is left out of [OcrResult.lines] since
+     *  there's no position to reason about - it's still present in [OcrResult.text] as always. */
     suspend fun recognize(bitmap: Bitmap): OcrResult = suspendCancellableCoroutine { cont ->
         val processed = try {
             preprocessForOcr(bitmap)
@@ -35,7 +40,19 @@ object OcrHelper {
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
                 val blockCount = visionText.textBlocks.size
-                cont.resume(OcrResult(text = visionText.text, blockCount = blockCount))
+                val lines = visionText.textBlocks.flatMap { block ->
+                    block.lines.mapNotNull { line ->
+                        line.boundingBox?.let { box ->
+                            val words = line.elements.mapNotNull { element ->
+                                element.boundingBox?.let { wordBox ->
+                                    OcrWord(element.text, wordBox.left, wordBox.top, wordBox.right, wordBox.bottom)
+                                }
+                            }
+                            OcrLine(line.text, words, box.left, box.top, box.right, box.bottom)
+                        }
+                    }
+                }
+                cont.resume(OcrResult(text = visionText.text, blockCount = blockCount, lines = lines))
             }
             .addOnFailureListener { e -> cont.resumeWithException(e) }
             .addOnCompleteListener {
@@ -133,4 +150,16 @@ object OcrHelper {
     }
 }
 
-data class OcrResult(val text: String, val blockCount: Int)
+data class OcrResult(val text: String, val blockCount: Int, val lines: List<OcrLine> = emptyList())
+
+/** One recognized word/token and its bounding box, in the coordinate space of the (possibly
+ *  preprocessed/resized) bitmap that was actually recognized. */
+data class OcrWord(val text: String, val left: Int, val top: Int, val right: Int, val bottom: Int)
+
+/** One recognized line - ML Kit's own line grouping - plus its constituent words, in reading
+ *  order. This is the unit [com.prateek.datatoolkit.features.invoice.ReceiptTableDetector]
+ *  reasons about: a receipt's item table is a run of these, and each word's horizontal
+ *  position is what lets column boundaries be inferred instead of assumed. */
+data class OcrLine(val text: String, val words: List<OcrWord>, val left: Int, val top: Int, val right: Int, val bottom: Int) {
+    val height: Int get() = bottom - top
+}

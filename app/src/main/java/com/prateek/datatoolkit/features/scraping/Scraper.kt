@@ -72,11 +72,11 @@ object Scraper {
         ScrapeResult(
             url = url,
             title = doc.title(),
-            text = doc.body()?.text().orEmpty(),
+            text = doc.body().text().orEmpty(),
             links = links,
             tables = tables,
             attempts = result.attempts,
-            items = ItemExtractor.extract(doc, url, manualSelectors)
+            items = ItemExtractor.extract(doc, manualSelectors)
         )
     }
 

@@ -75,7 +75,7 @@ object ItemExtractor {
     /** Zero-based column index of "Image" in [toRows]'s header - used by the xlsx image-embedding export. */
     const val IMAGE_COLUMN_INDEX = 5
 
-    fun extract(doc: Document, baseUri: String, manual: ManualSelectors? = null): List<ScrapedItem> {
+    fun extract(doc: Document, manual: ManualSelectors? = null): List<ScrapedItem> {
         if (manual != null && manual.containerSelector.isNotBlank()) {
             val manualItems = extractManual(doc, manual)
             // A custom selector that matched nothing is most likely a typo/wrong site layout -
@@ -183,7 +183,9 @@ object ItemExtractor {
                 val typeRaw = node.opt("@type")
                 val types = when (typeRaw) {
                     is String -> listOf(typeRaw)
-                    is JSONArray -> (0 until typeRaw.length()).mapNotNull { typeRaw.optString(it, null) }
+                    is JSONArray -> (0 until typeRaw.length()).mapNotNull { idx ->
+                        typeRaw.optString(idx, "").takeIf { it.isNotBlank() }
+                    }
                     else -> emptyList()
                 }.map { it.lowercase() }
 
@@ -274,7 +276,7 @@ object ItemExtractor {
                 is JSONArray -> (0 until value.length()).mapNotNull { i ->
                     when (val v = value.opt(i)) {
                         is String -> v
-                        is JSONObject -> v.optString("name", null)
+                        is JSONObject -> v.optString("name", "").takeIf { it.isNotBlank() }
                         else -> null
                     }
                 }.filter { it.isNotBlank() }.joinToString(", ").takeIf { it.isNotBlank() }
