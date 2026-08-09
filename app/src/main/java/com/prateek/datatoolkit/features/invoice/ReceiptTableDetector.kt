@@ -30,7 +30,9 @@ import com.prateek.datatoolkit.features.ocr.OcrLine
  *
  * Whatever isn't a table (metadata above it, subtotal/tax/total and payment lines below it)
  * is left alone - [InvoiceParser] already extracts those; this class only ever contributes
- * [InvoiceLineItem]s. Missing columns are simply left blank on every item, never guessed.
+ * [InvoiceLineItem]s. Missing columns are simply left blank on every item, never guessed -
+ * and the same goes for a Qty/Unit Price/Amount cell that IS present but doesn't parse as a
+ * number (OCR noise, a misaligned neighbour): blanked rather than kept or moved elsewhere.
  */
 object ReceiptTableDetector {
 
@@ -94,6 +96,13 @@ object ReceiptTableDetector {
         return if (bestScore >= 2) bestIndex else null
     }
 
+    /** [value] unchanged if it parses as a number (the same contract as
+     *  [InvoiceParser.parseNumericValue]), blank otherwise - keeps a header-band-matched
+     *  Qty/Unit Price/Amount cell only when it's actually numeric, instead of passing OCR
+     *  noise (or a neighbouring column's misaligned text) through as-is. */
+    private fun numericOrBlank(value: String): String =
+        if (InvoiceParser.parseNumericValue(value) != null) value else ""
+
     private fun detectWithHeader(rows: List<OcrLine>, headerIndex: Int): DetectedTable {
         val bands = buildBands(mergeIntoCells(rows[headerIndex]))
         if (bands.roles.isEmpty()) return DetectedTable(emptyList(), headerFound = true, wellAligned = true)
@@ -115,9 +124,12 @@ object ReceiptTableDetector {
                 val role = bands.roleFor(cell.centerX) ?: continue
                 valuesByRole.getOrPut(role) { mutableListOf() }.add(cell.text)
             }
-            val amount = valuesByRole[ColumnRole.AMOUNT]?.joinToString(" ").orEmpty()
-            val qty = valuesByRole[ColumnRole.QTY]?.joinToString(" ").orEmpty()
-            val unitPrice = valuesByRole[ColumnRole.UNIT_PRICE]?.joinToString(" ").orEmpty()
+            // A band-matched cell that doesn't actually parse as a number is OCR noise, not
+            // a trustworthy Qty/Price/Amount - and per the "never shift a value into another
+            // column" rule, the fix is to blank it here, not reassign it elsewhere.
+            val amount = numericOrBlank(valuesByRole[ColumnRole.AMOUNT]?.joinToString(" ").orEmpty())
+            val qty = numericOrBlank(valuesByRole[ColumnRole.QTY]?.joinToString(" ").orEmpty())
+            val unitPrice = numericOrBlank(valuesByRole[ColumnRole.UNIT_PRICE]?.joinToString(" ").orEmpty())
             val item = valuesByRole[ColumnRole.ITEM]?.joinToString(" ").orEmpty()
 
             if (amount.isBlank() && qty.isBlank() && unitPrice.isBlank()) {

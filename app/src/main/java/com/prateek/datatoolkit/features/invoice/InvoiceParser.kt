@@ -132,12 +132,12 @@ object InvoiceParser {
      */
     fun validateItems(items: List<InvoiceLineItem>, fields: Map<String, String>): ItemsValidation {
         if (items.isEmpty()) return ItemsValidation("", needsReview = false)
-        val sum = items.sumOf { parseMoney(it.amount) ?: 0.0 }
-        if (items.none { parseMoney(it.amount) != null }) return ItemsValidation("", needsReview = false)
+        val sum = items.sumOf { parseNumericValue(it.amount) ?: 0.0 }
+        if (items.none { parseNumericValue(it.amount) != null }) return ItemsValidation("", needsReview = false)
 
-        val subtotal = fields[CoreInvoiceFields.SUBTOTAL]?.let { parseMoney(it) }
-        val tax = fields[CoreInvoiceFields.TAX]?.let { parseMoney(it) }
-        val total = fields[CoreInvoiceFields.TOTAL]?.let { parseMoney(it) }
+        val subtotal = fields[CoreInvoiceFields.SUBTOTAL]?.let { parseNumericValue(it) }
+        val tax = fields[CoreInvoiceFields.TAX]?.let { parseNumericValue(it) }
+        val total = fields[CoreInvoiceFields.TOTAL]?.let { parseNumericValue(it) }
 
         val (target, label) = when {
             subtotal != null -> subtotal to CoreInvoiceFields.SUBTOTAL
@@ -155,7 +155,21 @@ object InvoiceParser {
         }
     }
 
-    private fun parseMoney(value: String): Double? = value.replace(",", "").trim().toDoubleOrNull()
+    /**
+     * Parses [value] as a plain number - strips a single leading currency symbol (₹/$/€/£,
+     * matching [ReceiptTableDetector]'s own money-token convention) and thousands-separator
+     * commas, then requires the remainder to parse cleanly as a number with nothing else
+     * attached (so "3 pcs" or a stray unit/letter still fails). Returns null for blank input
+     * or anything that doesn't cleanly parse this way, so a caller can treat that as
+     * "unreadable" rather than a coerced zero or a guessed value. Internal rather than
+     * private so [ReceiptTableDetector] and [InvoiceOcrActivity]'s item-table code can share
+     * this exact numeric contract instead of each defining "numeric" slightly differently.
+     */
+    internal fun parseNumericValue(value: String): Double? {
+        if (value.isBlank()) return null
+        val cleaned = value.trim().trimStart('₹', '$', '€', '£').trim().replace(",", "")
+        return cleaned.toDoubleOrNull()
+    }
 
     fun parse(rawText: String, sourceLabel: String = ""): ParsedInvoice {
         val lines = rawText.lines().map { it.trim() }.filter { it.isNotBlank() }

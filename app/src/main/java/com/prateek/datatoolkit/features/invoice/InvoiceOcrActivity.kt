@@ -258,17 +258,32 @@ class InvoiceOcrActivity : AppCompatActivity() {
     private fun itemsToText(items: List<InvoiceLineItem>): String =
         items.joinToString("\n") { "${it.description} | ${it.quantity} | ${it.unitPrice} | ${it.amount}" }
 
-    /** Parses the "Description | Qty | Unit Price | Amount" text box back into line items,
-     *  tolerating missing columns (2, 3, or 4 parts) rather than dropping the whole line. */
+    /** Parses the "Item | Qty | Unit Price | Amount" text box back into line items. Every
+     *  line is mapped strictly by pipe *position* - part 0 is always Item, part 1 always
+     *  Quantity, part 2 always Unit Price, part 3 always Amount - regardless of how many
+     *  parts a given line has. A line with fewer than 4 parts (typically one the user typed
+     *  by hand rather than one [itemsToText] produced) just leaves the missing trailing
+     *  column(s) blank; it never reassigns what *is* present to a different column based on
+     *  the count, since which column got skipped would be a guess (e.g. a hand-typed
+     *  "Coffee | 3.50" is Item + Qty with Unit Price/Amount blank - not Item + Amount, even
+     *  though the latter also reads naturally - because inferring that from the count alone
+     *  is exactly the kind of shifting this format needs to avoid). Quantity/Unit Price/
+     *  Amount are also validated as numeric here, via the same [InvoiceParser.parseNumericValue]
+     *  contract the OCR-driven [ReceiptTableDetector] path uses: a part that isn't a
+     *  plausible number is left blank rather than kept as-is or moved to another cell. Row
+     *  order matches the text box exactly, top to bottom. */
     private fun textToItems(text: String): List<InvoiceLineItem> =
         text.lines().map { it.trim() }.filter { it.isNotBlank() }.map { line ->
             val parts = line.split("|").map { it.trim() }
-            when (parts.size) {
-                1 -> InvoiceLineItem(description = parts[0])
-                2 -> InvoiceLineItem(description = parts[0], amount = parts[1])
-                3 -> InvoiceLineItem(description = parts[0], unitPrice = parts[1], amount = parts[2])
-                else -> InvoiceLineItem(description = parts[0], quantity = parts.getOrElse(1) { "" }, unitPrice = parts.getOrElse(2) { "" }, amount = parts.getOrElse(3) { "" })
-            }
+            val qty = parts.getOrElse(1) { "" }
+            val unitPrice = parts.getOrElse(2) { "" }
+            val amount = parts.getOrElse(3) { "" }
+            InvoiceLineItem(
+                description = parts.getOrElse(0) { "" },
+                quantity = if (InvoiceParser.parseNumericValue(qty) != null) qty else "",
+                unitPrice = if (InvoiceParser.parseNumericValue(unitPrice) != null) unitPrice else "",
+                amount = if (InvoiceParser.parseNumericValue(amount) != null) amount else ""
+            )
         }
 
     private fun addCurrentFieldsToBatch() {

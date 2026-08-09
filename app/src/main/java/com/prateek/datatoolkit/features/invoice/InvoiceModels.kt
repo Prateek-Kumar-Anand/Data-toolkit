@@ -1,8 +1,10 @@
 package com.prateek.datatoolkit.features.invoice
 
-/** One line item detected on an invoice/receipt. Quantity/unit price are only filled in
- *  when the source line clearly had separate columns for them - otherwise left blank
- *  rather than guessed. */
+/** One line item detected on an invoice/receipt. Quantity/unit price/amount are only
+ *  filled in when the source line clearly had separate columns for them - otherwise left
+ *  blank rather than guessed - and each is also required to actually parse as a number
+ *  (see [InvoiceParser.parseNumericValue]): a value that doesn't is left blank too, rather
+ *  than kept as unreadable text or shifted into a different column. */
 data class InvoiceLineItem(
     val description: String,
     val quantity: String = "",
