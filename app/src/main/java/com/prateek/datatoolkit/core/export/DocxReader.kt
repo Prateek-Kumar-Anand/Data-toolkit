@@ -1,7 +1,9 @@
 package com.prateek.datatoolkit.core.export
 
 import android.util.Xml
+import com.prateek.datatoolkit.core.xml.XmlSafety
 import org.xmlpull.v1.XmlPullParser
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 import java.util.zip.ZipFile
@@ -27,9 +29,12 @@ object DocxReader {
     }
 
     private fun parseDocumentXml(input: InputStream): String {
+        // Screen for a DOCTYPE declaration before this reaches any parser - see XmlSafety.
+        val bytes = XmlSafety.readAndAssertNoDoctype(input)
+
         val parser: XmlPullParser = Xml.newPullParser()
         parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
-        parser.setInput(input, "UTF-8")
+        parser.setInput(ByteArrayInputStream(bytes), "UTF-8")
 
         val sb = StringBuilder()
         var event = parser.eventType

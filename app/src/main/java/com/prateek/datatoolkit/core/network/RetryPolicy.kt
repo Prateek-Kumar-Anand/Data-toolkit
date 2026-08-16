@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.core.network
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.math.pow
@@ -33,6 +34,13 @@ object RetryPolicy {
                 val value = block(attempt)
                 return Result(value, attempt, null)
             } catch (t: Throwable) {
+                // A cancelled coroutine (e.g. the screen that started this was navigated away
+                // from) must propagate immediately, not be treated as a retryable failure -
+                // catching it here like any other error would mean attempting another retry
+                // (and delay()) after the caller has already stopped caring, and would surface
+                // as a plain failed Result instead of the cancellation the caller's own
+                // lifecycleScope is expecting to see.
+                if (t is CancellationException) throw t
                 lastError = t
                 if (attempt >= maxAttempts || !shouldRetry(t)) {
                     return Result(null, attempt, t)

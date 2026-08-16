@@ -156,6 +156,9 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             var added = 0
+            // Tracks the previous iteration's decoded bitmap so it can be freed once the
+            // ImageView (and OCR) have moved on to the next one - see the recycle() call below.
+            var previousBitmap: android.graphics.Bitmap? = null
             for ((index, uri) in uris.withIndex()) {
                 val start = System.currentTimeMillis()
                 try {
@@ -164,6 +167,16 @@ class InvoiceOcrActivity : AppCompatActivity() {
                     } ?: throw IllegalStateException("Could not decode image ${index + 1}")
 
                     binding.ivPreview.setImageBitmap(bitmap)
+                    // The ImageView now shows `bitmap`, not whatever the previous iteration
+                    // decoded, so that one is safe to free. A full-resolution photo can easily be
+                    // tens of MB; without this, a batch of many receipts keeps every image decoded
+                    // so far alive at once (pending GC) instead of one at a time, and a large
+                    // enough batch risks an OutOfMemoryError. The very last bitmap is deliberately
+                    // left un-recycled, same as the single-image scan - it's still on screen once
+                    // the batch finishes.
+                    previousBitmap?.recycle()
+                    previousBitmap = bitmap
+
                     val result = OcrHelper.recognize(bitmap)
                     val parsed = InvoiceParser.parse(result, sourceLabel = displayNameOf(uri))
                     batch.add(parsed)

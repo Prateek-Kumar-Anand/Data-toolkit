@@ -3,6 +3,7 @@ package com.prateek.datatoolkit.features.excel
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Xml
+import com.prateek.datatoolkit.core.xml.XmlSafety
 import org.xmlpull.v1.XmlPullParser
 import java.util.zip.ZipFile
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,12 @@ import kotlin.math.roundToInt
 object ExcelCsvHelper {
 
     fun readXlsx(file: File, sheetIndex: Int = 0): List<List<String>> {
+        // Defense-in-depth: screen every embedded XML/rels part for a DOCTYPE declaration
+        // before either reader below touches this file - see XmlSafety. Deliberately placed
+        // outside the try/fallback below so a rejected file is never retried through the
+        // other reader; a file that fails this check should stay rejected, full stop.
+        XmlSafety.assertZipHasNoDoctype(file)
+
         // fastexcel-reader's ReadableWorkbook needs javax.xml.stream.XMLInputFactory to resolve
         // to the aalto-xml engine ToolkitApp.onCreate() forces it to (see the comment there). In
         // practice that resolution has kept failing on real devices - ART throws
@@ -410,16 +417,80 @@ object ExcelCsvHelper {
         }
     }
 
+    private const val MAX_IMAGE_REDIRECTS = 5
+
+    /**
+     * Fetches [url]'s bytes for xlsx image embedding. Unlike a URL the user typed into the Web
+     * Scraper themselves, these [url]s come from `<img>` tags on arbitrary third-party pages the
+     * scraper visited - content an attacker-controlled site fully controls - so this must not
+     * blindly go wherever that markup points. Only plain http(s) is fetched; redirects are
+     * followed one hop at a time (capped at [MAX_IMAGE_REDIRECTS]) instead of automatically, with
+     * every hop's resolved address re-validated, so a malicious page can't use a redirect to reach
+     * somewhere the initial URL check would have blocked. [isPubliclyRoutable] rejects loopback/
+     * link-local (which also covers the 169.254.169.254 cloud metadata address)/private-use/
+     * multicast targets - the classic pattern of an embedded image URL pointed at the device's own
+     * local network (a router's admin page, another app's localhost debug server, etc.) instead of
+     * a real image.
+     */
     private fun downloadImageBytes(url: String): ByteArray? = try {
-        val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8000
-            readTimeout = 8000
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "Mozilla/5.0 (DataToolkit Android App)")
+        var currentUrl = url
+        var connection: HttpURLConnection? = null
+        try {
+            var result: ByteArray? = null
+            for (hop in 0..MAX_IMAGE_REDIRECTS) {
+                val parsed = URL(currentUrl)
+                if (!parsed.protocol.equals("http", ignoreCase = true) && !parsed.protocol.equals("https", ignoreCase = true)) break
+                if (!isPubliclyRoutable(parsed.host)) break
+
+                connection = (parsed.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 8000
+                    readTimeout = 8000
+                    instanceFollowRedirects = false
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (DataToolkit Android App)")
+                }
+                val code = connection.responseCode
+                if (code in 300..399) {
+                    val location = connection.getHeaderField("Location")
+                    connection.disconnect()
+                    if (location.isNullOrBlank()) break
+                    currentUrl = URL(parsed, location).toString() // also resolves a relative Location
+                    continue
+                }
+                result = if (code in 200..299) connection.inputStream.use { it.readBytes() } else null
+                break
+            }
+            result
+        } finally {
+            connection?.disconnect()
         }
-        if (connection.responseCode in 200..299) connection.inputStream.use { it.readBytes() } else null
     } catch (_: Exception) {
         null
+    }
+
+    /** True only if every address [host] resolves to is a normal public unicast address -
+     *  false for loopback/link-local/private-use (RFC1918 + IPv6 unique-local)/multicast/
+     *  wildcard addresses, and false if resolution fails outright. */
+    private fun isPubliclyRoutable(host: String): Boolean = try {
+        val addresses = java.net.InetAddress.getAllByName(host)
+        addresses.isNotEmpty() && addresses.all { addr ->
+            !addr.isLoopbackAddress &&
+                !addr.isLinkLocalAddress &&
+                !addr.isSiteLocalAddress &&
+                !addr.isMulticastAddress &&
+                !addr.isAnyLocalAddress &&
+                !isIpv6UniqueLocal(addr)
+        }
+    } catch (_: Exception) {
+        false
+    }
+
+    /** [java.net.InetAddress.isSiteLocalAddress] only recognizes the deprecated IPv6 site-local
+     *  range (fec0::/10) - the modern private-use range is Unique Local (fc00::/7), which has no
+     *  built-in java.net check. */
+    private fun isIpv6UniqueLocal(addr: java.net.InetAddress): Boolean {
+        if (addr !is java.net.Inet6Address) return false
+        val firstByte = (addr.address.getOrNull(0)?.toInt() ?: return false) and 0xFF
+        return (firstByte and 0xFE) == 0xFC
     }
 
     // --- Image thumbnail sizing/re-encoding ----------------------------------------------------

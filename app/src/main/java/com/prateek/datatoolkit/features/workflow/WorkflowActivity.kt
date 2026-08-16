@@ -28,6 +28,7 @@ import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.cache.ProcessedItem
 import com.prateek.datatoolkit.core.cache.SavedWorkflow
 import com.prateek.datatoolkit.databinding.ActivityWorkflowBinding
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -483,6 +484,11 @@ class WorkflowActivity : AppCompatActivity() {
                     // Throwable, not just Exception: a bad input file (e.g. a corrupt
                     // spreadsheet in a Load Excel/CSV step) can surface as a java.lang.Error,
                     // which would otherwise crash the whole app instead of just failing this step.
+                    // A CancellationException is the one Throwable this must NOT treat as a
+                    // failed step, though - it means lifecycleScope itself was cancelled (e.g.
+                    // the user left this screen mid-run), and needs to keep propagating so the
+                    // coroutine actually stops instead of plowing through the remaining steps.
+                    if (e is CancellationException) throw e
                     step.status = StepStatus.FAILED
                     step.errorMessage = e.message ?: "Unknown error"
                     current = WorkflowData.Empty

@@ -98,7 +98,7 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
     }
 
     /** Returns Triple(label, outputPreview, qualityScore) for one processed item. */
-    private fun processOne(type: String, uri: Uri): Triple<String, String, Int> {
+    private suspend fun processOne(type: String, uri: Uri): Triple<String, String, Int> {
         val resolver = applicationContext.contentResolver
         val label = uri.lastPathSegment ?: uri.toString()
 
@@ -107,9 +107,11 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
                 val input = resolver.openInputStream(uri) ?: throw IllegalStateException("Cannot open $uri")
                 val bitmap = input.use { BitmapFactory.decodeStream(it) }
                     ?: throw IllegalStateException("Not a valid image: $uri")
-                // OCR needs the main-thread-free ML Kit client but is safe to call from a
-                // background coroutine; runBlocking keeps this function's signature simple.
-                val result = kotlinx.coroutines.runBlocking { OcrHelper.recognize(bitmap) }
+                // processOne is itself a suspend function (called from RetryPolicy's suspend
+                // lambda), so this can just await OcrHelper.recognize directly - no need to
+                // block a WorkManager coroutine-dispatcher thread with runBlocking to call a
+                // function that already knows how to suspend.
+                val result = OcrHelper.recognize(bitmap)
                 val score = QualityScorer.scoreText(result.text)
                 Triple(label, result.text.take(200), score)
             }

@@ -34,11 +34,39 @@ object DocxWriter {
 
     private fun buildDocumentXml(paragraphs: List<String>): String {
         val body = paragraphs.joinToString("") { para ->
-            "<w:p><w:r><w:t xml:space=\"preserve\">${escapeXml(para)}</w:t></w:r></w:p>"
+            "<w:p><w:r><w:t xml:space=\"preserve\">${escapeXml(stripInvalidXmlChars(para))}</w:t></w:r></w:p>"
         }
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
             "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
             "<w:body>$body<w:sectPr/></w:body></w:document>"
+    }
+
+    /**
+     * Drops characters XML 1.0 doesn't allow anywhere in a document (the C0 control range other
+     * than tab/LF/CR, and a couple of others - see the `Char` production in the XML spec).
+     * Garbled/OCR-sourced or copy-pasted text can contain these; leaving one in would produce a
+     * .docx that Word/LibreOffice/Google Docs reports as corrupt rather than one that just shows
+     * an odd character. escapeXml alone doesn't help here - it only escapes the five characters
+     * that are structurally significant to XML (& < > " '), not ones that are simply illegal.
+     * Valid UTF-16 surrogate pairs (emoji, rare CJK, etc.) are left alone; only a lone/unpaired
+     * surrogate - which isn't valid either way - is dropped along with everything else disallowed.
+     */
+    private fun stripInvalidXmlChars(text: String): String {
+        val sb = StringBuilder(text.length)
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            if (c.isHighSurrogate() && i + 1 < text.length && text[i + 1].isLowSurrogate()) {
+                sb.append(c).append(text[i + 1])
+                i += 2
+                continue
+            }
+            if (c == '\t' || c == '\n' || c == '\r' || c.code in 0x20..0xD7FF || c.code in 0xE000..0xFFFD) {
+                sb.append(c)
+            }
+            i++
+        }
+        return sb.toString()
     }
 
     private fun escapeXml(text: String): String = text
