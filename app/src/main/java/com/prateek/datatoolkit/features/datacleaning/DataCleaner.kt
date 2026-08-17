@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.features.datacleaning
 
+import com.prateek.datatoolkit.core.math.MathEngine
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -34,7 +35,24 @@ data class ColumnRule(
     val expectedType: ColumnType? = null, // explicit type for validation; null = auto-detect
     val invalidAction: InvalidAction? = null, // overrides the global invalidAction for this column
     val numericMin: Double? = null, // overrides the built-in name-based range heuristic (e.g. "age")
-    val numericMax: Double? = null
+    val numericMax: Double? = null,
+    val calculatedFrom: CalculatedColumnRule? = null // Basic Calculations: set this column from a formula
+)
+
+/**
+ * Defines a column's value as a computed formula over two OTHER columns instead of being
+ * cleaned in place - Data Cleaning's "Basic Calculations" feature, e.g. an "Amount" column
+ * set from "Quantity" × "Unit Price". Runs after normal per-cell cleaning (see [DataCleaner]'s
+ * Stage 1.5), so it reads already-cleaned values from its two source columns. A row where
+ * either source can't be read as a number leaves this column's existing value alone for that
+ * row - never guesses - regardless of [overwriteExisting].
+ */
+data class CalculatedColumnRule(
+    val sourceColumnA: String,
+    val operator: MathEngine.Operator,
+    val sourceColumnB: String,
+    val overwriteExisting: Boolean = true, // false = only fill cells that were already blank
+    val decimals: Int = 2
 )
 
 /** A user-defined search/replace rule, scoped to one column or every column. */
@@ -121,6 +139,7 @@ data class CleaningReport(
 
     val unwantedCharsRemoved: Int = 0,
     val replacementsMade: Int = 0,
+    val calculatedCellsFilled: Int = 0, // Basic Calculations: cells set/overwritten by a column formula
     val detectedTypes: Map<String, ColumnType> = emptyMap(),
     val invalidCells: List<InvalidCell> = emptyList(),
 
@@ -259,6 +278,7 @@ object DataCleaner {
         var cellsFilled = 0
         var unwantedCharsRemoved = 0
         var replacementsMade = 0
+        var calculatedCellsFilled = 0
         var phonesNormalized = 0
         var datesStandardized = 0
         var datesUnparseable = 0
@@ -419,6 +439,45 @@ object DataCleaner {
             }
         }
 
+        // --- Stage 1.5: Basic Calculations - a column defined as a formula over two other,
+        //     already-cleaned columns (e.g. Amount = Quantity × Unit Price). Runs as its own
+        //     pass after Stage 1 finishes for every column, not inside the per-cell loop above,
+        //     since a calculated column needs BOTH of its sources already cleaned first - and,
+        //     as a consequence of processing columns left-to-right, a calculated column CAN
+        //     read another calculated column's result if that one sits earlier in the header
+        //     (this isn't a full dependency solver - a calculated column referencing one to its
+        //     right just reads that column's pre-calculation value instead). -------------------
+        for (c in header.indices) {
+            val rule = ruleFor(c) ?: continue
+            if (rule.skip) continue
+            val calc = rule.calculatedFrom ?: continue
+            val colName = header[c]
+            val colA = header.indexOf(calc.sourceColumnA)
+            val colB = header.indexOf(calc.sourceColumnB)
+            if (colA < 0 || colB < 0) continue // configured source column isn't in this table - skip quietly
+
+            for (wr in work) {
+                val existing = wr.cells.getOrElse(c) { "" }
+                if (!calc.overwriteExisting && existing.isNotBlank()) continue
+
+                val a = MathEngine.parseNumber(wr.cells.getOrElse(colA) { "" }) ?: continue
+                val b = MathEngine.parseNumber(wr.cells.getOrElse(colB) { "" }) ?: continue
+                val result = MathEngine.apply(a, calc.operator, b) ?: continue
+                val formatted = MathEngine.formatNumber(result, calc.decimals)
+                if (formatted.isBlank()) continue
+
+                if (formatted != existing) {
+                    logChange(
+                        wr.originalIndex, colName, existing, formatted,
+                        "calculated: ${calc.sourceColumnA} ${calc.operator.symbol} ${calc.sourceColumnB}"
+                    )
+                    calculatedCellsFilled++
+                }
+                while (wr.cells.size <= c) wr.cells.add("")
+                wr.cells[c] = formatted
+            }
+        }
+
         // --- Stage 2: missing values (blank cells) --------------------------------------------
         for (wr in work) {
             for (c in header.indices) {
@@ -535,6 +594,7 @@ object DataCleaner {
             cellsFilled = cellsFilled,
             unwantedCharsRemoved = unwantedCharsRemoved,
             replacementsMade = replacementsMade,
+            calculatedCellsFilled = calculatedCellsFilled,
             detectedTypes = detectedTypes,
             invalidCells = invalidCells,
             invalidEmails = invalidEmails,

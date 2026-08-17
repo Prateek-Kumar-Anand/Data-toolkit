@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.math.MathEngine
 import com.prateek.datatoolkit.core.quality.QualityScorer
 import com.prateek.datatoolkit.databinding.ActivityDataCleaningBinding
 import com.prateek.datatoolkit.features.excel.ExcelCsvHelper
@@ -35,8 +36,29 @@ private data class ColumnRuleView(
     val skipCheck: CheckBox,
     val caseSpinner: Spinner,
     val typeSpinner: Spinner,
-    val fillInput: EditText
+    val fillInput: EditText,
+    // Basic Calculations: set this column from "Column A [operator] Column B". calcColumnA/B
+    // spinners are pre-populated with CALC_PLACEHOLDER at position 0, so an untouched spinner
+    // reads back as "not configured" rather than accidentally selecting the first real column.
+    val calcEnableCheck: CheckBox,
+    val calcColumnASpinner: Spinner,
+    val calcOperatorSpinner: Spinner,
+    val calcColumnBSpinner: Spinner,
+    val calcOnlyIfBlankCheck: CheckBox
 )
+
+/** Placeholder shown at position 0 of a Basic Calculations column spinner - an unselected
+ *  spinner reads back as this, not the first real column. */
+private const val CALC_PLACEHOLDER = "\u2014 select \u2014"
+
+/** Operators offered by the Basic Calculations spinner, and their on-screen order - multiply
+ *  first, since "one column times another" (Amount = Quantity × Unit Price) is the most
+ *  common calculated-column formula. [DataCleaningActivity.collectColumnRules] maps the
+ *  spinner's selected position back through this same list. */
+private val CALC_OPERATORS = listOf(
+    MathEngine.Operator.MULTIPLY, MathEngine.Operator.ADD, MathEngine.Operator.SUBTRACT, MathEngine.Operator.DIVIDE
+)
+private val CALC_OPERATOR_LABELS = CALC_OPERATORS.map { it.symbol }
 
 /** The live controls for one find/replace rule row (see [DataCleaningActivity.addReplaceRuleRow]). */
 private data class ReplaceRuleView(
@@ -336,8 +358,57 @@ class DataCleaningActivity : AppCompatActivity() {
             }
             card.addView(fillInput)
 
+            // Basic Calculations: set this column from "Column A [operator] Column B", e.g.
+            // Amount = Quantity × Unit Price. Column spinners exclude this column itself.
+            card.addView(divider())
+            val (calcRow, calcEnableCheck) = toggleRow("Calculate this column", "Set it from a formula over two other columns")
+            card.addView(calcRow)
+
+            val calcColumnOptions = listOf(CALC_PLACEHOLDER) + header.filter { it != col }
+            val calcSpinnerRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = dp(8) }
+            }
+            val calcColACol = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(4) }
+            }
+            val calcColumnASpinner = boxedSpinner(calcColumnOptions)
+            calcColACol.addView(captionLabel("Column A"))
+            calcColACol.addView(calcColumnASpinner)
+
+            val calcOpCol = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 0.6f)
+                    .apply { marginStart = dp(4); marginEnd = dp(4) }
+            }
+            val calcOperatorSpinner = boxedSpinner(CALC_OPERATOR_LABELS)
+            calcOpCol.addView(captionLabel("Op"))
+            calcOpCol.addView(calcOperatorSpinner)
+
+            val calcColBCol = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4) }
+            }
+            val calcColumnBSpinner = boxedSpinner(calcColumnOptions)
+            calcColBCol.addView(captionLabel("Column B"))
+            calcColBCol.addView(calcColumnBSpinner)
+
+            calcSpinnerRow.addView(calcColACol)
+            calcSpinnerRow.addView(calcOpCol)
+            calcSpinnerRow.addView(calcColBCol)
+            card.addView(calcSpinnerRow)
+
+            val (onlyIfBlankRow, calcOnlyIfBlankCheck) = toggleRow("Only fill empty cells", "Leave this column's existing values alone")
+            (onlyIfBlankRow.layoutParams as LinearLayout.LayoutParams).topMargin = dp(8)
+            card.addView(onlyIfBlankRow)
+
             binding.columnRulesContainer.addView(card)
-            columnRuleViews += ColumnRuleView(col, skipCheck, caseSpinner, typeSpinner, fillInput)
+            columnRuleViews += ColumnRuleView(
+                col, skipCheck, caseSpinner, typeSpinner, fillInput,
+                calcEnableCheck, calcColumnASpinner, calcOperatorSpinner, calcColumnBSpinner, calcOnlyIfBlankCheck
+            )
         }
     }
 
@@ -356,9 +427,25 @@ class DataCleaningActivity : AppCompatActivity() {
                 skip = v.skipCheck.isChecked,
                 standardizeCase = case,
                 expectedType = type,
-                fillMissingWith = v.fillInput.text.toString().ifBlank { null }
+                fillMissingWith = v.fillInput.text.toString().ifBlank { null },
+                calculatedFrom = collectCalculatedRule(v)
             )
         }
+
+    /** Builds a [CalculatedColumnRule] from one column card's Basic Calculations controls, or
+     *  null if the toggle is off or either column spinner is still at its placeholder. */
+    private fun collectCalculatedRule(v: ColumnRuleView): CalculatedColumnRule? {
+        if (!v.calcEnableCheck.isChecked) return null
+        val colA = (v.calcColumnASpinner.selectedItem as? String)?.takeIf { it != CALC_PLACEHOLDER } ?: return null
+        val colB = (v.calcColumnBSpinner.selectedItem as? String)?.takeIf { it != CALC_PLACEHOLDER } ?: return null
+        val operator = CALC_OPERATORS.getOrElse(v.calcOperatorSpinner.selectedItemPosition) { MathEngine.Operator.MULTIPLY }
+        return CalculatedColumnRule(
+            sourceColumnA = colA,
+            operator = operator,
+            sourceColumnB = colB,
+            overwriteExisting = !v.calcOnlyIfBlankCheck.isChecked
+        )
+    }
 
     /** Adds one blank find/replace rule row, with a "remove" link that deletes just that row. */
     private fun addReplaceRuleRow(columns: List<String>) {
@@ -567,6 +654,9 @@ class DataCleaningActivity : AppCompatActivity() {
                     append("• Blanks filled (general): ${report.cellsFilled}  |  ")
                     append("Unwanted chars stripped: ${report.unwantedCharsRemoved}  |  ")
                     append("Replacements made: ${report.replacementsMade}")
+                    if (report.calculatedCellsFilled > 0) {
+                        append("\n• Calculated cells (Basic Calculations): ${report.calculatedCellsFilled}")
+                    }
 
                     if (report.detectedTypes.isNotEmpty()) {
                         append("\n\nDetected column types: ")

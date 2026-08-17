@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.features.invoice
 
+import com.prateek.datatoolkit.core.math.MathEngine
 import com.prateek.datatoolkit.features.ocr.OcrResult
 
 /**
@@ -96,25 +97,103 @@ object InvoiceParser {
      * receipt rather than from whitespace in the flattened text. Falls back to the text-only
      * [extractLineItems] heuristic (already run as part of the base parse) if the spatial
      * detector doesn't find anything, so an unusual scan still gets a best-effort attempt
-     * rather than zero items. Either way, [ParsedInvoice.itemsValidationNote] ends up set to
-     * whatever could be determined by checking the extracted items against this receipt's own
-     * subtotal/total - not enforced, just surfaced for the user to judge.
+     * rather than zero items. Basic Calculations then fills whatever gaps it can (see
+     * [fillGaps]) before [ParsedInvoice.itemsValidationNote]/[ParsedInvoice.totalsValidationNote]
+     * get set to whatever could be determined by checking the items against the subtotal, and
+     * the subtotal/tax against the total - not enforced, just surfaced for the user to judge.
      */
     fun parse(ocr: OcrResult, sourceLabel: String = ""): ParsedInvoice {
         val parsed = parse(ocr.text, sourceLabel)
+        var alignmentWarning = false
         if (ocr.lines.isNotEmpty()) {
             val detected = ReceiptTableDetector.detect(ocr.lines)
             if (detected.items.isNotEmpty()) parsed.items = detected.items
-            val totalsCheck = validateItems(parsed.items, parsed.fields)
-            val alignmentWarning = !detected.wellAligned
-            parsed.itemsValidationNote = when {
-                alignmentWarning && totalsCheck.note.isBlank() -> "Rows didn't line up cleanly with the detected columns - please verify"
-                alignmentWarning -> "${totalsCheck.note} (rows also didn't line up cleanly - please verify)"
-                else -> totalsCheck.note
-            }
-            parsed.itemsNeedReview = totalsCheck.needsReview || alignmentWarning
+            alignmentWarning = !detected.wellAligned
         }
+
+        parsed.calculatedFields = fillGaps(parsed)
+
+        val totalsCheck = validateItems(parsed.items, parsed.fields)
+        parsed.itemsValidationNote = when {
+            alignmentWarning && totalsCheck.note.isBlank() -> "Rows didn't line up cleanly with the detected columns - please verify"
+            alignmentWarning -> "${totalsCheck.note} (rows also didn't line up cleanly - please verify)"
+            else -> totalsCheck.note
+        }
+        parsed.itemsNeedReview = totalsCheck.needsReview || alignmentWarning
+
+        val totalsValidation = validateTotals(parsed.fields)
+        parsed.totalsValidationNote = totalsValidation.note
+        parsed.totalsNeedReview = totalsValidation.needsReview
+
         return parsed
+    }
+
+    /**
+     * Basic Calculations: fills gaps OCR left blank, wherever exactly one value in a known
+     * arithmetic relationship is missing and the other(s) parse as numbers - it never
+     * overwrites a value that was actually detected, in keeping with this parser's "never
+     * guess" rule throughout. Three passes, in order, since later ones can depend on earlier
+     * ones having already filled something in:
+     *  1. Each line item's Amount / Quantity / Unit Price (Amount = Quantity × Unit Price).
+     *  2. [ParsedInvoice.subtotal], from the sum of the (possibly just-filled) item amounts,
+     *     if it's blank and there's at least one item amount to sum.
+     *  3. Whichever one of Subtotal / Tax / Total is missing, from the other two
+     *     (Total = Subtotal + Tax).
+     * Returns the names of whatever it actually filled, for [ParsedInvoice.calculatedFields].
+     */
+    private fun fillGaps(parsed: ParsedInvoice): List<String> {
+        val calculated = mutableListOf<String>()
+
+        parsed.items = parsed.items.map { item ->
+            val qty = parseNumericValue(item.quantity)
+            val price = parseNumericValue(item.unitPrice)
+            val amount = parseNumericValue(item.amount)
+            when {
+                item.amount.isBlank() && qty != null && price != null -> {
+                    calculated += "Item \"${item.description}\" Amount"
+                    item.copy(amount = MathEngine.formatNumber(MathEngine.solveProduct(qty, price)))
+                }
+                item.unitPrice.isBlank() && qty != null && amount != null -> {
+                    val solved = MathEngine.solveFactor(qty, amount) ?: return@map item
+                    calculated += "Item \"${item.description}\" Unit Price"
+                    item.copy(unitPrice = MathEngine.formatNumber(solved))
+                }
+                item.quantity.isBlank() && price != null && amount != null -> {
+                    val solved = MathEngine.solveFactor(price, amount) ?: return@map item
+                    calculated += "Item \"${item.description}\" Quantity"
+                    item.copy(quantity = MathEngine.formatNumber(solved))
+                }
+                else -> item
+            }
+        }
+
+        if (parsed.subtotal.isBlank()) {
+            val amounts = parsed.items.mapNotNull { parseNumericValue(it.amount) }
+            if (amounts.isNotEmpty()) {
+                parsed.subtotal = MathEngine.formatNumber(amounts.sum())
+                calculated += CoreInvoiceFields.SUBTOTAL
+            }
+        }
+
+        val subtotal = parseNumericValue(parsed.subtotal)
+        val tax = parseNumericValue(parsed.tax)
+        val total = parseNumericValue(parsed.total)
+        when {
+            parsed.total.isBlank() && subtotal != null && tax != null -> {
+                parsed.total = MathEngine.formatNumber(MathEngine.solveSum(subtotal, tax))
+                calculated += CoreInvoiceFields.TOTAL
+            }
+            parsed.tax.isBlank() && subtotal != null && total != null -> {
+                parsed.tax = MathEngine.formatNumber(MathEngine.solveAddend(subtotal, total))
+                calculated += CoreInvoiceFields.TAX
+            }
+            parsed.subtotal.isBlank() && tax != null && total != null -> {
+                parsed.subtotal = MathEngine.formatNumber(MathEngine.solveAddend(tax, total))
+                calculated += CoreInvoiceFields.SUBTOTAL
+            }
+        }
+
+        return calculated
     }
 
     data class ItemsValidation(val note: String, val needsReview: Boolean)
@@ -146,30 +225,54 @@ object InvoiceParser {
             else -> return ItemsValidation("Items detected (${items.size}) - no subtotal/total to verify against", needsReview = false)
         }
 
-        val diff = kotlin.math.abs(sum - target)
-        val tolerance = maxOf(0.02, target * 0.01)
-        return if (diff <= tolerance) {
+        return if (MathEngine.approximatelyEquals(sum, target)) {
             ItemsValidation("Items total (${"%.2f".format(sum)}) matches $label", needsReview = false)
         } else {
             ItemsValidation("Items sum to ${"%.2f".format(sum)}, but $label is ${"%.2f".format(target)} - check quantities/prices", needsReview = true)
         }
     }
 
+    data class TotalsValidation(val note: String, val needsReview: Boolean)
+
     /**
-     * Parses [value] as a plain number - strips a single leading currency symbol (₹/$/€/£,
-     * matching [ReceiptTableDetector]'s own money-token convention) and thousands-separator
-     * commas, then requires the remainder to parse cleanly as a number with nothing else
-     * attached (so "3 pcs" or a stray unit/letter still fails). Returns null for blank input
-     * or anything that doesn't cleanly parse this way, so a caller can treat that as
-     * "unreadable" rather than a coerced zero or a guessed value. Internal rather than
-     * private so [ReceiptTableDetector] and [InvoiceOcrActivity]'s item-table code can share
-     * this exact numeric contract instead of each defining "numeric" slightly differently.
+     * Checks Subtotal + Tax against Total - only meaningful once all three are present (if any
+     * one were missing, [fillGaps] would already have derived it from the other two, which
+     * would make this trivially true rather than a genuine check). Same tolerance rule as
+     * [validateItems] - see [MathEngine.approximatelyEquals] - shared so every totals check in
+     * this app agrees on what counts as rounding versus a real mismatch.
+     *
+     * Public for the same reason as [validateItems]: so the UI can re-run it after the user
+     * hand-edits Subtotal/Tax/Total before adding the scan to the batch.
      */
-    internal fun parseNumericValue(value: String): Double? {
-        if (value.isBlank()) return null
-        val cleaned = value.trim().trimStart('₹', '$', '€', '£').trim().replace(",", "")
-        return cleaned.toDoubleOrNull()
+    fun validateTotals(fields: Map<String, String>): TotalsValidation {
+        val subtotal = fields[CoreInvoiceFields.SUBTOTAL]?.let { parseNumericValue(it) }
+        val tax = fields[CoreInvoiceFields.TAX]?.let { parseNumericValue(it) }
+        val total = fields[CoreInvoiceFields.TOTAL]?.let { parseNumericValue(it) }
+        if (subtotal == null || tax == null || total == null) return TotalsValidation("", needsReview = false)
+
+        val expectedTotal = MathEngine.solveSum(subtotal, tax)
+        return if (MathEngine.approximatelyEquals(expectedTotal, total)) {
+            TotalsValidation("Subtotal + Tax matches Total", needsReview = false)
+        } else {
+            TotalsValidation(
+                "Subtotal (${"%.2f".format(subtotal)}) + Tax (${"%.2f".format(tax)}) = " +
+                    "${"%.2f".format(expectedTotal)}, but Total is ${"%.2f".format(total)}",
+                needsReview = true
+            )
+        }
     }
+
+    /**
+     * Parses [value] as a plain number - delegates to [MathEngine.parseNumber], which strips
+     * currency symbols/thousands-commas/codes/accounting-negative-parens before requiring the
+     * remainder to parse cleanly as a number with nothing else attached (so "3 pcs" or a stray
+     * unit/letter still fails). Returns null for blank input or anything that doesn't cleanly
+     * parse this way, so a caller can treat that as "unreadable" rather than a coerced zero or
+     * a guessed value. Internal rather than private so [ReceiptTableDetector] and
+     * [InvoiceOcrActivity]'s item-table code can share this exact numeric contract instead of
+     * each defining "numeric" slightly differently.
+     */
+    internal fun parseNumericValue(value: String): Double? = MathEngine.parseNumber(value)
 
     fun parse(rawText: String, sourceLabel: String = ""): ParsedInvoice {
         val lines = rawText.lines().map { it.trim() }.filter { it.isNotBlank() }

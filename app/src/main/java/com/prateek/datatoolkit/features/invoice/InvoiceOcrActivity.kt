@@ -130,9 +130,16 @@ class InvoiceOcrActivity : AppCompatActivity() {
                 val statusLine = if (parsed.hasAnyDetectedField())
                     "Done — review the fields below, then \"Add to Batch\" (detected ${quality}% of key fields)"
                 else "Recognized the text, but couldn't confidently detect invoice fields — fill them in manually below"
-                binding.tvStatus.text = if (parsed.itemsValidationNote.isNotBlank())
-                    "$statusLine\n${parsed.itemsValidationNote}"
-                else statusLine
+                val notes = buildList {
+                    if (parsed.calculatedFields.isNotEmpty()) {
+                        val shown = parsed.calculatedFields.take(4).joinToString(", ")
+                        val extra = parsed.calculatedFields.size - 4
+                        add("Auto-calculated: $shown" + if (extra > 0) " (+$extra more)" else "")
+                    }
+                    if (parsed.itemsValidationNote.isNotBlank()) add(parsed.itemsValidationNote)
+                    if (parsed.totalsValidationNote.isNotBlank()) add(parsed.totalsValidationNote)
+                }
+                binding.tvStatus.text = if (notes.isNotEmpty()) "$statusLine\n${notes.joinToString("\n")}" else statusLine
                 binding.btnAddToBatch.isEnabled = true
 
                 recordScan(uri.toString(), displayNameOf(uri), ocrResult.text, quality, "SUCCESS", durationMs)
@@ -324,6 +331,9 @@ class InvoiceOcrActivity : AppCompatActivity() {
         val validation = InvoiceParser.validateItems(entry.items, entry.fields)
         entry.itemsValidationNote = validation.note
         entry.itemsNeedReview = validation.needsReview
+        val totalsValidation = InvoiceParser.validateTotals(entry.fields)
+        entry.totalsValidationNote = totalsValidation.note
+        entry.totalsNeedReview = totalsValidation.needsReview
         batch.add(entry)
         renderBatch()
         clearFields()
@@ -358,7 +368,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
             invoice.customerName.ifBlank { null },
             invoice.total.ifBlank { null }?.let { "$$it" }
         ).joinToString("  •  ").ifBlank { invoice.sourceLabel.ifBlank { "Invoice ${index + 1}" } }
-        val icon = if (invoice.itemsNeedReview) "⚠️" else "🧾"
+        val icon = if (invoice.itemsNeedReview || invoice.totalsNeedReview) "⚠️" else "🧾"
 
         row.addView(TextView(this).apply {
             text = "$icon  $label"
@@ -420,8 +430,10 @@ class InvoiceOcrActivity : AppCompatActivity() {
      * every one of that invoice's rows so the sheet stays sortable/filterable by item
      * (e.g. "everything above ₹500") the way a flat items register normally works. An
      * invoice with no line items detected still gets one row, item columns left blank.
-     * "Totals Check" is ReceiptTableDetector's own row-alignment/subtotal cross-check for
-     * that invoice, repeated per row the same way - blank when there was nothing to check.
+     * "Totals Check" combines the item-table-vs-subtotal and subtotal+tax-vs-total checks
+     * (blank when there was nothing to check); "Calculated Fields" lists whichever of those
+     * same core/item fields Basic Calculations filled in rather than reading off the scan.
+     * Both are repeated per row the same way as every other invoice-level column here.
      */
     private fun buildExportRows(): List<List<String>> {
         val presentCore = CoreInvoiceFields.ORDERED.filter { key -> batch.any { it.fields.containsKey(key) } }
@@ -429,16 +441,18 @@ class InvoiceOcrActivity : AppCompatActivity() {
         for (invoice in batch) extraColumns.addAll(invoice.extraFields.keys)
 
         val fieldColumns = presentCore + extraColumns
-        val header = fieldColumns + listOf("Item", "Quantity", "Unit Price", "Amount", "Source File", "Totals Check")
+        val header = fieldColumns + listOf("Item", "Quantity", "Unit Price", "Amount", "Source File", "Totals Check", "Calculated Fields")
         val rows = mutableListOf<List<String>>(header)
 
         for (invoice in batch) {
             val invoiceValues = fieldColumns.map { column -> invoice.fields[column].orEmpty() }
+            val totalsCheck = listOf(invoice.itemsValidationNote, invoice.totalsValidationNote).filter { it.isNotBlank() }.joinToString("; ")
+            val calculatedFields = invoice.calculatedFields.joinToString(", ")
             if (invoice.items.isEmpty()) {
-                rows.add(invoiceValues + listOf("", "", "", "", invoice.sourceLabel, invoice.itemsValidationNote))
+                rows.add(invoiceValues + listOf("", "", "", "", invoice.sourceLabel, totalsCheck, calculatedFields))
             } else {
                 for (item in invoice.items) {
-                    rows.add(invoiceValues + listOf(item.description, item.quantity, item.unitPrice, item.amount, invoice.sourceLabel, invoice.itemsValidationNote))
+                    rows.add(invoiceValues + listOf(item.description, item.quantity, item.unitPrice, item.amount, invoice.sourceLabel, totalsCheck, calculatedFields))
                 }
             }
         }

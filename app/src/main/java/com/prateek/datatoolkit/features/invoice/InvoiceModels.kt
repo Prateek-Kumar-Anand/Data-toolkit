@@ -59,7 +59,20 @@ data class ParsedInvoice(
      *  alignment warning - i.e. worth a visual flag in the UI - rather than a confirmed match
      *  or a "nothing to check against" note. Kept as its own field instead of the UI matching
      *  against [itemsValidationNote]'s wording. */
-    var itemsNeedReview: Boolean = false
+    var itemsNeedReview: Boolean = false,
+    /** Basic Calculations: names of core fields (see [CoreInvoiceFields]) or line items
+     *  [InvoiceParser] computed from other detected values rather than reading directly off
+     *  the scan - e.g. filling [subtotal] from the sum of [items]' amounts because the
+     *  printed subtotal line itself wasn't detected. Every one of these is still just a
+     *  normal editable value in [fields]/[items] - this list exists purely so the review UI
+     *  can tell the user which ones were derived instead of read, since a derived value is
+     *  only as trustworthy as the other values it came from. */
+    var calculatedFields: List<String> = emptyList(),
+    /** Same idea as [itemsValidationNote]/[itemsNeedReview], but for Subtotal + Tax vs Total
+     *  instead of the item table's sum - a separate check since either can be present without
+     *  the other (a receipt with items but no tax line, or a tax line but no item table). */
+    var totalsValidationNote: String = "",
+    var totalsNeedReview: Boolean = false
 ) {
     private fun setOrClear(key: String, value: String) {
         if (value.isBlank()) fields.remove(key) else fields[key] = value.trim()
