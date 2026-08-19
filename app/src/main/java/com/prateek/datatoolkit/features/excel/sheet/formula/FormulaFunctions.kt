@@ -55,8 +55,10 @@ object FormulaFunctions {
     private fun numbersOnly(args: List<FormulaValue>): List<Double> =
         args.filterIsInstance<FormulaValue.NumberValue>().map { it.value }
 
-    private fun numberArg(args: List<FormulaValue>, index: Int): FormulaValue =
-        (args.getOrNull(index) ?: return FormulaValue.ErrorValue("#VALUE!")).asNumber()
+    private fun numberArg(args: List<FormulaValue>, index: Int): FormulaValue {
+        val arg = args.getOrNull(index) ?: return FormulaValue.ErrorValue("#VALUE!")
+        return arg.asNumber()
+    }
 
     private fun textArg(args: List<FormulaValue>, index: Int): String =
         (args.getOrNull(index) ?: FormulaValue.EmptyValue).asText()
