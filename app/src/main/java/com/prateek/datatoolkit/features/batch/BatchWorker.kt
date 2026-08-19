@@ -9,6 +9,7 @@ import androidx.work.WorkerParameters
 import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.network.RetryPolicy
 import com.prateek.datatoolkit.core.quality.QualityScorer
+import com.prateek.datatoolkit.core.storage.OutputStorage
 import com.prateek.datatoolkit.features.ocr.OcrHelper
 import com.prateek.datatoolkit.features.pdf.PdfHelper
 import java.io.File
@@ -20,6 +21,12 @@ import java.io.FileOutputStream
  * own Auto-Retry (RetryPolicy) so one bad file doesn't sink the whole batch;
  * WorkManager's own backoff (set on the WorkRequest) retries the *entire*
  * run only if too many individual items failed.
+ *
+ * Each successfully processed item's full text is also auto-saved into
+ * Downloads/Output/Batch/ (auto-created, collision-proof name) - see
+ * [outputFileName]/doWork. A storage hiccup there doesn't fail the item or
+ * spend one of its OCR/PDF-extraction retries: it's a separate concern from
+ * whether recognition/extraction itself succeeded.
  */
 class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
 
@@ -52,13 +59,26 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
 
             if (itemResult.value != null) {
                 succeeded++
-                val (label, preview, score) = itemResult.value
+                val (label, fullText, score) = itemResult.value
+                // A separate try/catch from the OCR/PDF-extraction RetryPolicy above:
+                // processing already succeeded at this point, so a storage hiccup here
+                // shouldn't discard that result or count against it - it just means
+                // outputPath stays null, same as any other item this code hasn't gotten
+                // around to saving.
+                val outputPath = try {
+                    OutputStorage.saveBytes(
+                        applicationContext, OutputStorage.Module.BATCH,
+                        fullText.toByteArray(), outputFileName(uri, type), "text/plain"
+                    ).humanPath
+                } catch (e: Exception) {
+                    null
+                }
                 cache.record(
                     feature = "BATCH_$type",
                     inputBytes = uriString.toByteArray(),
                     inputLabel = label,
-                    outputPreview = preview,
-                    outputPath = null,
+                    outputPreview = fullText.take(200),
+                    outputPath = outputPath,
                     qualityScore = score,
                     status = "SUCCESS",
                     retryCount = itemResult.attempts - 1
@@ -97,7 +117,9 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
         )
     }
 
-    /** Returns Triple(label, outputPreview, qualityScore) for one processed item. */
+    /** Returns Triple(label, fullText, qualityScore) for one processed item. The caller in
+     *  [doWork] both truncates this for the cache preview and saves it in full to
+     *  Downloads/Output/Batch/. */
     private suspend fun processOne(type: String, uri: Uri): Triple<String, String, Int> {
         val resolver = applicationContext.contentResolver
         val label = uri.lastPathSegment ?: uri.toString()
@@ -113,7 +135,7 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
                 // function that already knows how to suspend.
                 val result = OcrHelper.recognize(bitmap)
                 val score = QualityScorer.scoreText(result.text)
-                Triple(label, result.text.take(200), score)
+                Triple(label, result.text, score)
             }
             TYPE_PDF_TEXT -> {
                 val tempFile = File.createTempFile("batch_pdf_", ".pdf", applicationContext.cacheDir)
@@ -123,9 +145,17 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
                 val text = PdfHelper.extractText(tempFile)
                 tempFile.delete()
                 val score = QualityScorer.scoreText(text)
-                Triple(label, text.take(200), score)
+                Triple(label, text, score)
             }
             else -> throw IllegalArgumentException("Unknown batch type: $type")
         }
+    }
+
+    /** "item_1755400000_0_ocr.txt"-style name for the saved output, derived from the local
+     *  temp uri BatchProcessingActivity created for this item. */
+    private fun outputFileName(uri: Uri, type: String): String {
+        val base = uri.path?.let { File(it).nameWithoutExtension }.takeUnless { it.isNullOrBlank() } ?: "batch_item"
+        val suffix = if (type == TYPE_OCR) "ocr" else "pdf_text"
+        return "${base}_$suffix.txt"
     }
 }

@@ -1,20 +1,20 @@
 package com.prateek.datatoolkit.features.scraping
 
 import android.graphics.Typeface
-import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.quality.QualityScorer
+import com.prateek.datatoolkit.core.storage.OutputStorage
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityWebScrapingBinding
 import com.prateek.datatoolkit.features.excel.ExcelCsvHelper
 import kotlinx.coroutines.Dispatchers
@@ -33,19 +33,13 @@ class WebScrapingActivity : AppCompatActivity() {
     private var lastItems: List<ScrapedItem> = emptyList()
     private var lastItemSources: List<String> = emptyList()
 
-    // The .xlsx built automatically as soon as scraping finishes, waiting for
-    // the user to choose where to save it via the system picker.
+    // The .xlsx built automatically as soon as scraping finishes, ready to auto-save into
+    // Downloads/Output/Web_Scraping/ as soon as the user taps Save.
     private var pendingXlsxFile: File? = null
 
-    // Browse-to-save: system file picker lets the user choose the destination.
-    private val saveTextAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
-        uri?.let { writeResultsTo(it) }
-    }
-    private val saveXlsxAs = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    ) { uri ->
-        uri?.let { copyPendingXlsxTo(it) }
-    }
+    // Auto-save (Downloads/Output/Web_Scraping/) needs WRITE_EXTERNAL_STORAGE on API 24-28
+    // only; see StoragePermissionHelper.
+    private val storagePermission = StoragePermissionHelper(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -281,7 +275,8 @@ class WebScrapingActivity : AppCompatActivity() {
         return row
     }
 
-    /** Builds the .xlsx as soon as scraping finishes, ready to hand off via "Save As...". */
+    /** Builds the .xlsx as soon as scraping finishes, ready to auto-save into
+     *  Downloads/Output/Web_Scraping/ as soon as the user taps Save. */
     private fun buildAutoXlsx(items: List<ScrapedItem>, sources: List<String>) {
         lifecycleScope.launch {
             try {
@@ -334,7 +329,7 @@ class WebScrapingActivity : AppCompatActivity() {
             Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
             return
         }
-        saveTextAs.launch("scrape_${System.currentTimeMillis()}.txt")
+        storagePermission.runWithPermission { writeResults() }
     }
 
     private fun saveXlsx() {
@@ -343,10 +338,13 @@ class WebScrapingActivity : AppCompatActivity() {
             Toast.makeText(this, "Scrape a page first", Toast.LENGTH_SHORT).show()
             return
         }
-        saveXlsxAs.launch(file.name)
+        storagePermission.runWithPermission { writePendingXlsx(file) }
     }
 
-    private fun writeResultsTo(uri: Uri) {
+    /** Builds the same combined text as before, then auto-saves it into
+     *  Downloads/Output/Web_Scraping/ (auto-created, collision-proof name) instead of
+     *  prompting the user to browse to a destination. */
+    private fun writeResults() {
         val result = lastResult
         val text = binding.etText.text.toString()
         val content = buildString {
@@ -358,30 +356,31 @@ class WebScrapingActivity : AppCompatActivity() {
                 result.links.forEach { append("$it\n") }
             }
         }
-        try {
-            contentResolver.openOutputStream(uri)?.use { out ->
-                out.write(content.toByteArray())
-            } ?: throw IllegalStateException("Could not open destination for writing")
-            Toast.makeText(this, "Saved", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+        lifecycleScope.launch {
+            try {
+                val saved = withContext(Dispatchers.IO) {
+                    OutputStorage.saveBytes(
+                        this@WebScrapingActivity, OutputStorage.Module.WEB_SCRAPING,
+                        content.toByteArray(), "scrape_${System.currentTimeMillis()}.txt", "text/plain"
+                    )
+                }
+                Toast.makeText(this@WebScrapingActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@WebScrapingActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
-    private fun copyPendingXlsxTo(uri: Uri) {
-        val file = pendingXlsxFile
-        if (file == null || !file.exists()) {
-            Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun writePendingXlsx(file: File) {
         lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    contentResolver.openOutputStream(uri)?.use { out ->
-                        file.inputStream().use { input -> input.copyTo(out) }
-                    } ?: throw IllegalStateException("Could not open destination for writing")
+                val saved = withContext(Dispatchers.IO) {
+                    OutputStorage.saveFile(
+                        this@WebScrapingActivity, OutputStorage.Module.WEB_SCRAPING, file, file.name,
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
                 }
-                Toast.makeText(this@WebScrapingActivity, "Saved", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@WebScrapingActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this@WebScrapingActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }

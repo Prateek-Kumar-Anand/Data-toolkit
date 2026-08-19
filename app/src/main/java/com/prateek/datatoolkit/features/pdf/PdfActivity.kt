@@ -10,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.quality.QualityScorer
+import com.prateek.datatoolkit.core.storage.OutputStorage
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityPdfBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,7 +25,8 @@ class PdfActivity : AppCompatActivity() {
     private lateinit var cache: CacheManager
 
     // The most recently produced PDF file (merge/split/images-to-pdf), kept in
-    // app-private cache until the user chooses where to save it.
+    // app-private cache until the user taps Save, which auto-saves it into
+    // Downloads/Output/PDF/.
     private var lastPdfFile: File? = null
 
     private val pickOnePdf = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -39,13 +42,9 @@ class PdfActivity : AppCompatActivity() {
     /** Holds whichever picker's callback should run next - set right before launching a picker. */
     private var pendingAction: ((List<Uri>) -> Unit)? = null
 
-    // Browse-to-save: system "Save As" pickers for the two kinds of result this screen can produce.
-    private val savePdfAs = registerForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
-        uri?.let { copyPdfResultTo(it) }
-    }
-    private val saveTextAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
-        uri?.let { writeTextResultTo(it) }
-    }
+    // Auto-save (Downloads/Output/PDF/) needs WRITE_EXTERNAL_STORAGE on API 24-28 only; see
+    // StoragePermissionHelper.
+    private val storagePermission = StoragePermissionHelper(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -132,8 +131,8 @@ class PdfActivity : AppCompatActivity() {
                     files.forEach { it.delete() }
                 }
                 lastPdfFile = outFile
-                binding.tvStatus.text = "Merged ${uris.size} PDFs — tap Save to choose a destination"
-                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result As…\" below to pick where this PDF goes.")
+                binding.tvStatus.text = "Merged ${uris.size} PDFs — tap Save to save it"
+                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
                 cache.record("PDF", outFile.readBytes(), "${uris.size} PDFs merged", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Merge failed: ${e.message}"
@@ -161,8 +160,8 @@ class PdfActivity : AppCompatActivity() {
                     file.delete()
                 }
                 lastPdfFile = outFile
-                binding.tvStatus.text = "Split ready — tap Save to choose a destination"
-                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result As…\" below to pick where this PDF goes.")
+                binding.tvStatus.text = "Split ready — tap Save to save it"
+                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
                 cache.record("PDF", outFile.readBytes(), uri.lastPathSegment ?: "pdf", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Split failed: ${e.message}"
@@ -185,8 +184,8 @@ class PdfActivity : AppCompatActivity() {
                     PdfHelper.imagesToPdf(bitmaps, outFile)
                 }
                 lastPdfFile = outFile
-                binding.tvStatus.text = "Built from ${uris.size} images — tap Save to choose a destination"
-                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result As…\" below to pick where this PDF goes.")
+                binding.tvStatus.text = "Built from ${uris.size} images — tap Save to save it"
+                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
                 cache.record("PDF", outFile.readBytes(), "${uris.size} images", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Failed: ${e.message}"
@@ -196,11 +195,13 @@ class PdfActivity : AppCompatActivity() {
         }
     }
 
-    /** Routes to the right "Save As" picker depending on whether the last result was a PDF file or plain text. */
+    /** Routes to the right auto-save depending on whether the last result was a PDF file or
+     *  plain text - both now land straight in Downloads/Output/PDF/ instead of prompting the
+     *  user to browse to a destination. */
     private fun onSaveAsClicked() {
         val pdf = lastPdfFile
         if (pdf != null && pdf.exists()) {
-            savePdfAs.launch(pdf.name)
+            storagePermission.runWithPermission { savePdfResult(pdf) }
             return
         }
         val text = binding.etOutput.text.toString()
@@ -208,37 +209,35 @@ class PdfActivity : AppCompatActivity() {
             Toast.makeText(this, "Nothing to save yet — run an operation above first", Toast.LENGTH_SHORT).show()
             return
         }
-        saveTextAs.launch("extracted_${System.currentTimeMillis()}.txt")
+        storagePermission.runWithPermission { saveTextResult(text) }
     }
 
-    private fun copyPdfResultTo(uri: Uri) {
-        val file = lastPdfFile
-        if (file == null || !file.exists()) {
-            Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun savePdfResult(file: File) {
         lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    contentResolver.openOutputStream(uri)?.use { out ->
-                        file.inputStream().use { input -> input.copyTo(out) }
-                    } ?: throw IllegalStateException("Could not open destination for writing")
+                val saved = withContext(Dispatchers.IO) {
+                    OutputStorage.saveFile(this@PdfActivity, OutputStorage.Module.PDF, file, file.name, "application/pdf")
                 }
-                Toast.makeText(this@PdfActivity, "Saved", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@PdfActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this@PdfActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    private fun writeTextResultTo(uri: Uri) {
-        try {
-            contentResolver.openOutputStream(uri)?.use { out ->
-                out.write(binding.etOutput.text.toString().toByteArray())
-            } ?: throw IllegalStateException("Could not open destination for writing")
-            Toast.makeText(this, "Saved", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+    private fun saveTextResult(text: String) {
+        lifecycleScope.launch {
+            try {
+                val saved = withContext(Dispatchers.IO) {
+                    OutputStorage.saveBytes(
+                        this@PdfActivity, OutputStorage.Module.PDF, text.toByteArray(),
+                        "extracted_${System.currentTimeMillis()}.txt", "text/plain"
+                    )
+                }
+                Toast.makeText(this@PdfActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@PdfActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

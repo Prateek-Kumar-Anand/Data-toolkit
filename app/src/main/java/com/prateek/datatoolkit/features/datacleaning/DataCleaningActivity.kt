@@ -22,6 +22,8 @@ import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.math.MathEngine
 import com.prateek.datatoolkit.core.quality.QualityScorer
+import com.prateek.datatoolkit.core.storage.OutputStorage
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityDataCleaningBinding
 import com.prateek.datatoolkit.features.excel.ExcelCsvHelper
 import kotlinx.coroutines.Dispatchers
@@ -89,22 +91,9 @@ class DataCleaningActivity : AppCompatActivity() {
         uri?.let { loadFile(it) }
     }
 
-    // Browse-to-save: one launcher per export format, each writing the same cleaned
-    // table through a different serializer.
-    private val saveCsvAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        uri?.let { writeExportTo(it, DataFormat.CSV) }
-    }
-    private val saveJsonAs = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        uri?.let { writeExportTo(it, DataFormat.JSON) }
-    }
-    private val saveTxtAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
-        uri?.let { writeExportTo(it, DataFormat.TXT) }
-    }
-    private val saveXlsxAs = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    ) { uri ->
-        uri?.let { writeExportTo(it, DataFormat.XLSX) }
-    }
+    // Auto-save (Downloads/Output/Data_Cleaning/) needs WRITE_EXTERNAL_STORAGE on API 24-28
+    // only; see StoragePermissionHelper.
+    private val storagePermission = StoragePermissionHelper(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,10 +126,10 @@ class DataCleaningActivity : AppCompatActivity() {
         binding.btnDetectColumns.setOnClickListener { detectColumns() }
         binding.btnAddReplaceRule.setOnClickListener { addReplaceRuleRow(lastHeader) }
         binding.btnClean.setOnClickListener { runCleaning() }
-        binding.btnExportCsv.setOnClickListener { exportAs(saveCsvAs, "cleaned_${System.currentTimeMillis()}.csv") }
-        binding.btnExportXlsx.setOnClickListener { exportAs(saveXlsxAs, "cleaned_${System.currentTimeMillis()}.xlsx") }
-        binding.btnExportJson.setOnClickListener { exportAs(saveJsonAs, "cleaned_${System.currentTimeMillis()}.json") }
-        binding.btnExportTxt.setOnClickListener { exportAs(saveTxtAs, "cleaned_${System.currentTimeMillis()}.txt") }
+        binding.btnExportCsv.setOnClickListener { exportAs(DataFormat.CSV, "cleaned_${System.currentTimeMillis()}.csv") }
+        binding.btnExportXlsx.setOnClickListener { exportAs(DataFormat.XLSX, "cleaned_${System.currentTimeMillis()}.xlsx") }
+        binding.btnExportJson.setOnClickListener { exportAs(DataFormat.JSON, "cleaned_${System.currentTimeMillis()}.json") }
+        binding.btnExportTxt.setOnClickListener { exportAs(DataFormat.TXT, "cleaned_${System.currentTimeMillis()}.txt") }
     }
 
     private fun loadFile(uri: Uri) {
@@ -705,30 +694,39 @@ class DataCleaningActivity : AppCompatActivity() {
         binding.btnExportTxt.isEnabled = enabled
     }
 
-    private fun exportAs(launcher: androidx.activity.result.ActivityResultLauncher<String>, name: String) {
+    private fun exportAs(format: DataFormat, name: String) {
         if (lastOutputRows.isEmpty()) {
             Toast.makeText(this, "Clean some data first", Toast.LENGTH_SHORT).show()
             return
         }
-        launcher.launch(name)
+        storagePermission.runWithPermission { writeExport(format, name) }
     }
 
-    private fun writeExportTo(uri: Uri, format: DataFormat) {
+    private fun mimeTypeFor(format: DataFormat): String = when (format) {
+        DataFormat.CSV -> "text/csv"
+        DataFormat.JSON -> "application/json"
+        DataFormat.TXT -> "text/plain"
+        DataFormat.XLSX -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    }
+
+    /** Builds the export exactly as before, then auto-saves it into
+     *  Downloads/Output/Data_Cleaning/ (auto-created, collision-proof name) instead of
+     *  prompting the user to browse to a destination. */
+    private fun writeExport(format: DataFormat, name: String) {
         lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) {
+                val saved = withContext(Dispatchers.IO) {
                     val temp = File.createTempFile("clean_out_", ".tmp", cacheDir)
                     if (format == DataFormat.XLSX) {
                         ExcelCsvHelper.writeXlsx(lastOutputRows, temp, sheetName = "Cleaned Data")
                     } else {
                         temp.writeText(DataCleaner.serialize(lastOutputRows, format))
                     }
-                    contentResolver.openOutputStream(uri)?.use { out ->
-                        temp.inputStream().use { input -> input.copyTo(out) }
-                    } ?: throw IllegalStateException("Could not open destination for writing")
-                    temp.delete()
+                    OutputStorage.saveFile(
+                        this@DataCleaningActivity, OutputStorage.Module.DATA_CLEANING, temp, name, mimeTypeFor(format)
+                    ).also { temp.delete() }
                 }
-                Toast.makeText(this@DataCleaningActivity, "Saved", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@DataCleaningActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this@DataCleaningActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }

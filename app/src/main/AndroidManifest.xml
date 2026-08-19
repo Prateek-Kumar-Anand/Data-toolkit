@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- Only needed on API 24-28: pre-scoped-storage devices must write to the public
+         Downloads directory directly (see OutputStorage). API 29+ saves through
+         MediaStore.Downloads instead, which needs no storage permission at all. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application

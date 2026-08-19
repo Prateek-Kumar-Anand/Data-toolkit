@@ -13,6 +13,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.prateek.datatoolkit.core.cache.AppDatabase
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityBatchProcessingBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,13 +33,18 @@ class BatchProcessingActivity : AppCompatActivity() {
         if (uris.isNotEmpty()) startBatch(uris, BatchWorker.TYPE_PDF_TEXT)
     }
 
+    // BatchWorker saves each result into Downloads/Output/Batch/ from the background, with
+    // no Activity available to prompt for the legacy (API 24-28) storage permission at that
+    // point - so it's requested up front here, before a batch job ever starts.
+    private val storagePermission = StoragePermissionHelper(this)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityBatchProcessingBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.btnBatchOcr.setOnClickListener { pickImages.launch("image/*") }
-        binding.btnBatchPdf.setOnClickListener { pickPdfs.launch("application/pdf") }
+        binding.btnBatchOcr.setOnClickListener { storagePermission.runWithPermission { pickImages.launch("image/*") } }
+        binding.btnBatchPdf.setOnClickListener { storagePermission.runWithPermission { pickPdfs.launch("application/pdf") } }
     }
 
     private fun startBatch(uris: List<Uri>, type: String) {

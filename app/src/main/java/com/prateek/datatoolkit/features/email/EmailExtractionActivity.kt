@@ -1,27 +1,28 @@
 package com.prateek.datatoolkit.features.email
 
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.quality.QualityScorer
+import com.prateek.datatoolkit.core.storage.OutputStorage
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityEmailExtractionBinding
 import com.prateek.datatoolkit.features.scraping.Scraper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class EmailExtractionActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityEmailExtractionBinding
     private lateinit var cache: CacheManager
 
-    // Browse-to-save: user picks the destination folder/file via the system UI.
-    private val saveCsvAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        uri?.let { writeEmailsTo(it) }
-    }
+    // Auto-save (Downloads/Output/Email_Extraction/) needs WRITE_EXTERNAL_STORAGE on API 24-28
+    // only; see StoragePermissionHelper.
+    private val storagePermission = StoragePermissionHelper(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,18 +92,26 @@ class EmailExtractionActivity : AppCompatActivity() {
             Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
             return
         }
-        saveCsvAs.launch("emails_${System.currentTimeMillis()}.csv")
+        storagePermission.runWithPermission { writeEmails() }
     }
 
-    private fun writeEmailsTo(uri: Uri) {
-        try {
-            val emails = binding.etEmails.text.toString().lines().filter { it.isNotBlank() }
-            contentResolver.openOutputStream(uri)?.use { out ->
-                out.write(EmailExtractor.toCsv(emails).toByteArray())
-            } ?: throw IllegalStateException("Could not open destination for writing")
-            Toast.makeText(this, "Saved", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+    /** Builds the same CSV as before, then auto-saves it into
+     *  Downloads/Output/Email_Extraction/ (auto-created, collision-proof name) instead of
+     *  prompting the user to browse to a destination. */
+    private fun writeEmails() {
+        lifecycleScope.launch {
+            try {
+                val emails = binding.etEmails.text.toString().lines().filter { it.isNotBlank() }
+                val saved = withContext(Dispatchers.IO) {
+                    OutputStorage.saveBytes(
+                        this@EmailExtractionActivity, OutputStorage.Module.EMAIL_EXTRACTION,
+                        EmailExtractor.toCsv(emails).toByteArray(), "emails_${System.currentTimeMillis()}.csv", "text/csv"
+                    )
+                }
+                Toast.makeText(this@EmailExtractionActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@EmailExtractionActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
     }
 }

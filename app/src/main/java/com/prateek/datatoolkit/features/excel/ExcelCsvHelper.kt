@@ -4,6 +4,10 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Xml
 import com.prateek.datatoolkit.core.xml.XmlSafety
+import com.prateek.datatoolkit.features.excel.sheet.CellRef
+import com.prateek.datatoolkit.features.excel.sheet.SheetCell
+import com.prateek.datatoolkit.features.excel.sheet.SheetData
+import com.prateek.datatoolkit.features.excel.sheet.SheetsWorkbook
 import org.xmlpull.v1.XmlPullParser
 import java.util.zip.ZipFile
 import kotlinx.coroutines.Dispatchers
@@ -559,6 +563,277 @@ object ExcelCsvHelper {
 
     /** Rough px -> Excel character-width conversion (~7px per character at the default font). */
     private fun pxToColumnWidth(px: Int): Double = (px / 7.0 + 2.0).coerceIn(MIN_COL_WIDTH, MAX_COL_WIDTH)
+
+    // ============================================================================================
+    // Full-workbook read/write for the grid editor (SpreadsheetActivity): every sheet, every
+    // cell's real type/formula - not flattened to List<List<String>> like everything above this
+    // point. Purely additive: nothing below touches readXlsx/writeXlsx/readCsv/writeCsv, which
+    // every other module (Data Cleaning, Invoice, Web Scraping, PDF, OCR, Batch) keeps using
+    // completely unchanged.
+    // ============================================================================================
+
+    /** Reads every sheet of [file] into a [SheetsWorkbook], each cell keeping its real type -
+     *  in particular, a formula cell comes back holding its formula text ("=SUM(A1:A3)"), not
+     *  just the value Excel last cached for it. Same dual-reader resilience as [readXlsx] and
+     *  for the same reason (see the comment there): fastexcel-reader is tried first, but ANY
+     *  failure falls back to the dependency-free platform-XML reader rather than propagating. */
+    fun readWorkbook(file: File): SheetsWorkbook {
+        XmlSafety.assertZipHasNoDoctype(file)
+        return try {
+            readWorkbookViaFastexcel(file)
+        } catch (primary: Throwable) {
+            try {
+                readWorkbookViaPlatformXml(file)
+            } catch (fallback: Throwable) {
+                val primaryDetail = listOfNotNull(
+                    primary.message,
+                    primary.cause?.let { "caused by ${it.javaClass.simpleName}: ${it.message}" }
+                ).joinToString(" - ").ifBlank { "unknown error" }
+                val fallbackDetail = listOfNotNull(
+                    fallback.message,
+                    fallback.cause?.let { "caused by ${it.javaClass.simpleName}: ${it.message}" }
+                ).joinToString(" - ").ifBlank { "unknown error" }
+                throw java.io.IOException(
+                    "Could not read this spreadsheet. Primary reader: ${primary.javaClass.simpleName}: " +
+                        "$primaryDetail | Fallback reader: ${fallback.javaClass.simpleName}: $fallbackDetail",
+                    primary
+                )
+            }
+        }
+    }
+
+    private fun readWorkbookViaFastexcel(file: File): SheetsWorkbook {
+        FileInputStream(file).use { input ->
+            ReadableWorkbook(input).use { wb ->
+                // Same NOTE as readXlsxViaFastexcel above: wb.sheets is a java.util.stream.Stream,
+                // walked with forEach (not .toList()) for the same minSdk-24 NoSuchMethodError reason.
+                val fastSheets = mutableListOf<org.dhatim.fastexcel.reader.Sheet>()
+                wb.sheets.forEach { fastSheets.add(it) }
+                if (fastSheets.isEmpty()) throw java.io.IOException("Workbook has no sheets")
+                val sheetDataList = fastSheets.map { readSheetViaFastexcel(it) }
+                return SheetsWorkbook(sheetDataList.toMutableList())
+            }
+        }
+    }
+
+    private fun readSheetViaFastexcel(fastSheet: org.dhatim.fastexcel.reader.Sheet): SheetData {
+        val sheetData = SheetData(fastSheet.name?.takeIf { it.isNotBlank() } ?: "Sheet")
+        fastSheet.openStream().use { rowStream ->
+            rowStream.forEach { row ->
+                for (i in 0 until row.cellCount) {
+                    val cell = row.getCell(i) ?: continue
+                    // Each cell reports its own absolute address rather than this trusting the
+                    // 0-until-cellCount loop index to line up with the real column - safe even
+                    // if a streaming row implementation ever returns cells sparsely.
+                    val ref = CellRef(cell.address.row, cell.address.column)
+                    val formula = cell.formula
+                    sheetData.cellAt(ref).input = if (!formula.isNullOrBlank()) "=$formula" else (cell.text ?: "")
+                    sheetData.ensureRoomFor(ref)
+                }
+            }
+        }
+        return sheetData
+    }
+
+    /** Dependency-free fallback for [readWorkbook] - same reasoning and same technique as
+     *  [readXlsxViaPlatformXml] (walks the zip directly with android.util.Xml, never touches
+     *  javax.xml.stream/aalto-xml/stax2-api), extended two ways: every sheet is read instead of
+     *  just one, and each cell's `<f>` formula element is captured alongside its `<v>` cached
+     *  value, preferring the formula when present. */
+    private fun readWorkbookViaPlatformXml(file: File): SheetsWorkbook {
+        ZipFile(file).use { zip ->
+            val sharedStrings = readSharedStrings(zip)
+            val sheets = resolveAllSheets(zip)
+            if (sheets.isEmpty()) throw java.io.IOException("Workbook has no sheets")
+            val sheetDataList = sheets.map { (name, entryName) -> readSheetViaPlatformXml(zip, entryName, sharedStrings, name) }
+            return SheetsWorkbook(sheetDataList.toMutableList())
+        }
+    }
+
+    /** Every sheet's (name, zip-entry-path) pair, in workbook order - the multi-sheet
+     *  generalization of [resolveSheetEntryOrThrow], which only ever resolved one index at a
+     *  time. Falls back to the conventional "xl/worksheets/sheetN.xml" naming (same fallback
+     *  [readXlsx] already relies on for a single sheet) if the rels part is missing/unreadable. */
+    private fun resolveAllSheets(zip: ZipFile): List<Pair<String, String>> {
+        val wbEntry = zip.getEntry("xl/workbook.xml") ?: return emptyList()
+
+        data class SheetRef(val name: String, val relId: String?)
+        val sheetRefs = mutableListOf<SheetRef>()
+        zip.getInputStream(wbEntry).use { input ->
+            val parser = Xml.newPullParser()
+            parser.setInput(input, "UTF-8")
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG && parser.name == "sheet") {
+                    val name = parser.getAttributeValue(null, "name") ?: "Sheet${sheetRefs.size + 1}"
+                    val rid = (0 until parser.attributeCount)
+                        .firstOrNull { parser.getAttributeName(it).substringAfterLast(':') == "id" }
+                        ?.let { parser.getAttributeValue(it) }
+                    sheetRefs.add(SheetRef(name, rid))
+                }
+                event = parser.next()
+            }
+        }
+
+        val relsEntry = zip.getEntry("xl/_rels/workbook.xml.rels")
+            ?: return sheetRefs.mapIndexed { i, s -> s.name to "xl/worksheets/sheet${i + 1}.xml" }
+
+        val relMap = mutableMapOf<String, String>()
+        zip.getInputStream(relsEntry).use { input ->
+            val parser = Xml.newPullParser()
+            parser.setInput(input, "UTF-8")
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                if (event == XmlPullParser.START_TAG && parser.name == "Relationship") {
+                    val id = parser.getAttributeValue(null, "Id")
+                    val target = parser.getAttributeValue(null, "Target")
+                    if (id != null && target != null) relMap[id] = target
+                }
+                event = parser.next()
+            }
+        }
+        return sheetRefs.mapIndexed { i, s ->
+            val target = s.relId?.let { relMap[it] } ?: "worksheets/sheet${i + 1}.xml"
+            val path = if (target.startsWith("/")) target.removePrefix("/") else "xl/${target.removePrefix("./")}"
+            s.name to path
+        }
+    }
+
+    private fun readSheetViaPlatformXml(zip: ZipFile, entryName: String, sharedStrings: List<String>, sheetName: String): SheetData {
+        val sheetData = SheetData(sheetName)
+        val entry = zip.getEntry(entryName) ?: return sheetData
+        zip.getInputStream(entry).use { input ->
+            val parser = Xml.newPullParser()
+            parser.setInput(input, "UTF-8")
+            var cellRow = -1
+            var cellCol = -1
+            var cellType: String? = null
+            var formulaText: String? = null
+            var valueCapturing = false
+            var formulaCapturing = false
+            var text: StringBuilder? = null
+
+            var event = parser.eventType
+            while (event != XmlPullParser.END_DOCUMENT) {
+                when (event) {
+                    XmlPullParser.START_TAG -> when (parser.name) {
+                        "c" -> {
+                            val r = parser.getAttributeValue(null, "r")
+                            cellCol = columnFromCellRef(r)
+                            cellRow = rowFromCellRef(r)
+                            cellType = parser.getAttributeValue(null, "t")
+                            formulaText = null
+                        }
+                        "f" -> { formulaCapturing = true; text = StringBuilder() }
+                        "v", "t" -> { valueCapturing = true; text = StringBuilder() }
+                    }
+                    XmlPullParser.TEXT, XmlPullParser.CDSECT -> if (valueCapturing || formulaCapturing) text?.append(parser.text)
+                    XmlPullParser.END_TAG -> when (parser.name) {
+                        "f" -> { formulaCapturing = false; formulaText = text?.toString() }
+                        "v" -> {
+                            valueCapturing = false
+                            if (cellRow >= 0 && cellCol >= 0) {
+                                val raw = text?.toString() ?: ""
+                                val value = when (cellType) {
+                                    "s" -> raw.toIntOrNull()?.let { sharedStrings.getOrNull(it) } ?: ""
+                                    "b" -> if (raw == "1") "TRUE" else "FALSE"
+                                    else -> raw
+                                }
+                                setPlatformXmlCell(sheetData, cellRow, cellCol, formulaText, value)
+                            }
+                        }
+                        "t" -> {
+                            valueCapturing = false
+                            // Inline strings (t="inlineStr") carry their value in <is><t> right
+                            // on the cell, with no <v> at all - see readXlsxViaPlatformXml's
+                            // matching comment.
+                            if (cellType == "inlineStr" && cellRow >= 0 && cellCol >= 0) {
+                                setPlatformXmlCell(sheetData, cellRow, cellCol, formulaText, text?.toString() ?: "")
+                            }
+                        }
+                        "c" -> {
+                            // A formula cell with no <v> at all (freshly created, never
+                            // recalculated - rare but real) never reached the <v> branch above,
+                            // so it gets one last chance here rather than silently vanishing.
+                            // Harmless to repeat for the common case where <v> already set it:
+                            // setPlatformXmlCell always prefers the formula when present, so
+                            // this just reassigns the same value.
+                            if (formulaText != null && cellRow >= 0 && cellCol >= 0) {
+                                setPlatformXmlCell(sheetData, cellRow, cellCol, formulaText, "")
+                            }
+                            cellRow = -1; cellCol = -1; cellType = null; formulaText = null
+                        }
+                    }
+                }
+                event = parser.next()
+            }
+        }
+        return sheetData
+    }
+
+    private fun setPlatformXmlCell(sheetData: SheetData, row: Int, col: Int, formula: String?, cachedValue: String) {
+        val ref = CellRef(row, col)
+        sheetData.cellAt(ref).input = if (!formula.isNullOrBlank()) "=$formula" else cachedValue
+        sheetData.ensureRoomFor(ref)
+    }
+
+    /** "C7" -> 6 (0-based row index; ignores the column letters). Pairs with the existing
+     *  [columnFromCellRef] above, which does the same for the column half of a cell reference. */
+    private fun rowFromCellRef(ref: String?): Int {
+        if (ref.isNullOrEmpty()) return -1
+        val digits = ref.dropWhile { it in 'A'..'Z' }
+        return (digits.toIntOrNull() ?: return -1) - 1
+    }
+
+    private val STRICT_NUMBER_REGEX = Regex("^[+-]?\\d+(\\.\\d+)?([eE][+-]?\\d+)?$")
+
+    /** Writes every sheet of [workbook], preserving live formulas (via Worksheet.formula(), so
+     *  the saved file's formulas actually recalculate when reopened in real Excel/Sheets - not
+     *  just the value this app last computed for them) and bold formatting. Only each sheet's
+     *  *used* range is written (see SheetData.usedRange) - a sheet that was opened with a large
+     *  scrollable grid but only a handful of real cells doesn't write out thousands of blank
+     *  rows. This produces a fresh .xlsx built from the current cell contents, not a byte-level
+     *  edited copy of whatever file was originally opened - anything about the original beyond
+     *  cell values/formulas/bold (its theme, column widths, charts, any other formatting) isn't
+     *  round-tripped, the same limitation noted on ExcelCsvActivity's save flow. */
+    fun writeWorkbook(workbook: SheetsWorkbook, output: File) {
+        FileOutputStream(output).use { out ->
+            val wb = Workbook(out, "DataToolkit", "1.0")
+            for (sheet in workbook.sheets) {
+                val ws = wb.newWorksheet(sanitizeSheetName(sheet.name))
+                val used = sheet.usedRange() ?: continue
+                for (row in used.minRow..used.maxRow) {
+                    for (col in used.minCol..used.maxCol) {
+                        val cell = sheet.existingCellAt(CellRef(row, col)) ?: continue
+                        if (cell.isBlank()) continue
+                        writeCellValue(ws, row, col, cell)
+                    }
+                }
+            }
+            wb.finish()
+        }
+    }
+
+    private fun writeCellValue(ws: Worksheet, row: Int, col: Int, cell: SheetCell) {
+        val text = cell.input.trim()
+        when {
+            cell.isFormula -> ws.formula(row, col, cell.input.removePrefix("="))
+            STRICT_NUMBER_REGEX.matches(text) -> ws.value(row, col, text.toDouble())
+            // Anything else - plain text, TRUE/FALSE (this app doesn't rely on Excel's native
+            // boolean cell type anywhere, so it's kept simple and just written as literal text),
+            // and an apostrophe-escaped value (see SheetCell.isFormula) - displayText() rather
+            // than the raw input so that escaping apostrophe never leaks into the saved file.
+            else -> ws.value(row, col, cell.displayText())
+        }
+        if (cell.bold) ws.style(row, col).bold().set()
+    }
+
+    /** Excel sheet names can't exceed 31 characters or contain \ / ? * [ ] : , and can't be
+     *  blank - this app doesn't yet let a person type an invalid one (there's no rename-sheet
+     *  UI), but cleaning it up here is cheap insurance against ever writing a file real Excel
+     *  would refuse to open. */
+    private fun sanitizeSheetName(name: String): String =
+        name.replace(Regex("[\\\\/?*\\[\\]:]"), "_").trim().ifBlank { "Sheet" }.take(31)
 
     fun readCsv(file: File): List<List<String>> =
         com.prateek.datatoolkit.features.datacleaning.DataCleaner.parseCsvText(file.readText())

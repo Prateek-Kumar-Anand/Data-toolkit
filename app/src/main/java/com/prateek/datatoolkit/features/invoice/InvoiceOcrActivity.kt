@@ -19,6 +19,8 @@ import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.AppDatabase
 import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.cache.ProcessedItem
+import com.prateek.datatoolkit.core.storage.OutputStorage
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityInvoiceOcrBinding
 import com.prateek.datatoolkit.features.excel.ExcelCsvHelper
 import com.prateek.datatoolkit.features.ocr.OcrHelper
@@ -62,12 +64,9 @@ class InvoiceOcrActivity : AppCompatActivity() {
         if (uris.isNotEmpty()) processBatch(uris)
     }
 
-    private val saveCsvAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        uri?.let { exportTo(it, asXlsx = false) }
-    }
-    private val saveXlsxAs = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    ) { uri -> uri?.let { exportTo(it, asXlsx = true) } }
+    // Auto-save (Downloads/Output/Invoices/) needs WRITE_EXTERNAL_STORAGE on API 24-28 only;
+    // see StoragePermissionHelper.
+    private val storagePermission = StoragePermissionHelper(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,8 +79,8 @@ class InvoiceOcrActivity : AppCompatActivity() {
         binding.btnGallery.setOnClickListener { pickImage.launch("image/*") }
         binding.btnBatchPick.setOnClickListener { pickBatch.launch("image/*") }
         binding.btnAddToBatch.setOnClickListener { addCurrentFieldsToBatch() }
-        binding.btnExportCsv.setOnClickListener { saveCsvAs.launch("invoices_${System.currentTimeMillis()}.csv") }
-        binding.btnExportXlsx.setOnClickListener { saveXlsxAs.launch("invoices_${System.currentTimeMillis()}.xlsx") }
+        binding.btnExportCsv.setOnClickListener { exportTo(asXlsx = false) }
+        binding.btnExportXlsx.setOnClickListener { exportTo(asXlsx = true) }
 
         renderBatch()
         renderHistory()
@@ -394,23 +393,34 @@ class InvoiceOcrActivity : AppCompatActivity() {
         return row
     }
 
-    private fun exportTo(uri: Uri, asXlsx: Boolean) {
+    private fun exportTo(asXlsx: Boolean) {
         if (batch.isEmpty()) {
             Toast.makeText(this, "Nothing in the batch to export", Toast.LENGTH_SHORT).show()
             return
         }
+        storagePermission.runWithPermission { writeExport(asXlsx) }
+    }
+
+    /** Builds the export exactly as before, then auto-saves it into Downloads/Output/Invoices/
+     *  (auto-created, collision-proof name) instead of prompting the user to browse to a
+     *  destination. */
+    private fun writeExport(asXlsx: Boolean) {
         lifecycleScope.launch {
             try {
                 val rows = buildExportRows()
-                withContext(Dispatchers.IO) {
+                val name = "invoices_${System.currentTimeMillis()}.${if (asXlsx) "xlsx" else "csv"}"
+                val mimeType = if (asXlsx)
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                else
+                    "text/csv"
+                val saved = withContext(Dispatchers.IO) {
                     val temp = File.createTempFile("invoices_", if (asXlsx) ".xlsx" else ".csv", cacheDir)
                     if (asXlsx) ExcelCsvHelper.writeXlsx(rows, temp, sheetName = "Invoices") else ExcelCsvHelper.writeCsv(rows, temp)
-                    contentResolver.openOutputStream(uri)?.use { out ->
-                        temp.inputStream().use { input -> input.copyTo(out) }
-                    } ?: throw IllegalStateException("Could not open destination for writing")
-                    temp.delete()
+                    OutputStorage.saveFile(this@InvoiceOcrActivity, OutputStorage.Module.INVOICES, temp, name, mimeType).also {
+                        temp.delete()
+                    }
                 }
-                Toast.makeText(this@InvoiceOcrActivity, "Exported ${batch.size} invoice(s)", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@InvoiceOcrActivity, "Exported ${batch.size} invoice(s) to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this@InvoiceOcrActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
             }

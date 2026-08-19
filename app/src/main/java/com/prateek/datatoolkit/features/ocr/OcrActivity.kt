@@ -12,6 +12,8 @@ import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
 import com.prateek.datatoolkit.core.export.DocxWriter
 import com.prateek.datatoolkit.core.quality.QualityScorer
+import com.prateek.datatoolkit.core.storage.OutputStorage
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityOcrBinding
 import com.prateek.datatoolkit.features.excel.ExcelCsvHelper
 import com.prateek.datatoolkit.features.pdf.PdfHelper
@@ -44,24 +46,9 @@ class OcrActivity : AppCompatActivity() {
         if (uris.isNotEmpty()) loadAndRecognize(uris)
     }
 
-    // Browse-to-save: opens the system file picker so the user chooses exactly
-    // where the recognized text is written (any folder, any storage provider).
-    private val saveTextAs = registerForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
-        uri?.let { writeTo(it) { file -> file.writeText(combinedText()) } }
-    }
-    private val savePdfAs = registerForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
-        uri?.let { writeTo(it) { file -> PdfHelper.textToPdf(combinedText(), file) } }
-    }
-    private val saveDocxAs = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-    ) { uri ->
-        uri?.let { writeTo(it) { file -> DocxWriter.writeText(combinedText(), file) } }
-    }
-    private val saveXlsxAs = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    ) { uri ->
-        uri?.let { writeTo(it) { file -> ExcelCsvHelper.writeXlsx(pageTextsToRows(), file, sheetName = "OCR Text") } }
-    }
+    // Auto-save (Downloads/Output/OCR/) needs WRITE_EXTERNAL_STORAGE on API 24-28 only; see
+    // StoragePermissionHelper.
+    private val storagePermission = StoragePermissionHelper(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,10 +60,28 @@ class OcrActivity : AppCompatActivity() {
         binding.btnGallery.setOnClickListener { pickImage.launch("image/*") }
         binding.btnMultiPage.setOnClickListener { pickMultipleImages.launch("image/*") }
 
-        binding.btnSaveText.setOnClickListener { saveAs(saveTextAs, "ocr_${System.currentTimeMillis()}.txt") }
-        binding.btnSavePdf.setOnClickListener { saveAs(savePdfAs, "ocr_${System.currentTimeMillis()}.pdf") }
-        binding.btnSaveDocx.setOnClickListener { saveAs(saveDocxAs, "ocr_${System.currentTimeMillis()}.docx") }
-        binding.btnSaveXlsx.setOnClickListener { saveAs(saveXlsxAs, "ocr_${System.currentTimeMillis()}.xlsx") }
+        binding.btnSaveText.setOnClickListener {
+            saveAs { saveOutput("ocr_${System.currentTimeMillis()}.txt", "text/plain") { file -> file.writeText(combinedText()) } }
+        }
+        binding.btnSavePdf.setOnClickListener {
+            saveAs { saveOutput("ocr_${System.currentTimeMillis()}.pdf", "application/pdf") { file -> PdfHelper.textToPdf(combinedText(), file) } }
+        }
+        binding.btnSaveDocx.setOnClickListener {
+            saveAs {
+                saveOutput(
+                    "ocr_${System.currentTimeMillis()}.docx",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                ) { file -> DocxWriter.writeText(combinedText(), file) }
+            }
+        }
+        binding.btnSaveXlsx.setOnClickListener {
+            saveAs {
+                saveOutput(
+                    "ocr_${System.currentTimeMillis()}.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ) { file -> ExcelCsvHelper.writeXlsx(pageTextsToRows(), file, sheetName = "OCR Text") }
+            }
+        }
     }
 
     private fun launchCamera() {
@@ -173,26 +178,28 @@ class OcrActivity : AppCompatActivity() {
         binding.btnSaveXlsx.isEnabled = enabled
     }
 
-    private fun <T> saveAs(launcher: androidx.activity.result.ActivityResultLauncher<T>, name: T) {
+    private fun saveAs(action: () -> Unit) {
         if (pageTexts.isEmpty() || combinedText().isBlank()) {
             Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
             return
         }
-        launcher.launch(name)
+        storagePermission.runWithPermission(action)
     }
 
-    private fun writeTo(uri: Uri, write: (File) -> Unit) {
+    /** Builds the export exactly as before via [write], then auto-saves it into
+     *  Downloads/Output/OCR/ (auto-created, collision-proof name) instead of prompting the
+     *  user to browse to a destination. */
+    private fun saveOutput(name: String, mimeType: String, write: (File) -> Unit) {
         lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) {
+                val saved = withContext(Dispatchers.IO) {
                     val temp = File.createTempFile("ocr_export_", ".tmp", cacheDir)
                     write(temp)
-                    contentResolver.openOutputStream(uri)?.use { out ->
-                        temp.inputStream().use { input -> input.copyTo(out) }
-                    } ?: throw IllegalStateException("Could not open destination for writing")
-                    temp.delete()
+                    OutputStorage.saveFile(this@OcrActivity, OutputStorage.Module.OCR, temp, name, mimeType).also {
+                        temp.delete()
+                    }
                 }
-                Toast.makeText(this@OcrActivity, "Saved", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@OcrActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this@OcrActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
