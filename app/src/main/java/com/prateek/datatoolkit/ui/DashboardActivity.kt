@@ -79,15 +79,23 @@ class DashboardActivity : AppCompatActivity() {
                 val dataSet = BarDataSet(entries, "Jobs processed")
                 dataSet.color = colorOf(R.color.primary)
                 dataSet.valueTextSize = 11f
+                dataSet.valueTextColor = colorOf(R.color.text_primary)
 
                 binding.barChart.apply {
                     visibility = View.VISIBLE
                     data = BarData(dataSet)
                     description.isEnabled = false
                     legend.isEnabled = false
+                    setDrawGridBackground(false)
                     xAxis.position = XAxis.XAxisPosition.BOTTOM
                     xAxis.granularity = 1f
                     xAxis.valueFormatter = IndexAxisValueFormatter(byFeature.map { it.feature })
+                    xAxis.textColor = colorOf(R.color.text_secondary)
+                    xAxis.gridColor = colorOf(R.color.stroke)
+                    xAxis.axisLineColor = colorOf(R.color.stroke)
+                    axisLeft.textColor = colorOf(R.color.text_secondary)
+                    axisLeft.gridColor = colorOf(R.color.stroke)
+                    axisLeft.axisLineColor = colorOf(R.color.stroke)
                     axisRight.isEnabled = false
                     setFitBars(true)
                     invalidate()

@@ -11,6 +11,7 @@
         <item name="android:navigationBarColor">@color/background</item>
         <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
         <item name="materialButtonStyle">@style/Widget.App.Button.Primary</item>
+        <item name="android:progressBarStyleHorizontal">@style/Widget.App.ProgressBar.Horizontal</item>
         <item name="android:fontFamily">sans-serif</item>
     </style>
 </resources>

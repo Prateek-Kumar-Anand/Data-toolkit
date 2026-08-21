@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Soft, barely-there lavender wash for the whole app backdrop, so screens
-     feel like they have depth instead of flat gray. Stops reference @color so this
-     automatically switches to the dark palette in values-night/colors.xml. -->
+<!-- Warm workbench backdrop the brushed-metal panels sit on top of, with a
+     fine grain overlay so it reads as a tactile surface rather than a flat
+     colour fill. Stops reference @color so this automatically switches to the
+     dark "console at night" palette in values-night/colors.xml. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
@@ -12,5 +13,8 @@
                 android:centerColor="@color/background"
                 android:endColor="@color/background_soft" />
         </shape>
+    </item>
+    <item>
+        <bitmap android:src="@drawable/tex_grain" android:tileModeX="repeat" android:tileModeY="repeat" android:gravity="fill" />
     </item>
 </layer-list>

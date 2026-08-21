@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Raised metal push-button: a domed gradient bevel (light catching the top,
+     shadow pooling at the bottom) with a crisp highlight hairline, a state
+     that visibly presses in (inverted bevel + a darkening wash), and a flat
+     dead-metal look when disabled. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/stroke" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/error" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <gradient android:type="linear" android:angle="270" android:startColor="#33000000" android:centerColor="#14000000" android:endColor="#1AFFFFFF" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/error" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <gradient android:type="linear" android:angle="270" android:startColor="#4DFFFFFF" android:centerColor="#00000000" android:endColor="#33000000" />
+                </shape>
+            </item>
+            <item android:gravity="top" android:height="2dp" android:top="1dp" android:start="10dp" android:end="10dp">
+                <shape android:shape="rectangle">
+                    <solid android:color="#4DFFFFFF" />
+                    <corners android:radius="2dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

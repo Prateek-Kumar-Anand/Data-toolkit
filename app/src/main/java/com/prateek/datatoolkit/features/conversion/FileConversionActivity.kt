@@ -53,8 +53,14 @@ class FileConversionActivity : AppCompatActivity() {
 
     private fun onFilePicked(uri: Uri) {
         val name = displayNameOf(uri)
-        val ext = name.substringAfterLast('.', "").lowercase()
-        val category = FileConversionHelper.detectCategory(ext, contentResolver.getType(uri))
+        val nameExt = name.substringAfterLast('.', "")
+        val detection = FileConversionHelper.detect(nameExt, contentResolver.getType(uri))
+        val category = detection.category
+        // Use the resolved extension (may have been recovered from the MIME type when the
+        // filename itself had none) for everything downstream - target list and conversion
+        // both branch on this, and a resolved-but-not-name-derived extension is exactly the
+        // sourceExtension convert() needs to read the file correctly.
+        val ext = detection.resolvedExtension
 
         sourceFileName = name
         sourceExtension = ext
@@ -65,7 +71,9 @@ class FileConversionActivity : AppCompatActivity() {
         binding.tvStatus.text = ""
 
         if (category == FileConversionHelper.FileCategory.UNKNOWN) {
-            binding.tvSourceInfo.text = "$name — unrecognized file type, can't convert this"
+            binding.tvSourceInfo.text = detection.recognizedButUnsupported?.let { friendly ->
+                "$name — $friendly isn't supported for conversion here"
+            } ?: "$name — unrecognized file type, can't convert this"
             binding.spinnerTargetFormat.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, emptyList<String>())
             availableTargets = emptyList()
             return

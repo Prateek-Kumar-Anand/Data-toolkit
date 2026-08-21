@@ -1,19 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
-        <shape android:shape="rectangle">
-            <solid android:color="@color/surface" />
-            <stroke android:width="1.5dp" android:color="@color/primary" />
-            <corners android:radius="14dp" />
-            <padding android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp" />
-        </shape>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/surface" />
+                    <stroke android:width="1.5dp" android:color="@color/primary" />
+                    <corners android:radius="10dp" />
+                    <padding android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp" />
+                </shape>
+            </item>
+            <item android:gravity="top" android:height="7dp">
+                <shape android:shape="rectangle">
+                    <corners android:topLeftRadius="10dp" android:topRightRadius="10dp" android:bottomLeftRadius="0dp" android:bottomRightRadius="0dp" />
+                    <gradient android:type="linear" android:angle="270" android:startColor="#26000000" android:endColor="#00000000" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
     <item>
-        <shape android:shape="rectangle">
-            <solid android:color="@color/surface_muted" />
-            <stroke android:width="1dp" android:color="@color/stroke" />
-            <corners android:radius="14dp" />
-            <padding android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp" />
-        </shape>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/groove_bg" />
+                    <stroke android:width="1dp" android:color="@color/stroke" />
+                    <corners android:radius="10dp" />
+                    <padding android:left="12dp" android:top="12dp" android:right="12dp" android:bottom="12dp" />
+                </shape>
+            </item>
+            <item android:gravity="top" android:height="7dp">
+                <shape android:shape="rectangle">
+                    <corners android:topLeftRadius="10dp" android:topRightRadius="10dp" android:bottomLeftRadius="0dp" android:bottomRightRadius="0dp" />
+                    <gradient android:type="linear" android:angle="270" android:startColor="#3D000000" android:endColor="#00000000" />
+                </shape>
+            </item>
+            <item android:gravity="bottom" android:height="4dp">
+                <shape android:shape="rectangle">
+                    <corners android:bottomLeftRadius="10dp" android:bottomRightRadius="10dp" android:topLeftRadius="0dp" android:topRightRadius="0dp" />
+                    <gradient android:type="linear" android:angle="90" android:startColor="#1AFFFFFF" android:endColor="#00000000" />
+                </shape>
+            </item>
+        </layer-list>
     </item>
 </selector>

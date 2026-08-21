@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Secondary action: an engraved plate rather than a raised button, so the
+     hierarchy between "the one you press" and "the other option" stays clear
+     at a glance the same way it would on a real panel. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/background" />
+            <stroke android:width="1dp" android:color="@color/stroke" />
+            <corners android:radius="12dp" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/groove_bg" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <corners android:radius="12dp" />
+                    <gradient android:type="linear" android:angle="270" android:startColor="#33000000" android:endColor="#00000000" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <stroke android:width="1.5dp" android:color="@color/primary" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <layer-list>
+            <item>
+                <shape android:shape="rectangle">
+                    <solid android:color="@color/surface_muted" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+            <item android:gravity="top" android:height="8dp">
+                <shape android:shape="rectangle">
+                    <corners android:topLeftRadius="12dp" android:topRightRadius="12dp" android:bottomLeftRadius="0dp" android:bottomRightRadius="0dp" />
+                    <gradient android:type="linear" android:angle="270" android:startColor="#26000000" android:endColor="#00000000" />
+                </shape>
+            </item>
+            <item>
+                <shape android:shape="rectangle">
+                    <stroke android:width="1.5dp" android:color="@color/stroke" />
+                    <corners android:radius="12dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

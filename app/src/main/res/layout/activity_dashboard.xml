@@ -58,7 +58,7 @@
                         <TextView
                             android:id="@+id/tvTotalJobs"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="0" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+                            android:text="0" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" android:fontFamily="monospace" />
                         <TextView
                             android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
                             android:text="Total jobs" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
@@ -72,7 +72,7 @@
                         <TextView
                             android:id="@+id/tvSuccessRate"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="0%" android:textColor="@color/success" android:textSize="22sp" android:textStyle="bold" />
+                            android:text="0%" android:textColor="@color/success" android:textSize="22sp" android:textStyle="bold" android:fontFamily="monospace" />
                         <TextView
                             android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
                             android:text="Success rate" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
@@ -86,7 +86,7 @@
                         <TextView
                             android:id="@+id/tvAvgQuality"
                             android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:text="0" android:textColor="@color/primary" android:textSize="22sp" android:textStyle="bold" />
+                            android:text="0" android:textColor="@color/primary" android:textSize="22sp" android:textStyle="bold" android:fontFamily="monospace" />
                         <TextView
                             android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
                             android:text="Avg. quality" android:textColor="@color/text_secondary" android:textSize="11.5sp" />

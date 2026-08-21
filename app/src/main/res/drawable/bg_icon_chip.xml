@@ -1,4 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="@color/icon_chip_bg" />
-</shape>
+<!-- Small "indicator lamp" set into a panel. Built entirely from white at
+     varying alpha (not varying hue) so it survives android:backgroundTint
+     correctly: tint recolours every layer's RGB but preserves each layer's
+     own alpha, so the halo/core/glint stay visually distinct as soft-to-solid
+     bands of whatever accent colour is applied, instead of collapsing flat. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- faint offset shadow peeking from beneath the lamp -->
+    <item android:width="34dp" android:height="34dp" android:gravity="center" android:top="2dp" android:start="1dp">
+        <shape android:shape="oval">
+            <solid android:color="#26FFFFFF" />
+        </shape>
+    </item>
+    <!-- soft outer halo -->
+    <item android:width="40dp" android:height="40dp" android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#3DFFFFFF" />
+        </shape>
+    </item>
+    <!-- solid lamp core -->
+    <item android:width="32dp" android:height="32dp" android:gravity="center">
+        <shape android:shape="oval">
+            <solid android:color="#FFFFFFFF" />
+        </shape>
+    </item>
+    <!-- glossy glint, upper-left, suggesting a rounded glass/gem surface -->
+    <item android:width="11dp" android:height="7dp" android:gravity="top|start" android:top="6dp" android:start="8dp">
+        <shape android:shape="oval">
+            <solid android:color="#5CFFFFFF" />
+        </shape>
+    </item>
+</layer-list>

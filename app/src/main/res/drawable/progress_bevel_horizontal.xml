@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Determinate progress track: a recessed groove (matching the input-field
+     carve) filled by a brass gauge-level bar. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/groove_bg" />
+            <corners android:radius="8dp" />
+            <stroke android:width="1dp" android:color="@color/stroke" />
+        </shape>
+    </item>
+    <item android:id="@android:id/secondaryProgress">
+        <scale android:scaleWidth="100%">
+            <shape android:shape="rectangle">
+                <solid android:color="@color/surface_bevel_lo" />
+                <corners android:radius="8dp" />
+            </shape>
+        </scale>
+    </item>
+    <item android:id="@android:id/progress">
+        <scale android:scaleWidth="100%">
+            <layer-list>
+                <item>
+                    <shape android:shape="rectangle">
+                        <gradient android:type="linear" android:angle="270" android:startColor="@color/primary_light" android:centerColor="@color/primary" android:endColor="@color/primary_dark" />
+                        <corners android:radius="8dp" />
+                    </shape>
+                </item>
+                <item android:gravity="top" android:height="2dp" android:top="1dp">
+                    <shape android:shape="rectangle">
+                        <solid android:color="#40FFFFFF" />
+                    </shape>
+                </item>
+            </layer-list>
+        </scale>
+    </item>
+</layer-list>

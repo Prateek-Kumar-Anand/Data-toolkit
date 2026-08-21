@@ -1,4 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#26FFFFFF" />
-</shape>
+<!-- The large hero badge sitting directly on a header panel: a brass gauge
+     bezel around a dark instrument face, like the module's main dial. Not
+     tinted anywhere in the app, so this can use real gradient richness. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:type="linear"
+                android:angle="135"
+                android:startColor="@color/primary_light"
+                android:centerColor="@color/primary"
+                android:endColor="@color/primary_dark" />
+        </shape>
+    </item>
+    <item android:top="4dp" android:bottom="4dp" android:start="4dp" android:end="4dp">
+        <shape android:shape="oval">
+            <solid android:color="#2A2019" />
+        </shape>
+    </item>
+    <item android:top="6dp" android:bottom="22dp" android:start="6dp" android:end="22dp">
+        <shape android:shape="oval">
+            <solid android:color="#16FFFFFF" />
+        </shape>
+    </item>
+</layer-list>

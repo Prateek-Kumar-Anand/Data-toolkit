@@ -139,7 +139,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Trim whitespace" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Removes leading/trailing spaces" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbTrim" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbTrim" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" />
 
@@ -148,7 +148,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Collapse inner spaces" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Turns double spaces into one" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbCollapse" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbCollapse" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" />
 
@@ -157,7 +157,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Remove duplicate rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Keeps the first occurrence only" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" />
 
@@ -166,7 +166,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Remove empty rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Drops rows that are entirely blank" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbEmptyRows" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbEmptyRows" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" />
 
@@ -175,7 +175,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Remove unwanted characters" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Strips stray symbols, keeps normal punctuation" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbUnwantedChars" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="false" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbUnwantedChars" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="false" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp"
@@ -202,7 +202,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fuzzy match when de-duplicating" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Ignores case/spacing, e.g. &quot;Asha &quot; = &quot;asha&quot;" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbFuzzyDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbFuzzyDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
 
                     <EditText
@@ -219,7 +219,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Flag invalid values" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Auto-detects email/phone/number/date and reports mismatches" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbFlagInvalid" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbFlagInvalid" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
@@ -271,7 +271,7 @@
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Catch near-duplicate rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
                             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Similarity match beyond exact/normalized - slower on large tables" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
-                        <CheckBox android:id="@+id/cbSimilarityDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:buttonTint="@color/primary" />
+                        <CheckBox android:id="@+id/cbSimilarityDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

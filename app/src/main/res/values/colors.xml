@@ -1,69 +1,90 @@
 <resources>
-    <!-- Core brand palette — indigo → violet, matching the app's TD mark -->
-    <color name="primary">#4F46E5</color>
-    <color name="primary_dark">#3730A3</color>
-    <color name="primary_light">#818CF8</color>
-    <color name="secondary">#7C3AED</color>
-    <color name="accent">#F59E0B</color>
-    <color name="accent_dark">#D97706</color>
+    <!-- ================= INSTRUMENT-PANEL PALETTE =================
+         Skeuomorphic redesign: the app reads as a brushed-metal toolkit
+         console. Primary actions are warm brass/copper (a "control knob"
+         metal), headers are dark gunmetal (the console's top strip,
+         intentionally the same in light/dark mode - a physical panel's
+         paint colour doesn't change with room lighting), and each
+         module keeps its own jewel-toned "indicator lamp" accent. -->
 
-    <!-- Gradient stops used by header/background drawables -->
-    <color name="gradient_start">#4F46E5</color>
-    <color name="gradient_mid">#6D5CE8</color>
-    <color name="gradient_end">#7C3AED</color>
+    <!-- Brass control-knob accent - the app's primary action colour -->
+    <color name="primary">#B8863C</color>
+    <color name="primary_dark">#7A5A24</color>
+    <color name="primary_light">#E4BE79</color>
+    <!-- Related burnished copper, used for secondary brand moments -->
+    <color name="secondary">#A15A2E</color>
+    <!-- Indicator-lamp red-copper, for standout secondary actions -->
+    <color name="accent">#C1502E</color>
+    <color name="accent_dark">#8F3A1E</color>
 
-    <!-- Surfaces & backdrop -->
-    <color name="background">#F3F1FB</color>
-    <color name="background_alt">#EEF0FA</color>
-    <color name="background_soft">#F7F5FC</color>
-    <color name="surface">#FFFFFF</color>
-    <color name="surface_muted">#F7F7FC</color>
-    <color name="stroke">#E7E4F7</color>
+    <!-- Header / hero gradient - dark brushed gunmetal, textured with
+         tex_brushed_dark.png in the header drawables themselves -->
+    <color name="gradient_start">#4A4238</color>
+    <color name="gradient_mid">#332D26</color>
+    <color name="gradient_end">#201C17</color>
+
+    <!-- Surfaces & backdrop - warm workbench wash behind brushed-metal panels -->
+    <color name="background">#DED4BE</color>
+    <color name="background_alt">#EBE3D2</color>
+    <color name="background_soft">#D2C6AC</color>
+    <color name="surface">#E7E1D2</color>
+    <color name="surface_muted">#DAD2BD</color>
+    <color name="stroke">#B7AC91</color>
     <color name="stroke_soft">#12000000</color>
+    <!-- Panel bevel edges: the catch-light along a raised panel's top edge
+         and the shadow along its lower edge -->
+    <color name="surface_bevel_hi">#FBF8EF</color>
+    <color name="surface_bevel_lo">#A69A80</color>
+    <!-- Recessed "carved" control slot, used by inputs -->
+    <color name="groove_bg">#C9BFA5</color>
+    <color name="groove_edge_dark">#8A7F64</color>
 
     <!-- Text -->
-    <color name="text_primary">#161327</color>
-    <color name="text_secondary">#68647E</color>
-    <color name="text_on_primary">#FFFFFF</color>
-    <color name="text_on_primary_muted">#DCD9FB</color>
+    <color name="text_primary">#332B1E</color>
+    <color name="text_secondary">#6E624C</color>
+    <color name="text_on_primary">#2A1B06</color>
+    <color name="text_on_primary_muted">#6B4E24</color>
 
-    <!-- Status -->
-    <color name="success">#10B981</color>
-    <color name="error">#EF4444</color>
+    <!-- Status - kept unambiguously green/red, warmed to fit the metal palette -->
+    <color name="success">#4B7A3D</color>
+    <color name="error">#B23B2E</color>
 
     <!-- Misc -->
     <color name="white">#FFFFFF</color>
-    <color name="ripple_on_primary">#33FFFFFF</color>
-    <color name="icon_chip_bg">#EDE9FE</color>
+    <color name="ripple_on_primary">#40241A0C</color>
+    <color name="icon_chip_bg">#DFD5BC</color>
 
-    <!-- Workflow screen's distinct gradient (fuchsia -> violet, resolves back into brand violet) -->
-    <color name="workflow_gradient_start">#C026D3</color>
-    <color name="workflow_gradient_mid">#9333EA</color>
-    <color name="workflow_gradient_end">#6D28D9</color>
-    <color name="accent_workflow">#C026D3</color>
+    <!-- Workflow screen's distinct header - warm burnished copper-gunmetal,
+         still resolves toward the same dark-panel family as the main header -->
+    <color name="workflow_gradient_start">#5A3826</color>
+    <color name="workflow_gradient_mid">#3D2418</color>
+    <color name="workflow_gradient_end">#231208</color>
+    <color name="accent_workflow">#7A3E6E</color>
 
-    <!-- Per-feature accent colors, used as icon-chip tints on the home screen's tool grid -->
-    <color name="accent_cleaning">#7C3AED</color>
-    <color name="accent_ocr">#2563EB</color>
-    <color name="accent_pdf">#E11D48</color>
-    <color name="accent_excel">#059669</color>
-    <color name="accent_scraping">#0891B2</color>
-    <color name="accent_email">#DB2777</color>
-    <color name="accent_batch">#D97706</color>
-    <color name="accent_dashboard">#4F46E5</color>
-    <color name="accent_invoice">#0F766E</color>
-    <color name="accent_conversion">#7C2D92</color>
+    <!-- Per-feature "indicator lamp" accents, used as icon-chip tints on the
+         home screen's tool grid - deep jewel tones rather than flat SaaS hues,
+         to read as small coloured lamps set into a metal panel -->
+    <color name="accent_cleaning">#6B4A9E</color>
+    <color name="accent_ocr">#2F5C8A</color>
+    <color name="accent_pdf">#A13A3F</color>
+    <color name="accent_excel">#2E7D5B</color>
+    <color name="accent_scraping">#1E7A8C</color>
+    <color name="accent_email">#B23368</color>
+    <color name="accent_batch">#C1791F</color>
+    <color name="accent_dashboard">#3D5A73</color>
+    <color name="accent_invoice">#1F6B5C</color>
+    <color name="accent_conversion">#6E3568</color>
 
     <!-- Soft chip-background tint to match each accent above -->
-    <color name="accent_cleaning_bg">#EDE9FE</color>
-    <color name="accent_ocr_bg">#DBEAFE</color>
-    <color name="accent_pdf_bg">#FFE1E6</color>
-    <color name="accent_excel_bg">#D1FAE5</color>
-    <color name="accent_scraping_bg">#CFFAFE</color>
-    <color name="accent_email_bg">#FCE7F3</color>
-    <color name="accent_batch_bg">#FEF3C7</color>
-    <color name="accent_dashboard_bg">#E0E7FF</color>
-    <color name="accent_workflow_bg">#F5D0FE</color>
-    <color name="accent_invoice_bg">#CCFBF1</color>
-    <color name="accent_conversion_bg">#F3E8FF</color>
+    <color name="accent_cleaning_bg">#E3D9F0</color>
+    <color name="accent_ocr_bg">#D8E3EC</color>
+    <color name="accent_pdf_bg">#EFDAD7</color>
+    <color name="accent_excel_bg">#D7E8DC</color>
+    <color name="accent_scraping_bg">#D3E6E7</color>
+    <color name="accent_email_bg">#EFD9E2</color>
+    <color name="accent_batch_bg">#F0E2C8</color>
+    <color name="accent_dashboard_bg">#D9E1E6</color>
+    <color name="accent_workflow_bg">#E6D7E3</color>
+    <color name="accent_invoice_bg">#D5E5DF</color>
+    <color name="accent_conversion_bg">#E3D7E1</color>
 </resources>

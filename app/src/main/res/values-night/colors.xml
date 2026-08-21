@@ -1,39 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Dark-mode overrides. Every style/theme in this app already reads colors through
-     @color/name references rather than hardcoded hex, so simply re-declaring the same
-     names here (with dark-appropriate values) is enough to make every screen dark-mode
-     aware with no other resource changes needed. Brand colors (primary/secondary/accent/
-     the header gradients) are intentionally left the same as light mode - the colorful
-     headers are meant to stay vivid regardless of system theme, the same way most polished
-     apps keep a brand-colored top bar unchanged in dark mode. -->
+<!-- Dark-mode overrides: the same instrument panel after hours - deep gunmetal
+     backdrop, panels a shade lighter than the backdrop so they still read as
+     "mounted on top" under panel lighting, text like backlit dial numerals.
+     Every style/theme in this app reads colors through @color/name references
+     rather than hardcoded hex, so re-declaring the same names here is enough to
+     make every screen dark-mode aware with no other resource changes needed.
+     Brand colors (primary/secondary/accent/the header gradients) are left the
+     same as light mode - a physical console's paint and its brass knobs don't
+     change colour when the room lights dim, the same way most polished apps
+     keep a brand-coloured top bar unchanged in dark mode. -->
 <resources>
 
     <!-- Surfaces & backdrop -->
-    <color name="background">#121022</color>
-    <color name="background_alt">#17142B</color>
-    <color name="background_soft">#19152E</color>
-    <color name="surface">#1C1830</color>
-    <color name="surface_muted">#221D3B</color>
-    <color name="stroke">#332C54</color>
+    <color name="background">#1C1815</color>
+    <color name="background_alt">#241F1A</color>
+    <color name="background_soft">#161310</color>
+    <color name="surface">#2C2620</color>
+    <color name="surface_muted">#251F1A</color>
+    <color name="stroke">#4A4030</color>
     <color name="stroke_soft">#1AFFFFFF</color>
+    <color name="surface_bevel_hi">#4A4038</color>
+    <color name="surface_bevel_lo">#000000</color>
+    <color name="groove_bg">#181410</color>
+    <color name="groove_edge_dark">#000000</color>
 
     <!-- Text -->
-    <color name="text_primary">#F1EFFA</color>
-    <color name="text_secondary">#A9A3C7</color>
+    <color name="text_primary">#F2E9D6</color>
+    <color name="text_secondary">#B8AB90</color>
 
-    <!-- The pale lavender chip wash reads too light on a dark card, so it gets a deeper tone. -->
-    <color name="icon_chip_bg">#2A2350</color>
+    <!-- The light halo/glint layers inside bg_icon_chip read too bright on a
+         dark tile, so the wash it tints against gets a deeper base. -->
+    <color name="icon_chip_bg">#3A3226</color>
 
-    <!-- Soft per-feature chip tints, darkened to keep contrast against dark tile backgrounds. -->
-    <color name="accent_cleaning_bg">#2E2555</color>
-    <color name="accent_ocr_bg">#1E3A5F</color>
-    <color name="accent_pdf_bg">#4A1620</color>
-    <color name="accent_excel_bg">#0F3D30</color>
-    <color name="accent_scraping_bg">#0E3B42</color>
-    <color name="accent_email_bg">#4A1638</color>
-    <color name="accent_batch_bg">#4A3410</color>
-    <color name="accent_dashboard_bg">#262157</color>
-    <color name="accent_workflow_bg">#3B1447</color>
-    <color name="accent_invoice_bg">#0E3D3A</color>
-    <color name="accent_conversion_bg">#3A1D4A</color>
+    <!-- Soft per-feature chip tints, deepened to keep contrast against dark tiles. -->
+    <color name="accent_cleaning_bg">#3A2E4A</color>
+    <color name="accent_ocr_bg">#22394A</color>
+    <color name="accent_pdf_bg">#4A2620</color>
+    <color name="accent_excel_bg">#1E3D30</color>
+    <color name="accent_scraping_bg">#1C3A3D</color>
+    <color name="accent_email_bg">#4A2536</color>
+    <color name="accent_batch_bg">#4A3A1C</color>
+    <color name="accent_dashboard_bg">#25333D</color>
+    <color name="accent_workflow_bg">#3A2638</color>
+    <color name="accent_invoice_bg">#1C3A32</color>
+    <color name="accent_conversion_bg">#38263A</color>
 </resources>

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Full-corner gunmetal plate variant (currently unused by any screen, kept
+     for parity with bg_header_flat in case a future full-card hero needs it). -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
-            <corners android:radius="28dp" />
+            <corners android:radius="18dp" />
             <gradient
                 android:type="linear"
                 android:angle="135"
@@ -11,7 +13,9 @@
                 android:endColor="@color/gradient_end" />
         </shape>
     </item>
-    <!-- soft highlight blob, top-right, for a subtle glow / sheen -->
+    <item android:top="18dp" android:bottom="18dp">
+        <bitmap android:src="@drawable/tex_brushed_dark" android:tileModeX="repeat" android:tileModeY="repeat" android:gravity="fill" />
+    </item>
     <item android:gravity="top|end" android:width="180dp" android:height="180dp" android:top="-70dp" android:end="-50dp">
         <shape android:shape="oval">
             <solid android:color="#14FFFFFF" />

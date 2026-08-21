@@ -12,9 +12,9 @@
                 android:startY="0"
                 android:endX="108"
                 android:endY="108"
-                android:startColor="#4F46E5"
-                android:centerColor="#6D5CE8"
-                android:endColor="#7C3AED" />
+                android:startColor="@color/gradient_start"
+                android:centerColor="@color/gradient_mid"
+                android:endColor="@color/gradient_end" />
         </aapt:attr>
     </path>
     <path

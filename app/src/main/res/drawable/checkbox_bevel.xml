@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A physical toggle rather than a stock checkmark glyph: unchecked reads as
+     an empty carved recess in the panel, checked as a small lit brass lamp
+     with the tick engraved on it. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <layer-list>
+            <item android:width="22dp" android:height="22dp" android:gravity="center">
+                <shape android:shape="oval">
+                    <gradient android:type="linear" android:angle="270" android:startColor="@color/primary_light" android:centerColor="@color/primary" android:endColor="@color/primary_dark" />
+                </shape>
+            </item>
+            <item android:width="22dp" android:height="22dp" android:gravity="center">
+                <shape android:shape="oval">
+                    <stroke android:width="1dp" android:color="#33000000" />
+                </shape>
+            </item>
+            <item android:width="14dp" android:height="14dp" android:gravity="center">
+                <vector android:width="14dp" android:height="14dp" android:viewportWidth="24" android:viewportHeight="24">
+                    <path android:fillColor="@color/text_on_primary" android:pathData="M9,16.17L4.83,12l-1.42,1.41L9,19 21,7l-1.41,-1.41z" />
+                </vector>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_checked="false">
+        <layer-list>
+            <item android:width="22dp" android:height="22dp" android:gravity="center">
+                <shape android:shape="oval">
+                    <solid android:color="@color/groove_bg" />
+                    <stroke android:width="1dp" android:color="@color/stroke" />
+                </shape>
+            </item>
+            <item android:width="22dp" android:height="10dp" android:gravity="top|center_horizontal">
+                <shape android:shape="oval">
+                    <gradient android:type="linear" android:angle="270" android:startColor="#26000000" android:endColor="#00000000" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+</selector>

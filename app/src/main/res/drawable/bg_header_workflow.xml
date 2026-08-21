@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Distinct fuchsia -> violet gradient (vs. the app's usual indigo -> violet header),
-     so the newest tool reads visually as something a little special while still
-     resolving into the same brand violet everything else uses. -->
+<!-- Workflow's own panel plate - a warmer, burnished-copper gunmetal so this
+     module reads as a distinct instrument on the same console, trimmed in its
+     own plum accent rather than the app-wide brass. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
-            <corners android:bottomLeftRadius="26dp" android:bottomRightRadius="26dp" />
+            <corners android:bottomLeftRadius="20dp" android:bottomRightRadius="20dp" />
             <gradient
                 android:type="linear"
                 android:angle="135"
@@ -13,6 +13,9 @@
                 android:centerColor="@color/workflow_gradient_mid"
                 android:endColor="@color/workflow_gradient_end" />
         </shape>
+    </item>
+    <item android:bottom="22dp">
+        <bitmap android:src="@drawable/tex_brushed_dark" android:tileModeX="repeat" android:tileModeY="repeat" android:gravity="fill" />
     </item>
     <item android:gravity="top|end" android:width="170dp" android:height="170dp" android:top="-75dp" android:end="-55dp">
         <shape android:shape="oval">
@@ -23,5 +26,16 @@
         <shape android:shape="oval">
             <solid android:color="#0FFFFFFF" />
         </shape>
+    </item>
+    <item android:gravity="bottom" android:height="2dp" android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/accent_workflow" />
+        </shape>
+    </item>
+    <item android:gravity="bottom|start" android:width="18dp" android:height="18dp" android:bottom="10dp" android:start="14dp">
+        <bitmap android:src="@drawable/ic_rivet_dark" android:gravity="fill" />
+    </item>
+    <item android:gravity="bottom|end" android:width="18dp" android:height="18dp" android:bottom="10dp" android:end="14dp">
+        <bitmap android:src="@drawable/ic_rivet_dark" android:gravity="fill" />
     </item>
 </layer-list>
