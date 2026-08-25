@@ -35,9 +35,10 @@ import java.io.FileOutputStream
  * A real (if deliberately scoped-down - see SpreadsheetGridView's doc comment, and
  * ExcelCsvHelper's readWorkbook/writeWorkbook) spreadsheet grid: open an .xlsx or .csv, tap any
  * cell to select it, edit its value or formula through the docked formula bar, switch between
- * sheets via the tabs row, and save back to Downloads/Output/Excel/ as .xlsx (multi-sheet,
- * formulas preserved as live formulas) or .csv (active sheet's computed values only - CSV has
- * no concept of a formula or a second sheet).
+ * sheets via the tabs row, and either save a copy to Downloads/Output/Excel/ as .xlsx
+ * (multi-sheet, formulas preserved as live formulas) or .csv (active sheet's computed values
+ * only - CSV has no concept of a formula or a second sheet), or hit Update to overwrite the
+ * file that was opened, in place, with the same format it was opened as.
  */
 class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
 
@@ -63,10 +64,16 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
     private var formulaBarSheet: SheetData? = null
     private var formulaBarRef: CellRef = CellRef(0, 0)
 
-    private val pickXlsx = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    // The file currently open, if any (null for the blank starter sheet) - lets "Update" write
+    // straight back to it. OpenDocument (not GetContent) is required here: only it grants this
+    // app write access to the picked URI, which a plain "read a file" GetContent pick doesn't.
+    private var openedUri: Uri? = null
+    private var openedAsXlsx = false
+
+    private val pickXlsx = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { loadXlsx(it) }
     }
-    private val pickCsv = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    private val pickCsv = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { loadCsv(it) }
     }
 
@@ -83,11 +90,12 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
             // some cloud providers) report .xlsx as application/octet-stream, which makes the
             // file unselectable if we filter on the precise spreadsheet MIME type. Same pattern
             // already used for file picking in DataCleaningActivity and WorkflowActivity.
-            pickXlsx.launch("*/*")
+            pickXlsx.launch(arrayOf("*/*"))
         }
-        binding.btnPickCsv.setOnClickListener { pickCsv.launch("*/*") }
+        binding.btnPickCsv.setOnClickListener { pickCsv.launch(arrayOf("*/*")) }
         binding.btnExportCsv.setOnClickListener { export(asXlsx = false) }
         binding.btnExportXlsx.setOnClickListener { export(asXlsx = true) }
+        binding.btnUpdate.setOnClickListener { update() }
         binding.btnBold.setOnClickListener { toggleBold() }
 
         binding.formulaBar.setOnEditorActionListener { _, actionId, _ ->
@@ -176,45 +184,37 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
 
     // ---- opening files --------------------------------------------------------------------------
 
-    private fun loadXlsx(uri: Uri) {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.tvStatus.text = "Opening spreadsheet..."
-        lifecycleScope.launch {
-            val start = System.currentTimeMillis()
-            try {
-                val loaded = withContext(Dispatchers.IO) {
-                    val file = File.createTempFile("in_", ".xlsx", cacheDir)
-                    contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(file).use { o -> i.copyTo(o) } }
-                        ?: throw IllegalStateException("Could not open the selected file")
-                    val wb = ExcelCsvHelper.readWorkbook(file)
-                    file.delete()
-                    wb
-                }
-                openWorkbook(loaded, uri.lastPathSegment ?: "sheet.xlsx", start)
-            } catch (e: Throwable) {
-                // Throwable, not just Exception: a bad/corrupt spreadsheet can surface as a
-                // java.lang.Error (e.g. a StAX factory error) rather than a normal Exception,
-                // which would otherwise crash the whole app instead of showing this message.
-                binding.tvStatus.text = "Failed to open: ${e.message}"
-            } finally {
-                binding.progressBar.visibility = View.GONE
-            }
-        }
+    private fun loadXlsx(uri: Uri) = loadFile(uri, asXlsx = true, "Opening spreadsheet...", "sheet.xlsx") {
+        val file = File.createTempFile("in_", ".xlsx", cacheDir)
+        contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(file).use { o -> i.copyTo(o) } }
+            ?: throw IllegalStateException("Could not open the selected file")
+        val wb = ExcelCsvHelper.readWorkbook(file)
+        file.delete()
+        wb
     }
 
-    private fun loadCsv(uri: Uri) {
+    private fun loadCsv(uri: Uri) = loadFile(uri, asXlsx = false, "Opening CSV...", "data.csv") {
+        val text = contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: ""
+        rowsToWorkbook(com.prateek.datatoolkit.features.datacleaning.DataCleaner.parseCsvText(text))
+    }
+
+    /** Shared shell for [loadXlsx]/[loadCsv]: shows progress/status, runs [read] on IO to build
+     *  the workbook, wires it up via [openWorkbook], and remembers [uri]/[asXlsx] as the opened
+     *  file so [update] can later write straight back to it. Catches Throwable, not just
+     *  Exception: a bad/corrupt spreadsheet can surface as a java.lang.Error (e.g. a StAX
+     *  factory error) rather than a normal Exception, which would otherwise crash the whole app
+     *  instead of showing this message. */
+    private fun loadFile(uri: Uri, asXlsx: Boolean, openingStatus: String, defaultName: String, read: suspend () -> SheetsWorkbook) {
         binding.progressBar.visibility = View.VISIBLE
-        binding.tvStatus.text = "Opening CSV..."
+        binding.tvStatus.text = openingStatus
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
             try {
-                val loaded = withContext(Dispatchers.IO) {
-                    val text = contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: ""
-                    val rows = com.prateek.datatoolkit.features.datacleaning.DataCleaner.parseCsvText(text)
-                    rowsToWorkbook(rows)
-                }
-                openWorkbook(loaded, uri.lastPathSegment ?: "data.csv", start)
-            } catch (e: Exception) {
+                val loaded = withContext(Dispatchers.IO) { read() }
+                openedUri = uri
+                openedAsXlsx = asXlsx
+                openWorkbook(loaded, uri.lastPathSegment ?: defaultName, start)
+            } catch (e: Throwable) {
                 binding.tvStatus.text = "Failed to open: ${e.message}"
             } finally {
                 binding.progressBar.visibility = View.GONE
@@ -252,6 +252,7 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
 
     private fun openWorkbook(loaded: SheetsWorkbook, label: String, start: Long) {
         bindWorkbookToUi(loaded)
+        binding.btnUpdate.isEnabled = true
 
         var totalCells = 0
         var formulaCells = 0
@@ -334,48 +335,71 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
         renderSheetTabs()
     }
 
-    // ---- export ---------------------------------------------------------------------------------
+    // ---- saving: export (new file) and update (overwrite the opened file) -----------------------
 
-    /** Auto-saves into Downloads/Output/Excel/ (auto-created, collision-proof name) instead of
-     *  prompting the user to browse to a destination - .xlsx keeps every sheet and every live
-     *  formula (see ExcelCsvHelper.writeWorkbook); .csv can only ever hold the active sheet's
-     *  current computed values, which is a limitation of the CSV format itself rather than
-     *  something this app chooses to leave out. */
+    private fun writeToTempFile(asXlsx: Boolean): File {
+        val tempFile = File.createTempFile("out_", if (asXlsx) ".xlsx" else ".csv", cacheDir)
+        if (asXlsx) ExcelCsvHelper.writeWorkbook(workbook, tempFile) else ExcelCsvHelper.writeCsv(activeSheetAsRows(), tempFile)
+        return tempFile
+    }
+
+    /** Runs [block] on IO with the progress bar up and [runningStatus] shown, then reflects
+     *  whatever it returns (or its exception's message, on failure) as both the status line and
+     *  a toast. Shared by [export] and [update] - writing to a temp file is the same either way;
+     *  only where that temp file ends up differs. */
+    private fun runSaveOperation(runningStatus: String, block: suspend () -> String) {
+        binding.progressBar.visibility = View.VISIBLE
+        binding.tvStatus.text = runningStatus
+        lifecycleScope.launch {
+            val result = try {
+                withContext(Dispatchers.IO) { block() }
+            } catch (e: Exception) {
+                "Failed: ${e.message}"
+            }
+            binding.tvStatus.text = result
+            Toast.makeText(this@ExcelCsvActivity, result, Toast.LENGTH_LONG).show()
+            binding.progressBar.visibility = View.GONE
+        }
+    }
+
+    /** Auto-saves a new copy into Downloads/Output/Excel/ (auto-created, collision-proof name)
+     *  instead of prompting the user to browse to a destination - .xlsx keeps every sheet and
+     *  every live formula (see ExcelCsvHelper.writeWorkbook); .csv can only ever hold the active
+     *  sheet's current computed values, which is a limitation of the CSV format itself rather
+     *  than something this app chooses to leave out. */
     private fun export(asXlsx: Boolean) {
         commitFormulaBar()
-        val hasAnyContent = workbook.sheets.any { it.usedRange() != null }
-        if (!hasAnyContent) {
+        if (workbook.sheets.none { it.usedRange() != null }) {
             Toast.makeText(this, "Nothing to save yet - open a file or type into a cell first", Toast.LENGTH_SHORT).show()
             return
         }
-        storagePermission.runWithPermission { doExport(asXlsx) }
+        storagePermission.runWithPermission {
+            runSaveOperation("Exporting...") {
+                val name = "export_${System.currentTimeMillis()}.${if (asXlsx) "xlsx" else "csv"}"
+                val mimeType = if (asXlsx) "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" else "text/csv"
+                val tempFile = writeToTempFile(asXlsx)
+                val saved = OutputStorage.saveFile(this@ExcelCsvActivity, OutputStorage.Module.EXCEL, tempFile, name, mimeType)
+                tempFile.delete()
+                val multiSheetNote = if (!asXlsx && workbook.sheets.size > 1) " (active sheet only - CSV can't hold more than one)" else ""
+                "Saved to ${saved.humanPath}$multiSheetNote"
+            }
+        }
     }
 
-    private fun doExport(asXlsx: Boolean) {
-        binding.progressBar.visibility = View.VISIBLE
-        binding.tvStatus.text = "Exporting..."
-        lifecycleScope.launch {
-            try {
-                val name = "export_${System.currentTimeMillis()}.${if (asXlsx) "xlsx" else "csv"}"
-                val mimeType = if (asXlsx)
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                else
-                    "text/csv"
-                val saved = withContext(Dispatchers.IO) {
-                    val tempFile = File.createTempFile("export_", if (asXlsx) ".xlsx" else ".csv", cacheDir)
-                    if (asXlsx) ExcelCsvHelper.writeWorkbook(workbook, tempFile)
-                    else ExcelCsvHelper.writeCsv(activeSheetAsRows(), tempFile)
-                    OutputStorage.saveFile(this@ExcelCsvActivity, OutputStorage.Module.EXCEL, tempFile, name, mimeType).also {
-                        tempFile.delete()
-                    }
-                }
-                val multiSheetNote = if (!asXlsx && workbook.sheets.size > 1) " (active sheet only - CSV can't hold more than one)" else ""
-                Toast.makeText(this@ExcelCsvActivity, "Saved to ${saved.humanPath}$multiSheetNote", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@ExcelCsvActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
-            } finally {
-                binding.progressBar.visibility = View.GONE
-            }
+    /** Overwrites [openedUri] in place, in the format it was opened as (see [openedAsXlsx]) -
+     *  unlike [export], this replaces the original file instead of creating a new one. */
+    private fun update() {
+        commitFormulaBar()
+        val uri = openedUri ?: run {
+            Toast.makeText(this, "Open a file first - Update overwrites the file you opened", Toast.LENGTH_SHORT).show()
+            return
+        }
+        runSaveOperation("Updating original file...") {
+            val tempFile = writeToTempFile(openedAsXlsx)
+            contentResolver.openOutputStream(uri, "wt")?.use { out -> tempFile.inputStream().use { it.copyTo(out) } }
+                ?: throw IllegalStateException("The original file can no longer be written to")
+            tempFile.delete()
+            "Saved changes to the original file"
         }
     }
 }

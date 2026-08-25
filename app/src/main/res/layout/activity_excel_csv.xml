@@ -111,18 +111,27 @@
 
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:background="@color/surface"
-        android:padding="12dp">
+        android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingTop="12dp" android:paddingBottom="12dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnExportCsv"
+                style="@style/Widget.App.Button.Compact"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginEnd="6dp" android:text="💾 Save .csv" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnExportXlsx"
+                style="@style/Widget.App.Button.Compact.Outlined"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:layout_marginStart="6dp" android:text="💾 Save .xlsx" />
+        </LinearLayout>
+        <!-- Overwrites the opened file in place; disabled until a file's actually been opened
+             (there's nothing to overwrite for the blank starter sheet). -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnExportCsv"
-            style="@style/Widget.App.Button.Compact"
-            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:layout_marginEnd="6dp" android:text="💾 Save .csv" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnExportXlsx"
+            android:id="@+id/btnUpdate"
             style="@style/Widget.App.Button.Compact.Outlined"
-            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-            android:layout_marginStart="6dp" android:text="💾 Save .xlsx" />
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="🔁 Update opened file" android:enabled="false" />
     </LinearLayout>
 </LinearLayout>
