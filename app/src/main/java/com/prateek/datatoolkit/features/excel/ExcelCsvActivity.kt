@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.io.FileGuards
 import com.prateek.datatoolkit.core.quality.QualityScorer
 import com.prateek.datatoolkit.core.storage.OutputStorage
 import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
@@ -185,16 +186,16 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
     // ---- opening files --------------------------------------------------------------------------
 
     private fun loadXlsx(uri: Uri) = loadFile(uri, asXlsx = true, "Opening spreadsheet...", "sheet.xlsx") {
-        val file = File.createTempFile("in_", ".xlsx", cacheDir)
-        contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(file).use { o -> i.copyTo(o) } }
-            ?: throw IllegalStateException("Could not open the selected file")
-        val wb = ExcelCsvHelper.readWorkbook(file)
-        file.delete()
-        wb
+        val file = FileGuards.copyToTemp(this, uri, "in_", ".xlsx")
+        try {
+            ExcelCsvHelper.readWorkbook(file)
+        } finally {
+            file.delete()
+        }
     }
 
     private fun loadCsv(uri: Uri) = loadFile(uri, asXlsx = false, "Opening CSV...", "data.csv") {
-        val text = contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: ""
+        val text = FileGuards.readText(this, uri)
         rowsToWorkbook(com.prateek.datatoolkit.features.datacleaning.DataCleaner.parseCsvText(text))
     }
 
@@ -231,6 +232,8 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
                     // A CSV cell that happens to start with '=' is just data, never an intended
                     // formula (CSV has no such concept) - see SheetCell.isFormula's doc comment
                     // for why this matters beyond just correctness.
+                    // '=' is escaped as above; + - @ are only ever treated as formulas by this
+                    // app's own engine when typed after '=', so they stay plain text here.
                     sheet.cellAt(ref).input = if (value.startsWith("=")) "'$value" else value
                     sheet.ensureRoomFor(ref)
                 }
@@ -378,8 +381,11 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
                 val name = "export_${System.currentTimeMillis()}.${if (asXlsx) "xlsx" else "csv"}"
                 val mimeType = if (asXlsx) "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" else "text/csv"
                 val tempFile = writeToTempFile(asXlsx)
-                val saved = OutputStorage.saveFile(this@ExcelCsvActivity, OutputStorage.Module.EXCEL, tempFile, name, mimeType)
-                tempFile.delete()
+                val saved = try {
+                    OutputStorage.saveFile(this@ExcelCsvActivity, OutputStorage.Module.EXCEL, tempFile, name, mimeType)
+                } finally {
+                    tempFile.delete()
+                }
                 val multiSheetNote = if (!asXlsx && workbook.sheets.size > 1) " (active sheet only - CSV can't hold more than one)" else ""
                 "Saved to ${saved.humanPath}$multiSheetNote"
             }
@@ -396,9 +402,12 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
         }
         runSaveOperation("Updating original file...") {
             val tempFile = writeToTempFile(openedAsXlsx)
-            contentResolver.openOutputStream(uri, "wt")?.use { out -> tempFile.inputStream().use { it.copyTo(out) } }
-                ?: throw IllegalStateException("The original file can no longer be written to")
-            tempFile.delete()
+            try {
+                contentResolver.openOutputStream(uri, "wt")?.use { out -> tempFile.inputStream().use { it.copyTo(out) } }
+                    ?: throw IllegalStateException("The original file can no longer be written to")
+            } finally {
+                tempFile.delete()
+            }
             "Saved changes to the original file"
         }
     }

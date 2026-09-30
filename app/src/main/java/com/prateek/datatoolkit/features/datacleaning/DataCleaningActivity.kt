@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.io.FileGuards
 import com.prateek.datatoolkit.core.math.MathEngine
 import com.prateek.datatoolkit.core.quality.QualityScorer
 import com.prateek.datatoolkit.core.storage.OutputStorage
@@ -144,15 +145,11 @@ class DataCleaningActivity : AppCompatActivity() {
                 val rows = withContext(Dispatchers.IO) {
                     when (format) {
                         DataFormat.XLSX -> {
-                            val temp = File.createTempFile("clean_in_", ".xlsx", cacheDir)
-                            contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(temp).use { o -> i.copyTo(o) } }
-                            val r = ExcelCsvHelper.readXlsx(temp)
-                            temp.delete()
-                            r
+                            val temp = FileGuards.copyToTemp(this@DataCleaningActivity, uri, "clean_in_", ".xlsx")
+                            try { ExcelCsvHelper.readXlsx(temp) } finally { temp.delete() }
                         }
                         else -> {
-                            val text = contentResolver.openInputStream(uri)?.bufferedReader()?.readText().orEmpty()
-                            DataCleaner.parse(text, format)
+                            DataCleaner.parse(FileGuards.readText(this@DataCleaningActivity, uri), format)
                         }
                     }
                 }
@@ -717,14 +714,18 @@ class DataCleaningActivity : AppCompatActivity() {
             try {
                 val saved = withContext(Dispatchers.IO) {
                     val temp = File.createTempFile("clean_out_", ".tmp", cacheDir)
-                    if (format == DataFormat.XLSX) {
-                        ExcelCsvHelper.writeXlsx(lastOutputRows, temp, sheetName = "Cleaned Data")
-                    } else {
-                        temp.writeText(DataCleaner.serialize(lastOutputRows, format))
+                    try {
+                        if (format == DataFormat.XLSX) {
+                            ExcelCsvHelper.writeXlsx(lastOutputRows, temp, sheetName = "Cleaned Data")
+                        } else {
+                            temp.writeText(DataCleaner.serialize(lastOutputRows, format))
+                        }
+                        OutputStorage.saveFile(
+                            this@DataCleaningActivity, OutputStorage.Module.DATA_CLEANING, temp, name, mimeTypeFor(format)
+                        )
+                    } finally {
+                        temp.delete()
                     }
-                    OutputStorage.saveFile(
-                        this@DataCleaningActivity, OutputStorage.Module.DATA_CLEANING, temp, name, mimeTypeFor(format)
-                    ).also { temp.delete() }
                 }
                 Toast.makeText(this@DataCleaningActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {

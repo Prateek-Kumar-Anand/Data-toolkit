@@ -17,9 +17,9 @@
             android:paddingTop="26dp" android:paddingBottom="22dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="🌐  Web Scraping" android:textColor="@color/text_on_primary" android:textSize="22sp" android:textStyle="bold" />
+                    android:text="🌐  Web Scraping" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
-                    android:text="Auto-detects fields and exports straight to Excel" android:textColor="@color/text_on_primary_muted" android:textSize="13sp" />
+                    android:text="Auto-detects fields and exports straight to Excel" android:textColor="@color/text_secondary" android:textSize="13sp" />
             </LinearLayout>
         </FrameLayout>
 

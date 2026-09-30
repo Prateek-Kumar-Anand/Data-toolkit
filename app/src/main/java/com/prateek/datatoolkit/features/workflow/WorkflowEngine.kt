@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.OpenableColumns
 import com.prateek.datatoolkit.core.export.DocxWriter
+import com.prateek.datatoolkit.core.image.SafeBitmap
+import com.prateek.datatoolkit.core.io.FileGuards
 import com.prateek.datatoolkit.features.datacleaning.CleaningOptions
 import com.prateek.datatoolkit.features.datacleaning.DataCleaner
 import com.prateek.datatoolkit.features.email.EmailExtractor
@@ -61,11 +63,11 @@ object WorkflowEngine {
         if (step.pickedUris.isEmpty()) throw IllegalStateException("No photos were picked for this step")
         val bitmaps = withContext(Dispatchers.IO) {
             step.pickedUris.mapNotNull { uri ->
-                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                SafeBitmap.decode(context, uri)
             }
         }
         if (bitmaps.isEmpty()) throw IllegalStateException("Could not read the selected photo(s)")
-        val results = OcrHelper.recognizeBatch(bitmaps)
+        val results = try { OcrHelper.recognizeBatch(bitmaps) } finally { bitmaps.forEach { if (!it.isRecycled) it.recycle() } }
         val text = results.joinToString("\n\n") { it.text }
         return StepResult(
             WorkflowData.Text(text),
@@ -76,11 +78,8 @@ object WorkflowEngine {
     private suspend fun runLoadPdf(context: Context, step: WorkflowStep): StepResult {
         val uri = step.pickedUri ?: throw IllegalStateException("No PDF was picked for this step")
         val text = withContext(Dispatchers.IO) {
-            val temp = File.createTempFile("wf_pdf_", ".pdf", context.cacheDir)
-            context.contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(temp).use { o -> i.copyTo(o) } }
-            val result = PdfHelper.extractText(temp)
-            temp.delete()
-            result
+            val temp = FileGuards.copyToTemp(context, uri, "wf_pdf_", ".pdf")
+            try { PdfHelper.extractText(temp) } finally { temp.delete() }
         }
         return StepResult(WorkflowData.Text(text), preview = "Extracted ${text.length} character(s) of text")
     }
@@ -91,14 +90,10 @@ object WorkflowEngine {
         val rows = withContext(Dispatchers.IO) {
             val lower = name.lowercase()
             if (lower.endsWith(".csv") || lower.endsWith(".txt")) {
-                val text = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText().orEmpty()
-                DataCleaner.parseCsvText(text)
+                DataCleaner.parseCsvText(FileGuards.readText(context, uri))
             } else {
-                val temp = File.createTempFile("wf_sheet_", ".xlsx", context.cacheDir)
-                context.contentResolver.openInputStream(uri)?.use { i -> FileOutputStream(temp).use { o -> i.copyTo(o) } }
-                val result = ExcelCsvHelper.readXlsx(temp)
-                temp.delete()
-                result
+                val temp = FileGuards.copyToTemp(context, uri, "wf_sheet_", ".xlsx")
+                try { ExcelCsvHelper.readXlsx(temp) } finally { temp.delete() }
             }
         }
         if (rows.isEmpty()) throw IllegalStateException("Could not find any rows in $name")

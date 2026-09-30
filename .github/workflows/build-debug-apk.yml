@@ -2,9 +2,7 @@ name: Build Debug APK
 
 on:
   push:
-    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main", "master" ]
   workflow_dispatch: {}
 
 jobs:
@@ -43,7 +41,34 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --continue 2>&1 | tee build.log
+
+      - name: Collect error list
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Build errors"
+            echo '```'
+            grep -E "^e: |error:|FAILED|What went wrong|Execution failed|AAPT|Unresolved|Manifest merger" build.log | head -300 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^e: |error:|FAILED|What went wrong|Execution failed|AAPT|Unresolved|Manifest merger" build.log > errors.txt || echo "No errors found" > errors.txt
+
+      - name: Upload build log and error list
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-and-errors
+          path: |
+            build.log
+            errors.txt
+            app/build/reports/**
+          if-no-files-found: warn
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

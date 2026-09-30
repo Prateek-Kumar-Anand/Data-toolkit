@@ -13,6 +13,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.prateek.datatoolkit.core.cache.AppDatabase
+import com.prateek.datatoolkit.core.io.FileGuards
 import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityBatchProcessingBinding
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +48,13 @@ class BatchProcessingActivity : AppCompatActivity() {
         binding.btnBatchPdf.setOnClickListener { storagePermission.runWithPermission { pickPdfs.launch("application/pdf") } }
     }
 
-    private fun startBatch(uris: List<Uri>, type: String) {
+    private fun startBatch(picked: List<Uri>, type: String) {
+        // WorkManager input Data is capped at 10 KB - only short file names are passed along,
+        // and the batch size is bounded so it can never overflow that (which would crash).
+        val uris = picked.take(MAX_BATCH_FILES)
+        if (picked.size > MAX_BATCH_FILES) {
+            Toast.makeText(this, "Only the first $MAX_BATCH_FILES files were queued", Toast.LENGTH_LONG).show()
+        }
         binding.tvStatus.text = "Preparing ${uris.size} file(s)..."
         binding.progressBar.progress = 0
         binding.progressBar.visibility = View.VISIBLE
@@ -60,10 +67,15 @@ class BatchProcessingActivity : AppCompatActivity() {
                     try {
                         val ext = if (type == BatchWorker.TYPE_OCR) ".img" else ".pdf"
                         val target = File(dir, "item_${System.currentTimeMillis()}_$index$ext")
-                        contentResolver.openInputStream(uri)?.use { input ->
-                            FileOutputStream(target).use { output -> input.copyTo(output) }
+                        val limit = if (type == BatchWorker.TYPE_OCR) FileGuards.MAX_IMAGE_BYTES else FileGuards.MAX_DOCUMENT_BYTES
+                        val input = contentResolver.openInputStream(uri) ?: return@mapIndexedNotNull null
+                        try {
+                            input.use { i -> FileOutputStream(target).use { o -> FileGuards.copyLimited(i, o, limit) } }
+                        } catch (e: Exception) {
+                            target.delete()
+                            throw e
                         }
-                        Uri.fromFile(target).toString()
+                        target.name
                     } catch (e: Exception) {
                         null
                     }
@@ -116,6 +128,10 @@ class BatchProcessingActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    companion object {
+        private const val MAX_BATCH_FILES = 150
     }
 
     private fun loadLog() {

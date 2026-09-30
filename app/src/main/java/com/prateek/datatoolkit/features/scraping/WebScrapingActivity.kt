@@ -57,8 +57,9 @@ class WebScrapingActivity : AppCompatActivity() {
         raw.split("\n", ",")
             .map { it.trim() }
             .filter { it.isNotEmpty() }
-            .map { if (!it.startsWith("http://") && !it.startsWith("https://")) "https://$it" else it }
+            .map { if (!it.startsWith("http://", true) && !it.startsWith("https://", true)) "https://$it" else it }
             .distinct()
+            .take(30) // bounded run size
 
     /** Builds the manual-selector override from the "Custom Scraping" card, or null if the
      *  container field is blank (i.e. the user wants plain auto-detection). */
@@ -97,7 +98,7 @@ class WebScrapingActivity : AppCompatActivity() {
             val allSources = mutableListOf<String>()
             var pagesOk = 0
             var pagesFailed = 0
-            var cacheHits = 0
+            val cacheHits = 0
             var lastGoodResult: ScrapeResult? = null
             val overallStart = System.currentTimeMillis()
 
@@ -107,21 +108,9 @@ class WebScrapingActivity : AppCompatActivity() {
                 binding.tvItemCount.text = "${allItems.size} item(s) found so far"
                 val start = System.currentTimeMillis()
 
-                // Smart caching: skip the network entirely if we scraped this exact URL before -
-                // but only when the user isn't using a one-off custom selector for this run,
-                // since a cached result was extracted with whatever selectors applied back then.
-                val cached = if (manualSelectors == null) cache.findCached("SCRAPING", url) else null
-                if (cached != null) {
-                    cacheHits++
-                    binding.progressBar.progress = index + 1
-                    if (urls.size == 1) {
-                        binding.tvTitle.text = cached.inputLabel
-                        binding.etText.setText(cached.outputPreview)
-                        binding.tvStatus.text = "Loaded from cache  |  Quality: ${cached.qualityScore}/100"
-                    }
-                    continue
-                }
-
+                // No cache shortcut here on purpose: a cached row only holds a text preview, so
+                // reusing it left the item table/Excel export empty, and a cached *failure* would
+                // have blocked that URL from ever being retried.
                 try {
                     val result = Scraper.scrape(
                         url,

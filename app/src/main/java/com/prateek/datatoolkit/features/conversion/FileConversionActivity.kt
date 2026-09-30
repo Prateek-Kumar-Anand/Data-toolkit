@@ -4,12 +4,16 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.View
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.io.FileGuards
+import com.prateek.datatoolkit.core.storage.OutputStorage
+import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
 import com.prateek.datatoolkit.databinding.ActivityFileConversionBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,17 +32,15 @@ class FileConversionActivity : AppCompatActivity() {
     private var availableTargets: List<FileConversionHelper.ConversionFormat> = emptyList()
 
     private var convertedFile: File? = null
+    private var convertedTargetPos = -1
+    private var loadGeneration = 0   // bumped per pick so a slow earlier load can't overwrite a newer one
+    private var busy = false
 
-    private val pickFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    private val pickFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { onFilePicked(it) }
     }
 
-    // Wildcard mime since the produced file's format varies with what the user picked as a
-    // target (pdf/docx/txt/jpg/png/webp/bmp/wav/m4a) - the filename we pass carries the
-    // real extension, which is what the system "Save As" picker actually uses.
-    private val saveAs = registerForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
-        uri?.let { copyConvertedFileTo(it) }
-    }
+    private val storagePermission = StoragePermissionHelper(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,13 +48,41 @@ class FileConversionActivity : AppCompatActivity() {
         setContentView(binding.root)
         cache = CacheManager(this)
 
-        binding.btnPickFile.setOnClickListener { pickFile.launch("*/*") }
+        binding.btnPickFile.setOnClickListener { pickFile.launch(arrayOf("*/*")) }
         binding.btnConvert.setOnClickListener { runConversion() }
         binding.btnSaveAs.setOnClickListener { onSaveAsClicked() }
+        // Saving is only offered for the format that was actually converted - changing the
+        // dropdown afterwards must not leave a stale "Save" for a different format.
+        binding.spinnerTargetFormat.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                binding.btnSaveAs.isEnabled = !busy && convertedFile != null && position == convertedTargetPos
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing) {
+            sourceTempFile?.delete()
+            convertedFile?.delete()
+        }
+    }
+
+    private fun setBusy(value: Boolean) {
+        busy = value
+        binding.btnPickFile.isEnabled = !value
+        binding.progressBar.visibility = if (value) View.VISIBLE else View.GONE
     }
 
     private fun onFilePicked(uri: Uri) {
         val name = displayNameOf(uri)
+        val generation = ++loadGeneration
+        // Drop the previous file's private copies before loading a new one.
+        sourceTempFile?.delete()
+        convertedFile?.delete()
+        convertedFile = null
+        convertedTargetPos = -1
         val nameExt = name.substringAfterLast('.', "")
         val detection = FileConversionHelper.detect(nameExt, contentResolver.getType(uri))
         val category = detection.category
@@ -88,20 +118,23 @@ class FileConversionActivity : AppCompatActivity() {
             this, android.R.layout.simple_spinner_dropdown_item, availableTargets.map { it.label }
         )
         binding.tvSourceInfo.text = "Loading $name…"
-        binding.progressBar.visibility = View.VISIBLE
+        setBusy(true)
 
         lifecycleScope.launch {
             try {
                 val temp = withContext(Dispatchers.IO) {
-                    copyUriToTempFile(uri, if (ext.isNotEmpty()) ".$ext" else ".tmp")
+                    copyUriToTempFile(uri, if (ext.isNotEmpty() && ext.all { it.isLetterOrDigit() }) ".$ext" else ".tmp")
                 }
+                if (generation != loadGeneration) { temp.delete(); return@launch }
                 sourceTempFile = temp
                 binding.tvSourceInfo.text = "$name  •  ${categoryLabel(category)}"
                 binding.btnConvert.isEnabled = true
-            } catch (e: Exception) {
-                binding.tvSourceInfo.text = "Failed to read $name: ${e.message}"
+            } catch (e: Throwable) {
+                if (generation == loadGeneration) {
+                    binding.tvSourceInfo.text = "Failed to read $name: ${friendlyError(e)}"
+                }
             } finally {
-                binding.progressBar.visibility = View.GONE
+                if (generation == loadGeneration) setBusy(false)
             }
         }
     }
@@ -113,22 +146,29 @@ class FileConversionActivity : AppCompatActivity() {
             Toast.makeText(this, "Pick a file first", Toast.LENGTH_SHORT).show()
             return
         }
+        val targetPos = binding.spinnerTargetFormat.selectedItemPosition
+        // Any previous result is stale from here on - make sure it can't be saved by mistake.
+        convertedFile?.delete()
+        convertedFile = null
+        convertedTargetPos = -1
         binding.btnConvert.isEnabled = false
         binding.btnSaveAs.isEnabled = false
-        binding.progressBar.visibility = View.VISIBLE
+        setBusy(true)
         binding.tvStatus.text = "Converting to ${target.label}…"
 
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
+            val outFile = File(cacheDir, "converted_${System.currentTimeMillis()}.${target.extension}")
             try {
-                val outFile = File(cacheDir, "converted_${System.currentTimeMillis()}.${target.extension}")
-                withContext(Dispatchers.IO) {
+                val warning = withContext(Dispatchers.IO) {
                     FileConversionHelper.convert(input, sourceExtension, target, outFile)
                 }
                 convertedFile = outFile
+                convertedTargetPos = targetPos
                 binding.btnSaveAs.isEnabled = true
-                binding.tvStatus.text = "Done — ${outFile.name} (${formatSize(outFile.length())}) ready to save"
-                cache.record(
+                binding.tvStatus.text = "Done — ${outFile.name} (${formatSize(outFile.length())}) ready to save" +
+                    (warning?.let { "\n⚠ $it" } ?: "")
+                safeRecord(
                     feature = "FILE_CONVERSION",
                     inputText = "$sourceFileName->${target.extension}:${System.currentTimeMillis()}",
                     inputLabel = "$sourceFileName → .${target.extension}",
@@ -138,13 +178,17 @@ class FileConversionActivity : AppCompatActivity() {
                     status = "SUCCESS",
                     durationMs = System.currentTimeMillis() - start
                 )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                outFile.delete()
+                throw e
             } catch (e: Throwable) {
-                binding.tvStatus.text = "Conversion failed: ${e.message}"
-                cache.record(
+                outFile.delete() // never leave a half-written output behind
+                binding.tvStatus.text = "Conversion failed: ${friendlyError(e)}"
+                safeRecord(
                     feature = "FILE_CONVERSION",
                     inputText = "$sourceFileName->${target.extension}:${System.currentTimeMillis()}",
                     inputLabel = "$sourceFileName → .${target.extension}",
-                    outputPreview = e.message ?: "error",
+                    outputPreview = friendlyError(e),
                     outputPath = null,
                     qualityScore = 0,
                     status = "FAILED",
@@ -152,8 +196,30 @@ class FileConversionActivity : AppCompatActivity() {
                 )
             } finally {
                 binding.btnConvert.isEnabled = true
-                binding.progressBar.visibility = View.GONE
+                setBusy(false)
             }
+        }
+    }
+
+    /** Turns low-level exceptions (null messages, OutOfMemoryError, codec errors) into something readable. */
+    private fun friendlyError(e: Throwable): String = when {
+        e is OutOfMemoryError -> "Not enough memory for this file - try a smaller one"
+        e is java.io.FileNotFoundException -> "The file could no longer be read"
+        e is IllegalStateException && e.message.isNullOrBlank() -> "The conversion failed unexpectedly"
+        else -> e.message?.takeIf { it.isNotBlank() } ?: e.javaClass.simpleName
+    }
+
+    private suspend fun safeRecord(
+        feature: String, inputText: String, inputLabel: String, outputPreview: String,
+        outputPath: String?, qualityScore: Int, status: String, durationMs: Long = 0
+    ) {
+        try {
+            cache.record(
+                feature = feature, inputText = inputText, inputLabel = inputLabel,
+                outputPreview = outputPreview, outputPath = outputPath,
+                qualityScore = qualityScore, status = status, durationMs = durationMs
+            )
+        } catch (_: Exception) {
         }
     }
 
@@ -163,36 +229,27 @@ class FileConversionActivity : AppCompatActivity() {
             Toast.makeText(this, "Nothing to save yet — convert a file first", Toast.LENGTH_SHORT).show()
             return
         }
-        saveAs.launch(file.name)
+        storagePermission.runWithPermission { copyConvertedFileTo(file) }
     }
 
-    private fun copyConvertedFileTo(uri: Uri) {
-        val file = convertedFile
-        if (file == null || !file.exists()) {
-            Toast.makeText(this, "Nothing to save yet", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun copyConvertedFileTo(file: File) {
+        val ext = file.extension.lowercase()
+        val mime = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
+        val base = sourceFileName.substringBeforeLast('.', sourceFileName).ifBlank { "converted" }
         lifecycleScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    contentResolver.openOutputStream(uri)?.use { out ->
-                        file.inputStream().use { input -> input.copyTo(out) }
-                    } ?: throw IllegalStateException("Could not open destination for writing")
+                val saved = withContext(Dispatchers.IO) {
+                    OutputStorage.saveFile(this@FileConversionActivity, OutputStorage.Module.CONVERSION, file, "$base.$ext", mime)
                 }
-                Toast.makeText(this@FileConversionActivity, "Saved", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@FileConversionActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(this@FileConversionActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    private fun copyUriToTempFile(uri: Uri, suffix: String): File {
-        val file = File.createTempFile("conv_", suffix, cacheDir)
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(file).use { output -> input.copyTo(output) }
-        } ?: throw IllegalStateException("Could not open the picked file")
-        return file
-    }
+    private fun copyUriToTempFile(uri: Uri, suffix: String): File =
+        FileGuards.copyToTemp(this, uri, "conv_", suffix, maxBytes = 500L * 1024 * 1024)
 
     private fun displayNameOf(uri: Uri): String {
         var name = uri.lastPathSegment ?: "file"
@@ -206,7 +263,7 @@ class FileConversionActivity : AppCompatActivity() {
         } catch (e: Exception) {
             // Fall back to the lastPathSegment already captured above.
         }
-        return name
+        return name.substringAfterLast('/')
     }
 
     private fun categoryLabel(category: FileConversionHelper.FileCategory): String = when (category) {

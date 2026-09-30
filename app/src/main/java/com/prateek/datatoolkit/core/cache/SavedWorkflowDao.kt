@@ -18,8 +18,11 @@ interface SavedWorkflowDao {
     @Delete
     suspend fun delete(workflow: SavedWorkflow)
 
-    @Query("SELECT * FROM saved_workflows ORDER BY createdAt DESC")
+    @Query("SELECT * FROM saved_workflows ORDER BY createdAt DESC LIMIT 500")
     suspend fun all(): List<SavedWorkflow>
+
+    @Query("SELECT COUNT(*) FROM saved_workflows")
+    suspend fun count(): Int
 
     @Query("SELECT * FROM saved_workflows WHERE id = :id LIMIT 1")
     suspend fun get(id: Long): SavedWorkflow?

@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.webkit.MimeTypeMap
 import com.prateek.datatoolkit.core.export.DocxReader
+import com.prateek.datatoolkit.core.image.SafeBitmap
+import com.prateek.datatoolkit.core.io.FileGuards
 import com.prateek.datatoolkit.core.export.DocxWriter
 import com.prateek.datatoolkit.features.pdf.PdfHelper
 import java.io.File
@@ -172,29 +174,44 @@ object FileConversionHelper {
         }
     }
 
-    fun convert(input: File, sourceExtension: String, target: ConversionFormat, output: File) {
+    /** Converts [input] into [output]. Returns a short warning for the user when the result
+     *  is usable but lossy (e.g. characters a PDF can't show), or null when nothing was lost. */
+    fun convert(input: File, sourceExtension: String, target: ConversionFormat, output: File): String? {
         when (target) {
-            TXT, PDF, DOCX -> convertDocument(input, sourceExtension, target, output)
+            TXT, PDF, DOCX -> return convertDocument(input, sourceExtension, target, output)
             JPEG, PNG, WEBP, BMP -> convertImage(input, target, output)
             WAV -> AudioTranscoder.toWav(input, output)
             M4A -> AudioTranscoder.toM4a(input, output)
             EXTRACT_AUDIO -> AudioTranscoder.extractAudioFromVideo(input, output)
             else -> throw IllegalArgumentException("Unsupported conversion target: ${target.label}")
         }
+        return null
     }
 
     // ---- Documents ----------------------------------------------------
 
-    private fun convertDocument(input: File, sourceExtension: String, target: ConversionFormat, output: File) {
+    private fun convertDocument(input: File, sourceExtension: String, target: ConversionFormat, output: File): String? {
         val text = when (sourceExtension.lowercase()) {
             "pdf" -> PdfHelper.extractText(input)
             "docx" -> DocxReader.extractText(input)
-            else -> input.readText()
+            else -> FileGuards.readText(input)
         }
-        when (target.extension) {
-            "txt" -> output.writeText(text)
-            "pdf" -> PdfHelper.textToPdf(text, output)
-            "docx" -> DocxWriter.writeText(text, output)
+        if (text.isBlank()) {
+            throw IllegalArgumentException(
+                if (sourceExtension.lowercase() == "pdf")
+                    "No text found - this PDF is probably scanned images. Use the OCR tool on it instead."
+                else "This document has no text to convert"
+            )
+        }
+        return when (target.extension) {
+            "txt" -> { output.writeText(text); null }
+            "pdf" -> {
+                val replaced = PdfHelper.textToPdf(text, output)
+                if (replaced > 0)
+                    "$replaced character(s) outside the Latin alphabet were shown as '?' - PDF output supports Latin text only. Use DOCX or TXT to keep other scripts."
+                else null
+            }
+            "docx" -> { DocxWriter.writeText(text, output); null }
             else -> throw IllegalArgumentException("Unsupported document target: ${target.extension}")
         }
     }
@@ -202,25 +219,49 @@ object FileConversionHelper {
     // ---- Images ---------------------------------------------------------
 
     private fun convertImage(input: File, target: ConversionFormat, output: File) {
-        val bitmap = BitmapFactory.decodeFile(input.absolutePath)
-            ?: throw IllegalArgumentException("Could not decode this image")
+        val needsFlatten = target.extension == "jpg" || target.extension == "bmp"
+        // Very large photos can exhaust memory - retry at progressively smaller sizes instead of crashing.
+        var bitmap: Bitmap? = null
+        for (maxDim in intArrayOf(8192, 4096, 2048)) {
+            val decoded = SafeBitmap.decodeFile(input, maxDim) ?: continue
+            // JPEG and BMP have no alpha channel - flatten transparency onto white instead of the
+            // default black, which turned every transparent PNG/WEBP into a black-backed picture.
+            bitmap = if (needsFlatten && decoded.hasAlpha()) {
+                try {
+                    val flat = Bitmap.createBitmap(decoded.width, decoded.height, Bitmap.Config.ARGB_8888)
+                    val canvas = android.graphics.Canvas(flat)
+                    canvas.drawColor(android.graphics.Color.WHITE)
+                    canvas.drawBitmap(decoded, 0f, 0f, null)
+                    decoded.recycle()
+                    flat
+                } catch (_: OutOfMemoryError) {
+                    decoded.recycle()
+                    null
+                }
+            } else decoded
+            if (bitmap != null) break
+        }
+        val finalBitmap = bitmap ?: throw IllegalArgumentException(
+            "Could not read this image (it may be damaged, too large, or in a format this device can't decode)"
+        )
         try {
             FileOutputStream(output).use { out ->
-                when (target.extension) {
-                    "jpg" -> bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
-                    "png" -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                val ok = when (target.extension) {
+                    "jpg" -> finalBitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                    "png" -> finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
                     "webp" -> {
                         @Suppress("DEPRECATION")
                         val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
                             Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
-                        bitmap.compress(format, 92, out)
+                        finalBitmap.compress(format, 92, out)
                     }
-                    "bmp" -> writeBmp(bitmap, out)
+                    "bmp" -> { writeBmp(finalBitmap, out); true }
                     else -> throw IllegalArgumentException("Unsupported image target: ${target.extension}")
                 }
+                if (!ok) throw java.io.IOException("The image could not be encoded as ${target.label}")
             }
         } finally {
-            bitmap.recycle()
+            finalBitmap.recycle()
         }
     }
 

@@ -11,7 +11,7 @@ interface ProcessedItemDao {
     suspend fun insert(item: ProcessedItem): Long
 
     /** Smart-cache lookup: has this exact input already been processed by this feature? */
-    @Query("SELECT * FROM processed_items WHERE feature = :feature AND inputHash = :hash ORDER BY timestamp DESC LIMIT 1")
+    @Query("SELECT * FROM processed_items WHERE feature = :feature AND inputHash = :hash AND status = 'SUCCESS' ORDER BY timestamp DESC LIMIT 1")
     suspend fun findCached(feature: String, hash: String): ProcessedItem?
 
     @Query("SELECT * FROM processed_items ORDER BY timestamp DESC LIMIT :limit")
@@ -21,7 +21,7 @@ interface ProcessedItemDao {
     @Query("SELECT * FROM processed_items WHERE feature = :feature ORDER BY timestamp DESC LIMIT :limit")
     suspend fun recentByFeature(feature: String, limit: Int = 20): List<ProcessedItem>
 
-    @Query("SELECT * FROM processed_items ORDER BY timestamp DESC")
+    @Query("SELECT * FROM processed_items ORDER BY timestamp DESC LIMIT 5000")
     suspend fun all(): List<ProcessedItem>
 
     @Query("SELECT COUNT(*) FROM processed_items")
@@ -44,6 +44,14 @@ interface ProcessedItemDao {
 
     @Query("DELETE FROM processed_items")
     suspend fun clearAll()
+
+    /** Keeps only the newest [keep] rows so the history table can't grow without bound. */
+    @Query("DELETE FROM processed_items WHERE id NOT IN (SELECT id FROM processed_items ORDER BY timestamp DESC, id DESC LIMIT :keep)")
+    suspend fun pruneToNewest(keep: Int)
+
+    /** Privacy retention: drops history older than [cutoff] (epoch millis). */
+    @Query("DELETE FROM processed_items WHERE timestamp < :cutoff")
+    suspend fun deleteOlderThan(cutoff: Long)
 }
 
 data class FeatureCount(val feature: String, val count: Int)

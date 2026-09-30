@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.ocr
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -7,9 +9,11 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.image.SafeBitmap
 import com.prateek.datatoolkit.core.export.DocxWriter
 import com.prateek.datatoolkit.core.quality.QualityScorer
 import com.prateek.datatoolkit.core.storage.OutputStorage
@@ -35,6 +39,11 @@ class OcrActivity : AppCompatActivity() {
 
     private val takePicture = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && cameraImageUri != null) loadAndRecognize(listOf(cameraImageUri!!))
+    }
+
+    private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startCapture()
+        else Toast.makeText(this, "Camera permission is required to take a photo", Toast.LENGTH_LONG).show()
     }
 
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -85,10 +94,22 @@ class OcrActivity : AppCompatActivity() {
     }
 
     private fun launchCamera() {
-        val file = File(cacheDir, "ocr_capture_${System.currentTimeMillis()}.jpg")
-        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-        cameraImageUri = uri
-        takePicture.launch(uri)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            startCapture()
+        } else {
+            cameraPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    private fun startCapture() {
+        try {
+            val file = File(File(cacheDir, "camera").apply { mkdirs() }, "ocr_capture_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            cameraImageUri = uri
+            takePicture.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Camera unavailable: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun loadAndRecognize(uris: List<Uri>) {
@@ -104,7 +125,7 @@ class OcrActivity : AppCompatActivity() {
             try {
                 val bitmaps = withContext(Dispatchers.IO) {
                     uris.mapNotNull { uri ->
-                        contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                        SafeBitmap.decode(this@OcrActivity, uri)
                     }
                 }
                 if (bitmaps.isEmpty()) throw IllegalStateException("Could not decode any selected image")

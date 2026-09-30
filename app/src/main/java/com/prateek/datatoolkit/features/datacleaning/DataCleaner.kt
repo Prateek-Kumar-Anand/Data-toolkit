@@ -1,6 +1,7 @@
 package com.prateek.datatoolkit.features.datacleaning
 
 import com.prateek.datatoolkit.core.math.MathEngine
+import com.prateek.datatoolkit.core.security.CsvSafety
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -237,6 +238,7 @@ object DataCleaner {
     private const val ALLOWED_PUNCTUATION = ".,;:!?()'\"-_/@%&$#*+"
 
     private const val MAX_CHANGE_LOG_ENTRIES = 500
+    private const val REGEX_BUDGET_NANOS = 4_000_000_000L
 
     // Similarity-based near-duplicate detection is O(n^2) string comparisons; above this many
     // surviving rows it's skipped (reported via CleaningReport.similarityDedupeSkipped) rather
@@ -304,6 +306,12 @@ object DataCleaner {
             if (invalidActionFor(colIndex) == InvalidAction.REMOVE_ROW) rowsToRemoveForInvalid += originalIndex
         }
 
+        // A user-typed regex can be catastrophically slow (ReDoS) - all regex rules share one
+        // time budget per run instead of being able to freeze the app.
+        val compiledRules = HashMap<ReplaceRule, Regex?>()
+        val regexDeadline = System.nanoTime() + REGEX_BUDGET_NANOS
+        fun regexBudgetExhausted() = System.nanoTime() > regexDeadline
+
         // --- Stage 1: per-cell pass - replace rules, trim/collapse/unwanted/case, then the
         //     semantic cleaner matching that column's type ------------------------------------
         for (wr in work) {
@@ -318,8 +326,12 @@ object DataCleaner {
                     if (rr.column != null && rr.column != colName) continue
                     val before = value
                     value = if (rr.isRegex) {
-                        val opts = if (rr.ignoreCase) setOf(RegexOption.IGNORE_CASE) else emptySet()
-                        runCatching { value.replace(Regex(rr.find, opts), rr.replaceWith) }.getOrDefault(value)
+                        val rx = compiledRules.getOrPut(rr) {
+                            val opts = if (rr.ignoreCase) setOf(RegexOption.IGNORE_CASE) else emptySet()
+                            runCatching { Regex(rr.find, opts) }.getOrNull()
+                        }
+                        if (rx == null || regexBudgetExhausted()) value
+                        else runCatching { rx.replace(DeadlineCharSequence(value, regexDeadline), rr.replaceWith) }.getOrDefault(value)
                     } else {
                         value.replace(rr.find, rr.replaceWith, ignoreCase = rr.ignoreCase)
                     }
@@ -644,34 +656,66 @@ object DataCleaner {
     // --- CSV ---------------------------------------------------------------------------------
 
     /** Parses raw pasted/loaded text as CSV (comma-separated, quote-aware for simple cases). */
-    fun parseCsvText(text: String): List<List<String>> =
-        text.lines().filter { it.isNotEmpty() }.map { line -> splitCsvLine(line) }
-
-    fun toCsvText(rows: List<List<String>>): String =
-        rows.joinToString("\n") { row -> row.joinToString(",") { escapeCsv(it) } }
-
-    private fun splitCsvLine(line: String): List<String> {
-        val result = mutableListOf<String>()
-        val current = StringBuilder()
+    fun parseCsvText(text: String): List<List<String>> {
+        val clean = text.removePrefix("\uFEFF")
+        if (clean.isBlank()) return emptyList()
+        val delimiter = detectDelimiter(clean)
+        val rows = ArrayList<List<String>>()
+        val row = ArrayList<String>()
+        val field = StringBuilder()
         var inQuotes = false
         var i = 0
-        while (i < line.length) {
-            val c = line[i]
-            when {
-                c == '"' -> inQuotes = !inQuotes
-                c == ',' && !inQuotes -> {
-                    result.add(current.toString()); current.clear()
+        val n = clean.length
+        while (i < n) {
+            val c = clean[i]
+            if (inQuotes) {
+                if (c == '"') {
+                    if (i + 1 < n && clean[i + 1] == '"') { field.append('"'); i++ } // escaped quote
+                    else inQuotes = false
+                } else field.append(c)
+            } else when {
+                c == '"' && field.isEmpty() -> inQuotes = true
+                c == delimiter -> { row.add(field.toString()); field.setLength(0) }
+                c == '\r' -> { /* swallowed - the \n that follows (or lone \r) ends the row below */
+                    if (i + 1 >= n || clean[i + 1] != '\n') { row.add(field.toString()); field.setLength(0); rows.add(ArrayList(row)); row.clear() }
                 }
-                else -> current.append(c)
+                c == '\n' -> { row.add(field.toString()); field.setLength(0); rows.add(ArrayList(row)); row.clear() }
+                else -> field.append(c)
             }
             i++
         }
-        result.add(current.toString())
-        return result
+        if (field.isNotEmpty() || row.isNotEmpty()) { row.add(field.toString()); rows.add(ArrayList(row)) }
+        // Blank lines are dropped, same as before.
+        return rows.filter { r -> !(r.size == 1 && r[0].isEmpty()) }
     }
 
+    /** Picks , ; or tab from the first line (outside quotes) - European Excel exports use ';'. */
+    private fun detectDelimiter(text: String): Char {
+        var commas = 0; var semis = 0; var tabs = 0
+        var inQuotes = false
+        for (ch in text) {
+            if (ch == '"') inQuotes = !inQuotes
+            else if (!inQuotes) when (ch) {
+                ',' -> commas++
+                ';' -> semis++
+                '\t' -> tabs++
+                '\n' -> return pickDelimiter(commas, semis, tabs)
+            }
+        }
+        return pickDelimiter(commas, semis, tabs)
+    }
+
+    private fun pickDelimiter(commas: Int, semis: Int, tabs: Int): Char = when {
+        commas >= semis && commas >= tabs -> ','
+        semis >= tabs -> ';'
+        else -> '\t'
+    }
+
+    fun toCsvText(rows: List<List<String>>): String =
+        rows.joinToString("\n") { row -> row.joinToString(",") { escapeCsv(CsvSafety.sanitizeCell(it)) } }
+
     private fun escapeCsv(value: String): String =
-        if (value.contains(",") || value.contains("\"") || value.contains("\n"))
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r"))
             "\"" + value.replace("\"", "\"\"") + "\""
         else value
 
@@ -739,4 +783,20 @@ object DataCleaner {
         "txt" -> DataFormat.TXT
         else -> DataFormat.CSV
     }
+}
+
+/** Aborts a running regex match once [deadlineNanos] passes, by throwing from charAt (the
+ *  standard way to bound java.util.regex, which has no timeout of its own). */
+private class DeadlineCharSequence(private val inner: CharSequence, private val deadlineNanos: Long) : CharSequence {
+    private var reads = 0
+    override val length: Int get() = inner.length
+    override fun get(index: Int): Char {
+        if ((++reads and 0x3FFF) == 0 && System.nanoTime() > deadlineNanos) {
+            throw IllegalStateException("regex time budget exceeded")
+        }
+        return inner[index]
+    }
+    override fun subSequence(startIndex: Int, endIndex: Int): CharSequence =
+        DeadlineCharSequence(inner.subSequence(startIndex, endIndex), deadlineNanos)
+    override fun toString(): String = inner.toString()
 }

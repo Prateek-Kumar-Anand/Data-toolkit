@@ -54,9 +54,12 @@ object PdfHelper {
     /** Splits [startPage]..[endPage] (1-indexed, inclusive) out of [input] into [output]. */
     fun splitRange(input: File, startPage: Int, endPage: Int, output: File) {
         PDDocument.load(input).use { doc ->
+            val total = doc.numberOfPages
+            if (startPage < 1 || startPage > total) {
+                throw IllegalArgumentException("This PDF has $total page(s) - the start page $startPage is outside it")
+            }
             PDDocument().use { newDoc ->
-                for (i in startPage..endPage) {
-                    if (i < 1 || i > doc.numberOfPages) continue
+                for (i in startPage..minOf(endPage, total)) {
                     newDoc.addPage(doc.getPage(i - 1))
                 }
                 newDoc.save(output)
@@ -66,6 +69,7 @@ object PdfHelper {
 
     /** Builds a new PDF where each image becomes one full-page image. Handy after batch OCR scans. */
     fun imagesToPdf(images: List<Bitmap>, output: File) {
+        if (images.isEmpty()) throw IllegalArgumentException("None of the selected images could be read")
         PDDocument().use { doc ->
             for (bitmap in images) {
                 val landscape = bitmap.width > bitmap.height
@@ -96,7 +100,7 @@ object PdfHelper {
      * at [fontSize] with standard margins, breaking to a new page as needed. Used for
      * the OCR module's "export as PDF" option, where no original page layout exists.
      */
-    fun textToPdf(text: String, output: File, fontSize: Float = 11f) {
+    fun textToPdf(text: String, output: File, fontSize: Float = 11f): Int {
         val font = PDType1Font.HELVETICA
         val margin = 50f
         val pageSize = PDRectangle.A4
@@ -104,7 +108,12 @@ object PdfHelper {
         val leading = fontSize * 1.4f
         val linesPerPage = ((pageSize.height - 2 * margin) / leading).toInt().coerceAtLeast(1)
 
-        val sanitized = sanitizeForWinAnsi(text)
+        // Normalize line endings and tabs first - '\r' and '\t' aren't WinAnsi-printable and
+        // would otherwise each turn into a stray '?' at the end of every line / tab stop.
+        var replaced = 0
+        val sanitized = sanitizeForWinAnsi(
+            text.replace("\r\n", "\n").replace('\r', '\n').replace("\t", "    ")
+        ) { replaced++ }
         val wrapped = mutableListOf<String>()
         sanitized.split("\n").forEach { paragraph ->
             if (paragraph.isBlank()) wrapped.add("") else wrapped.addAll(wrapLine(paragraph, font, fontSize, maxWidth))
@@ -132,13 +141,30 @@ object PdfHelper {
             }
             doc.save(output)
         }
+        return replaced
     }
 
     private fun wrapLine(line: String, font: PDType1Font, fontSize: Float, maxWidth: Float): List<String> {
         val words = line.split(" ")
         val result = mutableListOf<String>()
         var current = StringBuilder()
-        for (word in words) {
+        fun widthOf(t: String) = font.getStringWidth(t) / 1000f * fontSize
+        for (rawWord in words) {
+            // A single unbroken token (URL, long number) wider than the page must be split
+            // or it runs off the edge of the page.
+            val pieces = if (widthOf(rawWord) <= maxWidth) listOf(rawWord) else {
+                val out = mutableListOf<String>()
+                var chunk = StringBuilder()
+                for (ch in rawWord) {
+                    if (widthOf(chunk.toString() + ch) > maxWidth && chunk.isNotEmpty()) {
+                        out.add(chunk.toString()); chunk = StringBuilder()
+                    }
+                    chunk.append(ch)
+                }
+                if (chunk.isNotEmpty()) out.add(chunk.toString())
+                out
+            }
+            for (word in pieces) {
             val candidate = if (current.isEmpty()) word else "$current $word"
             val width = font.getStringWidth(candidate) / 1000f * fontSize
             if (width > maxWidth && current.isNotEmpty()) {
@@ -147,14 +173,40 @@ object PdfHelper {
             } else {
                 current = StringBuilder(candidate)
             }
+            }
         }
         if (current.isNotEmpty()) result.add(current.toString())
         return result
     }
 
-    /** PDType1Font.HELVETICA only supports WinAnsi - swap anything outside it for '?' rather than crash. */
-    private fun sanitizeForWinAnsi(text: String): String =
-        text.map { c -> if (c.code in 32..126 || c.code in 160..255 || c == '\n') c else '?' }.joinToString("")
+    /** Typographic characters that WinAnsi (and so Helvetica) does encode, beyond Latin-1. */
+    private val WIN_ANSI_EXTRAS = setOf(
+        '\u2018', '\u2019', '\u201A', '\u201C', '\u201D', '\u201E', '\u2022', '\u2013', '\u2014',
+        '\u2026', '\u20AC', '\u2122', '\u2020', '\u2021', '\u2030', '\u2039', '\u203A', '\u0152',
+        '\u0153', '\u0160', '\u0161', '\u0178', '\u017D', '\u017E', '\u0192', '\u02C6', '\u02DC'
+    )
+
+    /**
+     * PDType1Font.HELVETICA only supports WinAnsi. Curly quotes, dashes, bullets, ellipses and the
+     * euro sign are part of WinAnsi and are kept; anything else (other scripts, emoji) becomes '?'
+     * rather than crashing, and [onReplaced] is called once per replaced character so the caller
+     * can tell the user.
+     */
+    private fun sanitizeForWinAnsi(text: String, onReplaced: () -> Unit): String {
+        val sb = StringBuilder(text.length)
+        for (c in text) {
+            when {
+                c == '\n' -> sb.append(c)
+                c == '\u00A0' -> sb.append(' ')
+                c == '\u00AD' -> {} // soft hyphen: invisible, drop it
+                c.code in 32..126 || c.code in 161..255 || c in WIN_ANSI_EXTRAS -> sb.append(c)
+                c.isLowSurrogate() -> {} // second half of a pair already counted once
+                c.code < 32 || c == '\u007F' -> {} // control characters: drop silently
+                else -> { sb.append('?'); onReplaced() }
+            }
+        }
+        return sb.toString()
+    }
 
     /** Rotates every page by [degrees] (90/180/270), saving to [output]. */
     fun rotateAll(input: File, degrees: Int, output: File) {

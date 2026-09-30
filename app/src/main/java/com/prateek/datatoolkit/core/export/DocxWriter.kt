@@ -24,7 +24,8 @@ object DocxWriter {
     }
 
     /** Convenience overload: splits raw text on newlines into paragraphs. */
-    fun writeText(text: String, output: File) = write(text.split("\n"), output)
+    fun writeText(text: String, output: File) =
+        write(text.replace("\r\n", "\n").replace('\r', '\n').split("\n"), output)
 
     private fun writeEntry(zip: ZipOutputStream, name: String, content: String) {
         zip.putNextEntry(ZipEntry(name))
@@ -34,7 +35,11 @@ object DocxWriter {
 
     private fun buildDocumentXml(paragraphs: List<String>): String {
         val body = paragraphs.joinToString("") { para ->
-            "<w:p><w:r><w:t xml:space=\"preserve\">${escapeXml(stripInvalidXmlChars(para))}</w:t></w:r></w:p>"
+            // A raw tab character inside <w:t> shows up as a blank in Word - real tabs need <w:tab/>.
+            val runs = stripInvalidXmlChars(para).split('\t').joinToString("<w:tab/>") {
+                "<w:t xml:space=\"preserve\">${escapeXml(it)}</w:t>"
+            }
+            "<w:p><w:r>$runs</w:r></w:p>"
         }
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
             "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +

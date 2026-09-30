@@ -22,9 +22,15 @@ import java.util.zip.ZipFile
 object DocxReader {
 
     fun extractText(file: File): String {
-        ZipFile(file).use { zip ->
-            val entry = zip.getEntry("word/document.xml") ?: return ""
-            return zip.getInputStream(entry).use { parseDocumentXml(it) }
+        val zip = try {
+            ZipFile(file)
+        } catch (e: java.io.IOException) {
+            throw java.io.IOException("This isn't a valid .docx file (old .doc files aren't supported)")
+        }
+        zip.use {
+            val entry = it.getEntry("word/document.xml")
+                ?: throw java.io.IOException("This .docx has no readable document body")
+            return it.getInputStream(entry).use { stream -> parseDocumentXml(stream) }
         }
     }
 
@@ -37,15 +43,33 @@ object DocxReader {
         parser.setInput(ByteArrayInputStream(bytes), "UTF-8")
 
         val sb = StringBuilder()
+        var inText = false      // only <w:t> content is document text - not field codes or whitespace between tags
+        var inTabStops = false  // <w:tabs><w:tab/> declares tab stops; it isn't a tab character
+        var fallbackDepth = 0   // mc:Fallback duplicates the text of mc:Choice (text boxes) - skip it
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             when (event) {
-                XmlPullParser.START_TAG -> when (localName(parser.name)) {
-                    "tab" -> sb.append('\t')
-                    "br", "cr" -> sb.append('\n')
+                XmlPullParser.START_TAG -> {
+                    val name = localName(parser.name)
+                    when {
+                        name == "Fallback" -> fallbackDepth++
+                        fallbackDepth > 0 -> {}
+                        name == "t" -> inText = true
+                        name == "tabs" -> inTabStops = true
+                        name == "tab" && !inTabStops -> sb.append('\t')
+                        name == "br" || name == "cr" -> sb.append('\n')
+                    }
                 }
-                XmlPullParser.TEXT -> sb.append(parser.text)
-                XmlPullParser.END_TAG -> if (localName(parser.name) == "p") sb.append('\n')
+                XmlPullParser.TEXT -> if (inText && fallbackDepth == 0) sb.append(parser.text)
+                XmlPullParser.END_TAG -> {
+                    val name = localName(parser.name)
+                    when {
+                        name == "Fallback" -> if (fallbackDepth > 0) fallbackDepth--
+                        name == "t" -> inText = false
+                        name == "tabs" -> inTabStops = false
+                        name == "p" && fallbackDepth == 0 -> sb.append('\n')
+                    }
+                }
             }
             event = parser.next()
         }

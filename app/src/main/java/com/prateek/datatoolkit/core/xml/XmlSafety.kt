@@ -32,7 +32,7 @@ object XmlSafety {
      *  declaration; otherwise returns the bytes read so the caller can parse them without
      *  re-reading the stream. */
     fun readAndAssertNoDoctype(input: InputStream): ByteArray {
-        val bytes = input.readBytes()
+        val bytes = readCapped(input, MAX_ENTRY_BYTES)
         assertNoDoctype(bytes)
         return bytes
     }
@@ -55,17 +55,42 @@ object XmlSafety {
      * not instead of, the per-entry checks the individual readers already do on the parts
      * they read themselves.
      */
+    private const val MAX_ENTRIES = 5_000
+    private const val MAX_ENTRY_BYTES = 64L * 1024 * 1024
+    private const val MAX_TOTAL_BYTES = 256L * 1024 * 1024
+
     fun assertZipHasNoDoctype(file: File) {
         ZipFile(file).use { zip ->
+            if (zip.size() > MAX_ENTRIES) throw IOException("This archive has too many parts to be a normal Office file")
+            var total = 0L
             val entries = zip.entries()
             while (entries.hasMoreElements()) {
                 val entry = entries.nextElement()
                 if (entry.isDirectory) continue
                 val name = entry.name.lowercase()
+                if (name.contains("..")) throw IOException("Archive contains an unsafe path")
                 if (!(name.endsWith(".xml") || name.endsWith(".rels"))) continue
-                zip.getInputStream(entry).use { assertNoDoctype(it.readBytes()) }
+                // Read with a hard cap instead of trusting the header's declared size (zip bombs).
+                val bytes = zip.getInputStream(entry).use { readCapped(it, MAX_ENTRY_BYTES) }
+                total += bytes.size
+                if (total > MAX_TOTAL_BYTES) throw IOException("This file expands to an unreasonable size")
+                assertNoDoctype(bytes)
             }
         }
+    }
+
+    private fun readCapped(input: InputStream, max: Long): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(16 * 1024)
+        var total = 0L
+        while (true) {
+            val n = input.read(buf)
+            if (n < 0) break
+            total += n
+            if (total > max) throw IOException("A part of this file is unreasonably large")
+            out.write(buf, 0, n)
+        }
+        return out.toByteArray()
     }
 
     private fun containsCaseInsensitive(haystack: ByteArray, needle: ByteArray): Boolean {

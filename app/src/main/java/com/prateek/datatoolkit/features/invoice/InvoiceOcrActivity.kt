@@ -18,6 +18,7 @@ import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.AppDatabase
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.image.SafeBitmap
 import com.prateek.datatoolkit.core.cache.ProcessedItem
 import com.prateek.datatoolkit.core.storage.OutputStorage
 import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
@@ -87,7 +88,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
     }
 
     private fun launchCamera() {
-        val file = File(cacheDir, "invoice_capture_${System.currentTimeMillis()}.jpg")
+        val file = File(File(cacheDir, "camera").apply { mkdirs() }, "invoice_capture_${System.currentTimeMillis()}.jpg")
         val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
         cameraImageUri = uri
         takePicture.launch(uri)
@@ -106,7 +107,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
             val start = System.currentTimeMillis()
             try {
                 val bitmap = withContext(Dispatchers.IO) {
-                    contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    SafeBitmap.decode(this@InvoiceOcrActivity, uri)
                 } ?: throw IllegalStateException("Could not decode the selected image")
 
                 binding.ivPreview.setImageBitmap(bitmap)
@@ -169,7 +170,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
                 val start = System.currentTimeMillis()
                 try {
                     val bitmap = withContext(Dispatchers.IO) {
-                        contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                        SafeBitmap.decode(this@InvoiceOcrActivity, uri)
                     } ?: throw IllegalStateException("Could not decode image ${index + 1}")
 
                     binding.ivPreview.setImageBitmap(bitmap)
@@ -415,8 +416,10 @@ class InvoiceOcrActivity : AppCompatActivity() {
                     "text/csv"
                 val saved = withContext(Dispatchers.IO) {
                     val temp = File.createTempFile("invoices_", if (asXlsx) ".xlsx" else ".csv", cacheDir)
-                    if (asXlsx) ExcelCsvHelper.writeXlsx(rows, temp, sheetName = "Invoices") else ExcelCsvHelper.writeCsv(rows, temp)
-                    OutputStorage.saveFile(this@InvoiceOcrActivity, OutputStorage.Module.INVOICES, temp, name, mimeType).also {
+                    try {
+                        if (asXlsx) ExcelCsvHelper.writeXlsx(rows, temp, sheetName = "Invoices") else ExcelCsvHelper.writeCsv(rows, temp)
+                        OutputStorage.saveFile(this@InvoiceOcrActivity, OutputStorage.Module.INVOICES, temp, name, mimeType)
+                    } finally {
                         temp.delete()
                     }
                 }

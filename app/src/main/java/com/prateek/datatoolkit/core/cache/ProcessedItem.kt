@@ -1,6 +1,7 @@
 package com.prateek.datatoolkit.core.cache
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -9,7 +10,10 @@ import androidx.room.PrimaryKey
  *  - Smart caching: lookups by [inputHash] avoid redoing identical work.
  *  - The Analytics Dashboard: aggregated counts/charts are computed from this table.
  */
-@Entity(tableName = "processed_items")
+@Entity(
+    tableName = "processed_items",
+    indices = [Index(value = ["feature", "inputHash"]), Index(value = ["timestamp"]), Index(value = ["feature", "timestamp"])]
+)
 data class ProcessedItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val feature: String,          // e.g. "OCR", "PDF", "EXCEL_CSV", "SCRAPING", "EMAIL", "CLEANING", "BATCH"

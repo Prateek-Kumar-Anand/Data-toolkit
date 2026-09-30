@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.prateek.datatoolkit.databinding.ActivityMainBinding
-import com.prateek.datatoolkit.features.batch.BatchProcessingActivity
 import com.prateek.datatoolkit.features.conversion.FileConversionActivity
 import com.prateek.datatoolkit.features.datacleaning.DataCleaningActivity
 import com.prateek.datatoolkit.features.email.EmailExtractionActivity
@@ -14,7 +13,7 @@ import com.prateek.datatoolkit.features.ocr.OcrActivity
 import com.prateek.datatoolkit.features.pdf.PdfActivity
 import com.prateek.datatoolkit.features.scraping.WebScrapingActivity
 import com.prateek.datatoolkit.features.workflow.WorkflowActivity
-import com.prateek.datatoolkit.ui.DashboardActivity
+import com.prateek.datatoolkit.ui.BottomNav
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,9 +32,9 @@ class MainActivity : AppCompatActivity() {
         binding.btnConversion.setOnClickListener { open(FileConversionActivity::class.java) }
         binding.btnScraping.setOnClickListener { open(WebScrapingActivity::class.java) }
         binding.btnEmail.setOnClickListener { open(EmailExtractionActivity::class.java) }
-        binding.btnBatch.setOnClickListener { open(BatchProcessingActivity::class.java) }
-        binding.btnDashboard.setOnClickListener { open(DashboardActivity::class.java) }
         binding.btnInvoice.setOnClickListener { open(InvoiceOcrActivity::class.java) }
+
+        BottomNav.bind(this, BottomNav.TOOLS)
     }
 
     /** Starts [cls] with a subtle slide+fade instead of the platform's default abrupt cut. */

@@ -1,6 +1,5 @@
 package com.prateek.datatoolkit.features.pdf
 
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -9,6 +8,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.image.SafeBitmap
+import com.prateek.datatoolkit.core.io.FileGuards
 import com.prateek.datatoolkit.core.quality.QualityScorer
 import com.prateek.datatoolkit.core.storage.OutputStorage
 import com.prateek.datatoolkit.core.storage.StoragePermissionHelper
@@ -71,13 +72,8 @@ class PdfActivity : AppCompatActivity() {
         binding.btnSaveAs.setOnClickListener { onSaveAsClicked() }
     }
 
-    private fun copyUriToTempFile(uri: Uri, suffix: String): File {
-        val file = File.createTempFile("pdf_", suffix, cacheDir)
-        contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(file).use { output -> input.copyTo(output) }
-        }
-        return file
-    }
+    private fun copyUriToTempFile(uri: Uri, suffix: String): File =
+        FileGuards.copyToTemp(this, uri, "pdf_", suffix)
 
     /** Drives the progress bar and disables every action button while one operation runs,
      * so a second tap can't start an overlapping job. */
@@ -98,15 +94,13 @@ class PdfActivity : AppCompatActivity() {
             try {
                 val text = withContext(Dispatchers.IO) {
                     val file = copyUriToTempFile(uri, ".pdf")
-                    val result = PdfHelper.extractText(file)
-                    file.delete()
-                    result
+                    try { PdfHelper.extractText(file) } finally { file.delete() }
                 }
                 lastPdfFile = null // this result is text, not a PDF file
                 binding.etOutput.setText(text)
                 val quality = QualityScorer.scoreText(text)
                 binding.tvStatus.text = "Extracted ${text.length} characters  |  Quality: $quality/100"
-                cache.record("PDF", text.toByteArray(), uri.lastPathSegment ?: "pdf", text, null, quality, "SUCCESS", durationMs = System.currentTimeMillis() - start)
+                cache.record("PDF", (uri.toString() + text.length).toByteArray(), uri.lastPathSegment ?: "pdf", text, null, quality, "SUCCESS", durationMs = System.currentTimeMillis() - start)
             } catch (e: Exception) {
                 binding.tvStatus.text = "Failed: ${e.message}"
             } finally {
@@ -126,14 +120,18 @@ class PdfActivity : AppCompatActivity() {
             try {
                 val outFile = File(cacheDir, "merged_${System.currentTimeMillis()}.pdf")
                 withContext(Dispatchers.IO) {
-                    val files = uris.map { copyUriToTempFile(it, ".pdf") }
-                    PdfHelper.merge(files, outFile)
-                    files.forEach { it.delete() }
+                    val files = mutableListOf<File>()
+                    try {
+                        uris.forEach { files += copyUriToTempFile(it, ".pdf") }
+                        PdfHelper.merge(files, outFile)
+                    } finally {
+                        files.forEach { it.delete() }
+                    }
                 }
                 lastPdfFile = outFile
                 binding.tvStatus.text = "Merged ${uris.size} PDFs — tap Save to save it"
                 binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
-                cache.record("PDF", outFile.readBytes(), "${uris.size} PDFs merged", outFile.name, null, 100, "SUCCESS")
+                cache.record("PDF", outFile.name.toByteArray(), "${uris.size} PDFs merged", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Merge failed: ${e.message}"
             } finally {
@@ -156,13 +154,12 @@ class PdfActivity : AppCompatActivity() {
                 val outFile = File(cacheDir, "split_${start}_${end}_${System.currentTimeMillis()}.pdf")
                 withContext(Dispatchers.IO) {
                     val file = copyUriToTempFile(uri, ".pdf")
-                    PdfHelper.splitRange(file, start, end, outFile)
-                    file.delete()
+                    try { PdfHelper.splitRange(file, start, end, outFile) } finally { file.delete() }
                 }
                 lastPdfFile = outFile
                 binding.tvStatus.text = "Split ready — tap Save to save it"
                 binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
-                cache.record("PDF", outFile.readBytes(), uri.lastPathSegment ?: "pdf", outFile.name, null, 100, "SUCCESS")
+                cache.record("PDF", outFile.name.toByteArray(), uri.lastPathSegment ?: "pdf", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Split failed: ${e.message}"
             } finally {
@@ -178,15 +175,17 @@ class PdfActivity : AppCompatActivity() {
             try {
                 val outFile = File(cacheDir, "images_${System.currentTimeMillis()}.pdf")
                 withContext(Dispatchers.IO) {
-                    val bitmaps = uris.mapNotNull { uri ->
-                        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                    val bitmaps = uris.take(60).mapNotNull { uri -> SafeBitmap.decode(this@PdfActivity, uri, 2600) }
+                    try {
+                        PdfHelper.imagesToPdf(bitmaps, outFile)
+                    } finally {
+                        bitmaps.forEach { if (!it.isRecycled) it.recycle() }
                     }
-                    PdfHelper.imagesToPdf(bitmaps, outFile)
                 }
                 lastPdfFile = outFile
                 binding.tvStatus.text = "Built from ${uris.size} images — tap Save to save it"
                 binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
-                cache.record("PDF", outFile.readBytes(), "${uris.size} images", outFile.name, null, 100, "SUCCESS")
+                cache.record("PDF", outFile.name.toByteArray(), "${uris.size} images", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
                 binding.tvStatus.text = "Failed: ${e.message}"
             } finally {

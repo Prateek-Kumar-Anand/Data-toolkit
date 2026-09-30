@@ -1,6 +1,7 @@
 package com.prateek.datatoolkit.core.cache
 
 import android.content.Context
+import com.prateek.datatoolkit.core.security.PrivacyMask
 import java.security.MessageDigest
 
 /**
@@ -28,19 +29,34 @@ class CacheManager(context: Context) {
         status: String,
         retryCount: Int = 0,
         durationMs: Long = 0
-    ): Long = dao.insert(
-        ProcessedItem(
-            feature = feature,
-            inputHash = sha256(inputBytes),
-            inputLabel = inputLabel,
-            outputPreview = outputPreview.take(500),
-            outputPath = outputPath,
-            qualityScore = qualityScore,
-            status = status,
-            retryCount = retryCount,
-            durationMs = durationMs
+    ): Long = try {
+        val id = dao.insert(
+            ProcessedItem(
+                feature = feature.take(40),
+                inputHash = sha256(inputBytes),
+                inputLabel = PrivacyMask.maskPreview(inputLabel, 200),
+                // Previews are only for history lists - personal data (emails, long digit runs
+                // such as card numbers) is masked before it's ever written to disk.
+                outputPreview = PrivacyMask.maskPreview(outputPreview, 300),
+                outputPath = outputPath,
+                qualityScore = qualityScore.coerceIn(0, 100),
+                status = status,
+                retryCount = retryCount,
+                durationMs = durationMs
+            )
         )
-    )
+        // Housekeeping every so often: bounded table size + 90-day retention.
+        if (id % 25L == 0L) {
+            dao.pruneToNewest(MAX_HISTORY_ROWS)
+            dao.deleteOlderThan(System.currentTimeMillis() - RETENTION_MS)
+        }
+        id
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        // History is a convenience - a database hiccup must never turn a finished job into a failure.
+        -1L
+    }
 
     suspend fun record(
         feature: String,
@@ -53,6 +69,11 @@ class CacheManager(context: Context) {
         retryCount: Int = 0,
         durationMs: Long = 0
     ): Long = record(feature, inputText.toByteArray(), inputLabel, outputPreview, outputPath, qualityScore, status, retryCount, durationMs)
+
+    companion object {
+        const val MAX_HISTORY_ROWS = 2000
+        const val RETENTION_MS = 90L * 24 * 60 * 60 * 1000
+    }
 
     private fun sha256(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

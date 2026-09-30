@@ -645,8 +645,12 @@ class WorkflowActivity : AppCompatActivity() {
             .setTitle("Save this workflow")
             .setView(input)
             .setPositiveButton("Save") { _, _ ->
-                val name = input.text.toString().trim().ifBlank { "Untitled workflow" }
+                val name = input.text.toString().trim().ifBlank { "Untitled workflow" }.take(80)
                 lifecycleScope.launch {
+                    if (withContext(Dispatchers.IO) { db.savedWorkflowDao().count() } >= 200) {
+                        Toast.makeText(this@WorkflowActivity, "Too many saved workflows - delete one first", Toast.LENGTH_LONG).show()
+                        return@launch
+                    }
                     val id = withContext(Dispatchers.IO) {
                         db.savedWorkflowDao().insert(
                             SavedWorkflow(

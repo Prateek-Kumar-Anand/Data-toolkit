@@ -3,6 +3,8 @@ package com.prateek.datatoolkit.features.excel
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Xml
+import com.prateek.datatoolkit.core.network.UrlSafety
+import com.prateek.datatoolkit.core.security.CsvSafety
 import com.prateek.datatoolkit.core.xml.XmlSafety
 import com.prateek.datatoolkit.features.excel.sheet.CellRef
 import com.prateek.datatoolkit.features.excel.sheet.SheetCell
@@ -35,6 +37,28 @@ import kotlin.math.roundToInt
  * or be re-exported as the other format.
  */
 object ExcelCsvHelper {
+
+    /** Excel hard limit is 32,767 chars per cell, and XML 1.0 forbids most control characters -
+     *  an OCR'd/scraped value with either produces a file Excel reports as corrupt. */
+    private const val MAX_CELL_CHARS = 32_000
+
+    private fun cleanCellText(value: String): String {
+        var needsWork = value.length > MAX_CELL_CHARS
+        if (!needsWork) {
+            for (ch in value) {
+                if (ch.code < 0x20 && ch != '\t' && ch != '\n' && ch != '\r') { needsWork = true; break }
+            }
+        }
+        if (!needsWork) return value
+        val sb = StringBuilder(minOf(value.length, MAX_CELL_CHARS))
+        for (ch in value) {
+            if (sb.length >= MAX_CELL_CHARS) break
+            if (ch.code >= 0x20 || ch == '\t' || ch == '\n' || ch == '\r') sb.append(ch)
+        }
+        return sb.toString()
+    }
+
+    private const val MAX_ROWS_READ = 300_000
 
     fun readXlsx(file: File, sheetIndex: Int = 0): List<List<String>> {
         // Defense-in-depth: screen every embedded XML/rels part for a DOCTYPE declaration
@@ -93,6 +117,7 @@ object ExcelCsvHelper {
                 val rows = mutableListOf<List<String>>()
                 sheet.openStream().use { rowStream ->
                     rowStream.forEach { row ->
+                        if (rows.size >= MAX_ROWS_READ) throw java.io.IOException("This sheet has more than $MAX_ROWS_READ rows - too large to open on a phone")
                         val cells = (0 until row.cellCount).map { i ->
                             row.getCell(i)?.text ?: ""
                         }
@@ -165,6 +190,7 @@ object ExcelCsvHelper {
                                 }
                             }
                             "row" -> {
+                                if (rows.size >= MAX_ROWS_READ) throw java.io.IOException("This sheet has more than $MAX_ROWS_READ rows - too large to open on a phone")
                                 rowCells?.let { cells ->
                                     rows.add(MutableList(maxCol + 1) { i -> cells[i] ?: "" })
                                 }
@@ -284,7 +310,7 @@ object ExcelCsvHelper {
             for (r in rows.indices) {
                 val row = rows[r]
                 for (c in row.indices) {
-                    ws.value(r, c, row[c])
+                    ws.value(r, c, cleanCellText(row[c]))
                 }
                 if (r > 0 && row.indices.any { c -> wrappedColumns[c] == true }) {
                     ws.rowHeight(r, estimatedRowHeight(row, wrappedColumns))
@@ -398,7 +424,7 @@ object ExcelCsvHelper {
             for (r in rows.indices) {
                 val row = rows[r]
                 for (c in row.indices) {
-                    ws.value(r, c, row[c])
+                    ws.value(r, c, cleanCellText(row[c]))
                 }
                 if (r > 0) {
                     val textHeight = if (row.indices.any { c -> wrappedColumns[c] == true }) {
@@ -421,31 +447,21 @@ object ExcelCsvHelper {
         }
     }
 
-    private const val MAX_IMAGE_REDIRECTS = 5
+    private const val MAX_IMAGE_BYTES = 6 * 1024 * 1024
 
     /**
-     * Fetches [url]'s bytes for xlsx image embedding. Unlike a URL the user typed into the Web
-     * Scraper themselves, these [url]s come from `<img>` tags on arbitrary third-party pages the
-     * scraper visited - content an attacker-controlled site fully controls - so this must not
-     * blindly go wherever that markup points. Only plain http(s) is fetched; redirects are
-     * followed one hop at a time (capped at [MAX_IMAGE_REDIRECTS]) instead of automatically, with
-     * every hop's resolved address re-validated, so a malicious page can't use a redirect to reach
-     * somewhere the initial URL check would have blocked. [isPubliclyRoutable] rejects loopback/
-     * link-local (which also covers the 169.254.169.254 cloud metadata address)/private-use/
-     * multicast targets - the classic pattern of an embedded image URL pointed at the device's own
-     * local network (a router's admin page, another app's localhost debug server, etc.) instead of
-     * a real image.
+     * Fetches [url]'s bytes for xlsx image embedding. These URLs come from `<img>` tags on
+     * arbitrary third-party pages - attacker-controlled content - so every hop (including
+     * redirects, followed manually) is validated by [UrlSafety] (public http(s) hosts only),
+     * and the body is capped at [MAX_IMAGE_BYTES] so a hostile server can't stream gigabytes.
      */
     private fun downloadImageBytes(url: String): ByteArray? = try {
         var currentUrl = url
         var connection: HttpURLConnection? = null
         try {
             var result: ByteArray? = null
-            for (hop in 0..MAX_IMAGE_REDIRECTS) {
-                val parsed = URL(currentUrl)
-                if (!parsed.protocol.equals("http", ignoreCase = true) && !parsed.protocol.equals("https", ignoreCase = true)) break
-                if (!isPubliclyRoutable(parsed.host)) break
-
+            for (hop in 0..UrlSafety.MAX_REDIRECTS) {
+                val parsed = UrlSafety.validate(currentUrl)
                 connection = (parsed.openConnection() as HttpURLConnection).apply {
                     connectTimeout = 8000
                     readTimeout = 8000
@@ -460,7 +476,11 @@ object ExcelCsvHelper {
                     currentUrl = URL(parsed, location).toString() // also resolves a relative Location
                     continue
                 }
-                result = if (code in 200..299) connection.inputStream.use { it.readBytes() } else null
+                if (code in 200..299) {
+                    val declared = connection.contentLengthLong
+                    if (declared in 1..Long.MAX_VALUE && declared > MAX_IMAGE_BYTES) break
+                    result = connection.inputStream.use { UrlSafety.readLimited(it, MAX_IMAGE_BYTES) }
+                }
                 break
             }
             result
@@ -469,32 +489,6 @@ object ExcelCsvHelper {
         }
     } catch (_: Exception) {
         null
-    }
-
-    /** True only if every address [host] resolves to is a normal public unicast address -
-     *  false for loopback/link-local/private-use (RFC1918 + IPv6 unique-local)/multicast/
-     *  wildcard addresses, and false if resolution fails outright. */
-    private fun isPubliclyRoutable(host: String): Boolean = try {
-        val addresses = java.net.InetAddress.getAllByName(host)
-        addresses.isNotEmpty() && addresses.all { addr ->
-            !addr.isLoopbackAddress &&
-                !addr.isLinkLocalAddress &&
-                !addr.isSiteLocalAddress &&
-                !addr.isMulticastAddress &&
-                !addr.isAnyLocalAddress &&
-                !isIpv6UniqueLocal(addr)
-        }
-    } catch (_: Exception) {
-        false
-    }
-
-    /** [java.net.InetAddress.isSiteLocalAddress] only recognizes the deprecated IPv6 site-local
-     *  range (fec0::/10) - the modern private-use range is Unique Local (fc00::/7), which has no
-     *  built-in java.net check. */
-    private fun isIpv6UniqueLocal(addr: java.net.InetAddress): Boolean {
-        if (addr !is java.net.Inet6Address) return false
-        val firstByte = (addr.address.getOrNull(0)?.toInt() ?: return false) and 0xFF
-        return (firstByte and 0xFE) == 0xFC
     }
 
     // --- Image thumbnail sizing/re-encoding ----------------------------------------------------
@@ -530,7 +524,7 @@ object ExcelCsvHelper {
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
             val originalWidth = bounds.outWidth
             val originalHeight = bounds.outHeight
-            if (originalWidth <= 0 || originalHeight <= 0) {
+            if (originalWidth <= 0 || originalHeight <= 0 || originalWidth.toLong() * originalHeight > 120_000_000L) {
                 null
             } else {
                 val scale = minOf(1.0, THUMBNAIL_MAX_PX.toDouble() / maxOf(originalWidth, originalHeight))
@@ -799,8 +793,16 @@ object ExcelCsvHelper {
     fun writeWorkbook(workbook: SheetsWorkbook, output: File) {
         FileOutputStream(output).use { out ->
             val wb = Workbook(out, "DataToolkit", "1.0")
+            val usedNames = HashSet<String>()
             for (sheet in workbook.sheets) {
-                val ws = wb.newWorksheet(sanitizeSheetName(sheet.name))
+                var name = sanitizeSheetName(sheet.name)
+                var n = 2
+                while (!usedNames.add(name.lowercase())) {
+                    val suffix = " ($n)"
+                    name = sanitizeSheetName(sheet.name).take(31 - suffix.length) + suffix
+                    n++
+                }
+                val ws = wb.newWorksheet(name)
                 val used = sheet.usedRange() ?: continue
                 for (row in used.minRow..used.maxRow) {
                     for (col in used.minCol..used.maxCol) {
@@ -817,13 +819,17 @@ object ExcelCsvHelper {
     private fun writeCellValue(ws: Worksheet, row: Int, col: Int, cell: SheetCell) {
         val text = cell.input.trim()
         when {
+            // A formula that would launch a command (DDE) or phone home (WEBSERVICE...) is
+            // written as inert text instead - an untrusted .xlsx must not be able to smuggle
+            // one through this app's open-edit-save round trip.
+            cell.isFormula && CsvSafety.isDangerousFormula(cell.input.removePrefix("=")) -> ws.value(row, col, "'" + cleanCellText(cell.input))
             cell.isFormula -> ws.formula(row, col, cell.input.removePrefix("="))
             STRICT_NUMBER_REGEX.matches(text) -> ws.value(row, col, text.toDouble())
             // Anything else - plain text, TRUE/FALSE (this app doesn't rely on Excel's native
             // boolean cell type anywhere, so it's kept simple and just written as literal text),
             // and an apostrophe-escaped value (see SheetCell.isFormula) - displayText() rather
             // than the raw input so that escaping apostrophe never leaks into the saved file.
-            else -> ws.value(row, col, cell.displayText())
+            else -> ws.value(row, col, cleanCellText(cell.displayText()))
         }
         if (cell.bold) ws.style(row, col).bold().set()
     }

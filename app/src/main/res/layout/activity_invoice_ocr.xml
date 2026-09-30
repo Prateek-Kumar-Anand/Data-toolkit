@@ -20,9 +20,9 @@
             android:paddingTop="26dp" android:paddingBottom="22dp">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="🧾  Invoice &amp; Receipt OCR" android:textColor="@color/text_on_primary" android:textSize="22sp" android:textStyle="bold" />
+                    android:text="🧾  Invoice &amp; Receipt OCR" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp"
-                    android:text="Scan invoices/receipts → invoice #, date, customer, items, tax and total — on-device, batch-friendly" android:textColor="@color/text_on_primary_muted" android:textSize="13sp" />
+                    android:text="Scan invoices/receipts → invoice #, date, customer, items, tax and total — on-device, batch-friendly" android:textColor="@color/text_secondary" android:textSize="13sp" />
             </LinearLayout>
         </FrameLayout>
 

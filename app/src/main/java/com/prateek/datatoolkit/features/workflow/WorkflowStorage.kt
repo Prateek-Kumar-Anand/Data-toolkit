@@ -12,12 +12,15 @@ import org.json.JSONObject
  */
 object WorkflowStorage {
 
+    const val MAX_STEPS = 40
+    const val MAX_TEXT_CHARS = 20_000
+
     fun encode(steps: List<WorkflowStep>): String {
         val array = JSONArray()
-        for (step in steps) {
+        for (step in steps.take(MAX_STEPS)) {
             val obj = JSONObject()
             obj.put("kind", step.kind.name)
-            obj.put("textInput", step.textInput)
+            obj.put("textInput", step.textInput.take(MAX_TEXT_CHARS))
             array.put(obj)
         }
         return array.toString()
@@ -31,7 +34,7 @@ object WorkflowStorage {
         } catch (_: Exception) {
             return emptyList()
         }
-        for (i in 0 until array.length()) {
+        for (i in 0 until minOf(array.length(), MAX_STEPS)) {
             val obj = array.optJSONObject(i) ?: continue
             val kindName = obj.optString("kind")
             val kind = try {

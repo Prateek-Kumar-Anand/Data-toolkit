@@ -64,7 +64,16 @@ data class CellRange(val start: CellRef, val end: CellRef) {
     fun contains(ref: CellRef): Boolean = ref.row in minRow..maxRow && ref.col in minCol..maxCol
 
     /** Every address in this range, row-major - the order SUM/AVERAGE/etc. walk it in. */
-    fun cells(): List<CellRef> = (minRow..maxRow).flatMap { r -> (minCol..maxCol).map { c -> CellRef(r, c) } }
+    fun cells(): List<CellRef> {
+        // A typed range like A1:ZZZ9999999 would otherwise try to build billions of refs and hang/OOM.
+        val size = (maxRow - minRow + 1).toLong() * (maxCol - minCol + 1).toLong()
+        if (size > MAX_RANGE_CELLS) throw IllegalArgumentException("Range too large")
+        return (minRow..maxRow).flatMap { r -> (minCol..maxCol).map { c -> CellRef(r, c) } }
+    }
+
+    companion object {
+        const val MAX_RANGE_CELLS = 500_000L
+    }
 }
 
 /** One cell's content and (if it's a formula) its last-computed result. Mutable - this backs
@@ -123,7 +132,13 @@ class SheetData(var name: String) {
     /** Gets (creating if needed) the cell at [ref]. Every read/write of a cell's content goes
      *  through this - callers never construct a [SheetCell] directly, so there's exactly one
      *  place a new cell enters the sparse map. */
-    fun cellAt(ref: CellRef): SheetCell = cells.getOrPut(ref) { SheetCell() }
+    fun cellAt(ref: CellRef): SheetCell {
+        cells[ref]?.let { return it }
+        if (cells.size >= MAX_CELLS) {
+            throw IllegalStateException("This sheet has more than $MAX_CELLS cells - too large to edit on a phone")
+        }
+        return SheetCell().also { cells[ref] = it }
+    }
 
     /** Same lookup, but doesn't create an entry for a cell nothing has ever touched - use this
      *  for read-only scans (formula evaluation, export) where creating millions of empty-cell
@@ -156,6 +171,7 @@ class SheetData(var name: String) {
         const val MIN_ROWS = 50
         const val MIN_COLS = 20
         const val GROWTH_MARGIN = 10
+        const val MAX_CELLS = 600_000
     }
 }
 

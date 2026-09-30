@@ -1,19 +1,18 @@
 package com.prateek.datatoolkit.features.batch
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.image.SafeBitmap
 import com.prateek.datatoolkit.core.network.RetryPolicy
 import com.prateek.datatoolkit.core.quality.QualityScorer
 import com.prateek.datatoolkit.core.storage.OutputStorage
 import com.prateek.datatoolkit.features.ocr.OcrHelper
 import com.prateek.datatoolkit.features.pdf.PdfHelper
 import java.io.File
-import java.io.FileOutputStream
 
 /**
  * Batch Processing: runs a queued set of files (images -> OCR, or PDFs ->
@@ -51,8 +50,16 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
         var succeeded = 0
         var failed = 0
 
+        val inputDir = File(applicationContext.cacheDir, "batch_input")
+        val inputFiles = mutableListOf<File>()
+
         for (uriString in uriStrings) {
-            val uri = Uri.parse(uriString)
+            // Inputs are plain file names inside our own batch_input folder - anything carrying a
+            // path separator is rejected so a crafted value can't point the worker elsewhere.
+            val safeName = uriString.substringAfterLast('/')
+            val localFile = File(inputDir, safeName)
+            inputFiles += localFile
+            val uri = Uri.fromFile(localFile)
             val itemResult = RetryPolicy.withRetry(maxAttempts = 3) {
                 processOne(type, uri)
             }
@@ -109,6 +116,8 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
         if (total > 0 && failed.toDouble() / total > FAILURE_RATIO_FOR_RETRY && runAttemptCount < 3) {
             return Result.retry()
         }
+        // Finished for good: the private working copies of the user's files are no longer needed.
+        inputFiles.forEach { it.delete() }
         return Result.success(
             Data.Builder()
                 .putInt("succeeded", succeeded)
@@ -121,13 +130,11 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
      *  [doWork] both truncates this for the cache preview and saves it in full to
      *  Downloads/Output/Batch/. */
     private suspend fun processOne(type: String, uri: Uri): Triple<String, String, Int> {
-        val resolver = applicationContext.contentResolver
         val label = uri.lastPathSegment ?: uri.toString()
 
         return when (type) {
             TYPE_OCR -> {
-                val input = resolver.openInputStream(uri) ?: throw IllegalStateException("Cannot open $uri")
-                val bitmap = input.use { BitmapFactory.decodeStream(it) }
+                val bitmap = SafeBitmap.decodeFile(File(uri.path ?: throw IllegalStateException("Cannot open $uri")))
                     ?: throw IllegalStateException("Not a valid image: $uri")
                 // processOne is itself a suspend function (called from RetryPolicy's suspend
                 // lambda), so this can just await OcrHelper.recognize directly - no need to
@@ -138,12 +145,8 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
                 Triple(label, result.text, score)
             }
             TYPE_PDF_TEXT -> {
-                val tempFile = File.createTempFile("batch_pdf_", ".pdf", applicationContext.cacheDir)
-                resolver.openInputStream(uri)?.use { input ->
-                    FileOutputStream(tempFile).use { output -> input.copyTo(output) }
-                } ?: throw IllegalStateException("Cannot open $uri")
-                val text = PdfHelper.extractText(tempFile)
-                tempFile.delete()
+                val source = File(uri.path ?: throw IllegalStateException("Cannot open $uri"))
+                val text = PdfHelper.extractText(source)
                 val score = QualityScorer.scoreText(text)
                 Triple(label, text, score)
             }

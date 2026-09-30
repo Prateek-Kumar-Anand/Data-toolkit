@@ -27,14 +27,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="🔀  Workflow Builder"
-                    android:textColor="@color/text_on_primary"
+                    android:textColor="@color/text_primary"
                     android:textAppearance="@style/TextAppearance.App.HeroTitle" />
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:text="Chain tools together — one step feeds the next, right through to a saved file"
-                    android:textColor="@color/text_on_primary_muted"
+                    android:textColor="@color/text_secondary"
                     android:textSize="13sp" />
             </LinearLayout>
         </FrameLayout>

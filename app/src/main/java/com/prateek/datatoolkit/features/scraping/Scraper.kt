@@ -1,6 +1,7 @@
 package com.prateek.datatoolkit.features.scraping
 
 import com.prateek.datatoolkit.core.network.RetryPolicy
+import com.prateek.datatoolkit.core.network.UrlSafety
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.HttpStatusException
@@ -9,6 +10,7 @@ import org.jsoup.UnsupportedMimeTypeException
 import org.jsoup.nodes.Document
 import java.io.IOException
 import java.net.SocketTimeoutException
+import java.net.URL
 import java.net.UnknownHostException
 
 data class ScrapeResult(
@@ -50,13 +52,7 @@ object Scraper {
             maxAttempts = maxAttempts,
             shouldRetry = ::isRetryable
         ) {
-            Jsoup.connect(url)
-                .userAgent(userAgent.ifBlank { DEFAULT_USER_AGENT })
-                .timeout(timeoutMs)
-                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                .header("Accept-Language", "en-US,en;q=0.9")
-                .followRedirects(true)
-                .get()
+            fetchSafely(url, timeoutMs, userAgent)
         }
 
         val doc: Document = result.value ?: throw classifyError(result.lastError, url)
@@ -72,12 +68,42 @@ object Scraper {
         ScrapeResult(
             url = url,
             title = doc.title(),
-            text = doc.body().text().orEmpty(),
+            text = doc.body().text(),
             links = links,
             tables = tables,
             attempts = result.attempts,
             items = ItemExtractor.extract(doc, manualSelectors)
         )
+    }
+
+    private const val MAX_BODY_BYTES = 5 * 1024 * 1024
+
+    private fun upgradeToHttps(u: String): String =
+        if (u.startsWith("http://", ignoreCase = true)) "https://" + u.substring(7) else u
+
+    /** Fetches [url] following redirects one hop at a time, re-validating every hop against
+     *  [UrlSafety] so a public page can't bounce the request into the local network (SSRF). */
+    private fun fetchSafely(url: String, timeoutMs: Int, userAgent: String): Document {
+        var current = upgradeToHttps(UrlSafety.validate(url).toString())
+        for (hop in 0..UrlSafety.MAX_REDIRECTS) {
+            val response = Jsoup.connect(current)
+                .userAgent(userAgent.ifBlank { DEFAULT_USER_AGENT })
+                .timeout(timeoutMs)
+                .maxBodySize(MAX_BODY_BYTES)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .followRedirects(false)
+                .execute()
+            val code = response.statusCode()
+            if (code in 300..399) {
+                val location = response.header("Location")
+                    ?: throw IOException("Redirect from $current had no destination")
+                current = upgradeToHttps(UrlSafety.validate(URL(URL(current), location).toString()).toString())
+                continue
+            }
+            return response.parse()
+        }
+        throw IOException("Too many redirects for $url")
     }
 
     /**
@@ -87,6 +113,7 @@ object Scraper {
      * user wait 3x as long before reporting a failure the very first attempt already knew about.
      */
     private fun isRetryable(t: Throwable): Boolean = when (t) {
+        is UrlSafety.UnsafeUrlException -> false // blocked on purpose - retrying can't change that
         is IllegalArgumentException -> false // malformed URL - jsoup won't parse it differently next time
         is UnsupportedMimeTypeException -> false // e.g. linked straight to a PDF/image, not HTML
         is HttpStatusException -> t.statusCode >= 500 || t.statusCode == 429
@@ -99,6 +126,7 @@ object Scraper {
     /** Turns jsoup/network exceptions into a short, specific message instead of a raw stack
      *  trace fragment - this is what ends up in the UI's status line and in scrape history. */
     private fun classifyError(t: Throwable?, url: String): Exception = when (t) {
+        is UrlSafety.UnsafeUrlException -> t
         is HttpStatusException -> IOException("Server returned HTTP ${t.statusCode} for $url", t)
         is UnsupportedMimeTypeException -> IOException("$url isn't an HTML page (got ${t.mimeType})", t)
         is SocketTimeoutException -> IOException("Timed out waiting for $url to respond", t)

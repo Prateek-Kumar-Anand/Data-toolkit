@@ -34,5 +34,25 @@ class ToolkitApp : Application() {
         System.setProperty("javax.xml.stream.XMLEventFactory", "com.fasterxml.aalto.stax.EventFactoryImpl")
 
         PDFBoxResourceLoader.init(applicationContext)
+
+        // Temp copies of user documents/photos (batch inputs, camera shots, half-finished
+        // exports) are private scratch files - sweep anything older than a day at startup so
+        // sensitive content doesn't sit in the cache indefinitely.
+        Thread {
+            try {
+                purgeOld(cacheDir, System.currentTimeMillis() - 24L * 60 * 60 * 1000)
+            } catch (_: Exception) {
+            }
+        }.start()
+    }
+
+    private fun purgeOld(dir: java.io.File, cutoff: Long) {
+        dir.listFiles()?.forEach { f ->
+            if (f.isDirectory) {
+                purgeOld(f, cutoff)
+            } else if (f.lastModified() < cutoff) {
+                f.delete()
+            }
+        }
     }
 }

@@ -4,25 +4,29 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Only needed on API 24-28: pre-scoped-storage devices must write to the public
          Downloads directory directly (see OutputStorage). API 29+ saves through
          MediaStore.Downloads instead, which needs no storage permission at all. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
 
     <application
         android:name=".ToolkitApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/Theme.DataToolkit"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config">
 
         <activity
             android:name=".MainActivity"
@@ -40,7 +44,8 @@
         <activity android:name=".features.ocr.OcrActivity" android:exported="false" android:label="OCR" />
         <activity android:name=".features.pdf.PdfActivity" android:exported="false" android:label="PDF Tools" />
         <activity android:name=".features.excel.ExcelCsvActivity" android:exported="false" android:label="Excel / CSV" />
-        <activity android:name=".features.conversion.FileConversionActivity" android:exported="false" android:label="File Conversion" />
+        <activity android:name=".features.conversion.FileConversionActivity" android:exported="false" android:label="File Conversion"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize" />
         <activity android:name=".features.scraping.WebScrapingActivity" android:exported="false" android:label="Web Scraping" />
         <activity android:name=".features.email.EmailExtractionActivity" android:exported="false" android:label="Email Extraction" />
         <activity android:name=".features.batch.BatchProcessingActivity" android:exported="false" android:label="Batch Processing" />

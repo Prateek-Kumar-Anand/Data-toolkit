@@ -1,47 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Dark-mode overrides: the same instrument panel after hours - deep gunmetal
-     backdrop, panels a shade lighter than the backdrop so they still read as
-     "mounted on top" under panel lighting, text like backlit dial numerals.
-     Every style/theme in this app reads colors through @color/name references
-     rather than hardcoded hex, so re-declaring the same names here is enough to
-     make every screen dark-mode aware with no other resource changes needed.
-     Brand colors (primary/secondary/accent/the header gradients) are left the
-     same as light mode - a physical console's paint and its brass knobs don't
-     change colour when the room lights dim, the same way most polished apps
-     keep a brand-coloured top bar unchanged in dark mode. -->
 <resources>
-
-    <!-- Surfaces & backdrop -->
-    <color name="background">#1C1815</color>
-    <color name="background_alt">#241F1A</color>
-    <color name="background_soft">#161310</color>
-    <color name="surface">#2C2620</color>
-    <color name="surface_muted">#251F1A</color>
-    <color name="stroke">#4A4030</color>
+    <color name="background">#0E1424</color>
+    <color name="background_alt">#121A2E</color>
+    <color name="background_soft">#0B1120</color>
+    <color name="surface">#182038</color>
+    <color name="surface_muted">#1E2846</color>
+    <color name="stroke">#2A3558</color>
     <color name="stroke_soft">#1AFFFFFF</color>
-    <color name="surface_bevel_hi">#4A4038</color>
+    <color name="surface_bevel_hi">#2A3558</color>
     <color name="surface_bevel_lo">#000000</color>
-    <color name="groove_bg">#181410</color>
-    <color name="groove_edge_dark">#000000</color>
+    <color name="groove_bg">#141C33</color>
+    <color name="groove_edge_dark">#2A3558</color>
 
-    <!-- Text -->
-    <color name="text_primary">#F2E9D6</color>
-    <color name="text_secondary">#B8AB90</color>
+    <color name="gradient_start">#0E1424</color>
+    <color name="gradient_mid">#121A2E</color>
+    <color name="gradient_end">#121A2E</color>
+    <color name="workflow_gradient_start">#1A1636</color>
+    <color name="workflow_gradient_mid">#1A1636</color>
+    <color name="workflow_gradient_end">#1A1636</color>
 
-    <!-- The light halo/glint layers inside bg_icon_chip read too bright on a
-         dark tile, so the wash it tints against gets a deeper base. -->
-    <color name="icon_chip_bg">#3A3226</color>
+    <color name="text_primary">#F1F4FF</color>
+    <color name="text_secondary">#A3AECB</color>
+    <color name="text_on_primary_muted">#A3AECB</color>
+    <color name="icon_chip_bg">#26325A</color>
+    <color name="primary_dark">#8FB0FF</color>
 
-    <!-- Soft per-feature chip tints, deepened to keep contrast against dark tiles. -->
-    <color name="accent_cleaning_bg">#3A2E4A</color>
-    <color name="accent_ocr_bg">#22394A</color>
-    <color name="accent_pdf_bg">#4A2620</color>
-    <color name="accent_excel_bg">#1E3D30</color>
-    <color name="accent_scraping_bg">#1C3A3D</color>
-    <color name="accent_email_bg">#4A2536</color>
-    <color name="accent_batch_bg">#4A3A1C</color>
-    <color name="accent_dashboard_bg">#25333D</color>
-    <color name="accent_workflow_bg">#3A2638</color>
-    <color name="accent_invoice_bg">#1C3A32</color>
-    <color name="accent_conversion_bg">#38263A</color>
+    <color name="accent_cleaning_bg">#2E2650</color>
+    <color name="accent_ocr_bg">#1E2E55</color>
+    <color name="accent_pdf_bg">#4A2228</color>
+    <color name="accent_excel_bg">#1B3D2C</color>
+    <color name="accent_scraping_bg">#17383F</color>
+    <color name="accent_email_bg">#4A2138</color>
+    <color name="accent_batch_bg">#4A3818</color>
+    <color name="accent_dashboard_bg">#1F2F55</color>
+    <color name="accent_workflow_bg">#2C2450</color>
+    <color name="accent_invoice_bg">#173A33</color>
+    <color name="accent_conversion_bg">#372150</color>
+    <color name="badge_locked">#3A4566</color>
 </resources>

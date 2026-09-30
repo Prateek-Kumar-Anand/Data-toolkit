@@ -43,7 +43,8 @@ object OutputStorage {
         PDF("PDF"),
         EMAIL_EXTRACTION("Email_Extraction"),
         EXCEL("Excel"),
-        BATCH("Batch")
+        BATCH("Batch"),
+        CONVERSION("Conversion")
     }
 
     /** [uri] is the MediaStore content:// uri on API 29+, or a file:// uri on API 24-28 -
@@ -82,7 +83,7 @@ object OutputStorage {
     private fun writeViaMediaStore(context: Context, module: Module, desiredName: String, mimeType: String, writer: (OutputStream) -> Unit): SavedFile {
         val resolver = context.contentResolver
         val relPath = relativePath(module)
-        val (base, ext) = splitName(desiredName)
+        val (base, ext) = splitName(sanitizeName(desiredName))
         val finalName = uniqueName(base, ext, existingDisplayNames(context, relPath))
 
         val values = ContentValues().apply {
@@ -138,9 +139,10 @@ object OutputStorage {
         if (!dir.exists() && !dir.mkdirs() && !dir.exists()) {
             throw IOException("Could not create folder ${dir.absolutePath}")
         }
-        val (base, ext) = splitName(desiredName)
+        val (base, ext) = splitName(sanitizeName(desiredName))
         val finalName = uniqueName(base, ext, dir.list()?.toSet() ?: emptySet())
         val target = File(dir, finalName)
+        if (target.canonicalFile.parentFile != dir.canonicalFile) throw IOException("Invalid file name")
         target.outputStream().use { out -> writer(out) }
 
         // So the file shows up immediately in Files/Downloads apps instead of waiting for the
@@ -151,6 +153,20 @@ object OutputStorage {
     }
 
     // ---- shared naming helpers -----------------------------------------------------------------
+
+    /** Strips path separators, traversal sequences, control and reserved characters, and
+     *  caps the length - a name derived from user/remote input must never escape its folder. */
+    private fun sanitizeName(name: String): String {
+        var n = name.substringAfterLast('/').substringAfterLast('\\')
+        n = n.replace(Regex("[\\u0000-\\u001F\\u007F<>:\"|?*]"), "_").trim().trim('.')
+        if (n.isBlank()) n = "output"
+        if (n.length > 120) {
+            val dot = n.lastIndexOf('.')
+            val ext = if (dot > 0 && n.length - dot <= 10) n.substring(dot) else ""
+            n = n.substring(0, 120 - ext.length) + ext
+        }
+        return n
+    }
 
     private fun splitName(name: String): Pair<String, String> {
         val dot = name.lastIndexOf('.')
