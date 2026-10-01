@@ -93,6 +93,10 @@ class FormulaEvaluator(private val lookup: (CellRef) -> FormulaValue) {
         "IFERROR" -> evaluateIfError(node.args)
         "AND" -> evaluateAndOr(node.args, isAnd = true)
         "OR" -> evaluateAndOr(node.args, isAnd = false)
+        "COUNTIF", "SUMIF", "AVERAGEIF" -> evaluateConditional(node.name, node.args)
+        "IFNA" -> if (node.args.size != 2) FormulaValue.ErrorValue("#VALUE!") else evaluate(node.args[0]).let {
+            if (it is FormulaValue.ErrorValue && it.code == "#N/A") evaluate(node.args[1]) else it
+        }
         else -> {
             val flatArgs = mutableListOf<FormulaValue>()
             for (arg in node.args) {
@@ -103,6 +107,46 @@ class FormulaEvaluator(private val lookup: (CellRef) -> FormulaValue) {
                 }
             }
             FormulaFunctions.call(node.name, flatArgs)
+        }
+    }
+
+    private fun evaluateConditional(name: String, args: List<FormulaNode>): FormulaValue {
+        if (args.size !in (if (name == "COUNTIF") 2..2 else 2..3)) return FormulaValue.ErrorValue("#VALUE!")
+        val rangeNode = args[0] as? FormulaNode.RangeNode ?: return FormulaValue.ErrorValue("#VALUE!")
+        val crit = evaluate(args[1]); if (crit.isError) return crit
+        val matches = criteriaMatcher(crit)
+        val tested = rangeNode.range.cells().map { lookup(it) }.toList()
+        val values = if (args.size == 3) {
+            val r = args[2] as? FormulaNode.RangeNode ?: return FormulaValue.ErrorValue("#VALUE!")
+            r.range.cells().map { lookup(it) }.toList()
+        } else tested
+        val hit = tested.indices.filter { matches(tested[it]) }
+        if (name == "COUNTIF") return FormulaValue.NumberValue(hit.size.toDouble())
+        val nums = hit.mapNotNull { (values.getOrNull(it) as? FormulaValue.NumberValue)?.value }
+        return if (name == "SUMIF") FormulaValue.NumberValue(nums.sum())
+        else if (nums.isEmpty()) FormulaValue.ErrorValue("#DIV/0!") else FormulaValue.NumberValue(nums.average())
+    }
+
+    private fun criteriaMatcher(crit: FormulaValue): (FormulaValue) -> Boolean {
+        var op = "="
+        var operand = if (crit is FormulaValue.NumberValue) formatResultNumber(crit.value) else crit.asText()
+        if (crit !is FormulaValue.NumberValue) {
+            for (o in listOf(">=", "<=", "<>", ">", "<", "=")) if (operand.startsWith(o)) { op = o; operand = operand.substring(o.length); break }
+        }
+        val num = operand.toDoubleOrNull()
+        if (num != null) return { v ->
+            val x = (v as? FormulaValue.NumberValue)?.value
+            when {
+                x == null -> op == "<>"
+                else -> when (op) { "=" -> x == num; "<>" -> x != num; ">" -> x > num; "<" -> x < num; ">=" -> x >= num; else -> x <= num }
+            }
+        }
+        val sb = StringBuilder()
+        for (c in operand) when (c) { '*' -> sb.append(".*"); '?' -> sb.append('.'); else -> sb.append(Regex.escape(c.toString())) }
+        val rx = Regex(sb.toString(), RegexOption.IGNORE_CASE)
+        return { v ->
+            val m = v !is FormulaValue.NumberValue && rx.matches(v.asText())
+            if (op == "<>") !m else if (op == "=") m else false
         }
     }
 

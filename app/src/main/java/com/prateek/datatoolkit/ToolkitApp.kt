@@ -10,6 +10,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 class ToolkitApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO)
 
         // --- Fix for "opening any .xlsx crashes the whole app" (Excel/CSV screen AND Data
         // Cleaning's file upload both went through this, since both call
