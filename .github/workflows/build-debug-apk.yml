@@ -20,12 +20,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install required SDK platform & build-tools
+      - name: Install Android SDK packages
+        shell: bash
         run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools" > /dev/null
+          # ubuntu-latest already ships the Android SDK; use its sdkmanager directly.
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Cache Gradle
         uses: actions/cache@v4
