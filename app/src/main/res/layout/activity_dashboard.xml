@@ -85,17 +85,6 @@
             <TextView android:id="@+id/tvBreakdown" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="12dp" android:gravity="center" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
 
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:layout_marginBottom="10dp"
-                android:gravity="center_vertical" android:orientation="horizontal">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp"
-                    android:text="Achievements" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
-                <TextView android:id="@+id/tvAchievementCount" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp"
-                    android:background="@drawable/bg_badge_pill" android:text="0/6" android:textColor="@color/primary" android:textSize="12sp" android:textStyle="bold" />
-            </LinearLayout>
-            <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
-                <LinearLayout android:id="@+id/achievementsGrid" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
-            </com.google.android.material.card.MaterialCardView>
-
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="20dp" android:layout_marginBottom="10dp"
                 android:text="Jobs by feature" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">

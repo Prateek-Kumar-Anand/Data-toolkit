@@ -81,11 +81,10 @@ class DashboardActivity : AppCompatActivity() {
             binding.tvBreakdown.text = if (total == 0) "Nothing processed yet"
                 else "$success succeeded  •  $failed failed  •  avg quality ${"%.0f".format(avgQuality)}/100 (${QualityScorer.label(avgQuality.toInt())})"
 
-            // ---- Most-used tool + achievements ----
+            // ---- Most-used tool ----
             val top = byFeature.maxByOrNull { it.count }
             binding.tvTopFeature.text = top?.feature ?: "—"
             binding.tvTopFeatureSub.text = if (top != null) "Most used tool · ${top.count} jobs" else "Most used tool"
-            renderAchievements(total, failed, avgQuality, byFeature.size)
 
             // ---- Chart: cleared explicitly on every load so a "Clear history" run doesn't
             // leave the previous run's stale bars on screen once there's no data to show. ----
@@ -130,57 +129,6 @@ class DashboardActivity : AppCompatActivity() {
             }
 
             binding.progressBar.visibility = View.GONE
-        }
-    }
-
-    private fun renderAchievements(total: Int, failed: Int, avgQuality: Double, featureCount: Int) {
-        // emoji, label, badge colour, unlocked
-        val badges = listOf(
-            listOf("🚀", "First Job", R.color.primary, total >= 1),
-            listOf("⚡", "10 Jobs", R.color.accent_workflow, total >= 10),
-            listOf("🏆", "Century", R.color.accent_batch, total >= 100),
-            listOf("✨", "Flawless", R.color.accent_scraping, total >= 5 && failed == 0),
-            listOf("🎯", "Quality Pro", R.color.accent_excel, total >= 5 && avgQuality >= 80),
-            listOf("🧭", "Explorer", R.color.accent_conversion, featureCount >= 5)
-        )
-        binding.tvAchievementCount.text = "${badges.count { it[3] as Boolean }}/${badges.size}"
-        binding.achievementsGrid.removeAllViews()
-        badges.chunked(3).forEachIndexed { rowIndex, rowBadges ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                    .apply { if (rowIndex > 0) topMargin = dp(16) }
-            }
-            rowBadges.forEach { b ->
-                val unlocked = b[3] as Boolean
-                val cell = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER_HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                }
-                val medal = FrameLayout(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(dp(60), dp(60))
-                    background = android.graphics.drawable.GradientDrawable().apply {
-                        cornerRadius = dp(20).toFloat()
-                        setColor(colorOf(if (unlocked) b[2] as Int else R.color.badge_locked))
-                    }
-                }
-                medal.addView(TextView(this).apply {
-                    text = if (unlocked) b[0] as String else "🔒"
-                    textSize = 26f
-                    alpha = if (unlocked) 1f else 0.7f
-                    layoutParams = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER)
-                })
-                cell.addView(medal)
-                cell.addView(TextView(this).apply {
-                    text = b[1] as String
-                    textSize = 12f
-                    setTextColor(colorOf(if (unlocked) R.color.text_primary else R.color.text_secondary))
-                    setPadding(0, dp(6), 0, 0)
-                })
-                row.addView(cell)
-            }
-            binding.achievementsGrid.addView(row)
         }
     }
 

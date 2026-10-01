@@ -8,13 +8,13 @@
     <color name="accent">#F5A524</color>
     <color name="accent_dark">#C77F0A</color>
 
-    <color name="gradient_start">#EEF2FF</color>
-    <color name="gradient_mid">#F4F7FF</color>
-    <color name="gradient_end">#F7F9FF</color>
+    <color name="gradient_start">#FFFFFF</color>
+    <color name="gradient_mid">#FFFFFF</color>
+    <color name="gradient_end">#FFFFFF</color>
 
-    <color name="background">#EEF2FF</color>
-    <color name="background_alt">#F6F8FF</color>
-    <color name="background_soft">#E8EDFF</color>
+    <color name="background">#FFFFFF</color>
+    <color name="background_alt">#FFFFFF</color>
+    <color name="background_soft">#F6F8FC</color>
     <color name="surface">#FFFFFF</color>
     <color name="surface_muted">#F3F6FF</color>
     <color name="stroke">#E1E7F5</color>
@@ -36,9 +36,9 @@
     <color name="ripple_on_primary">#30FFFFFF</color>
     <color name="icon_chip_bg">#E8EEFF</color>
 
-    <color name="workflow_gradient_start">#EFEAFF</color>
-    <color name="workflow_gradient_mid">#F3F0FF</color>
-    <color name="workflow_gradient_end">#F6F4FF</color>
+    <color name="workflow_gradient_start">#FFFFFF</color>
+    <color name="workflow_gradient_mid">#FFFFFF</color>
+    <color name="workflow_gradient_end">#FFFFFF</color>
     <color name="accent_workflow">#7C4DFF</color>
 
     <color name="accent_cleaning">#7C5CE0</color>
