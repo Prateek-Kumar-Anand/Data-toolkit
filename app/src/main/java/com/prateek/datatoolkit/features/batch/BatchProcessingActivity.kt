@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.batch
 
+import com.prateek.datatoolkit.core.ui.enableInnerScroll
+
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -43,6 +45,7 @@ class BatchProcessingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityBatchProcessingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.tvLog.enableInnerScroll()
 
         binding.btnBatchOcr.setOnClickListener { storagePermission.runWithPermission { pickImages.launch("image/*") } }
         binding.btnBatchPdf.setOnClickListener { storagePermission.runWithPermission { pickPdfs.launch("application/pdf") } }

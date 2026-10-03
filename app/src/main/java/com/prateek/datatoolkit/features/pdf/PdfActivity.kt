@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.pdf
 
+import com.prateek.datatoolkit.core.ui.enableInnerScroll
+
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -51,6 +53,7 @@ class PdfActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityPdfBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.etOutput.enableInnerScroll()
         cache = CacheManager(this)
 
         binding.btnExtractText.setOnClickListener {

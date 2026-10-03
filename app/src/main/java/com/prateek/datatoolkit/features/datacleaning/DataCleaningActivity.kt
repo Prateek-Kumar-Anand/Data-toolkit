@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.datacleaning
 
+import com.prateek.datatoolkit.core.ui.enableInnerScroll
+
 import android.database.Cursor
 import android.graphics.Typeface
 import android.net.Uri
@@ -100,6 +102,7 @@ class DataCleaningActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityDataCleaningBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.etOutput.enableInnerScroll()
         cache = CacheManager(this)
 
         binding.spinnerCaseMode.adapter = ArrayAdapter(

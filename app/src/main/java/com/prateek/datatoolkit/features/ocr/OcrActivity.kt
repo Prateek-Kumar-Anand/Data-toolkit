@@ -63,6 +63,13 @@ class OcrActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityOcrBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.etResult.setOnTouchListener { v, ev ->
+            if (v.canScrollVertically(-1) || v.canScrollVertically(1)) {
+                v.parent.requestDisallowInterceptTouchEvent(true)
+                if (ev.action == android.view.MotionEvent.ACTION_UP) v.parent.requestDisallowInterceptTouchEvent(false)
+            }
+            false
+        }
         cache = CacheManager(this)
 
         binding.btnCamera.setOnClickListener { launchCamera() }

@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.scraping
 
+import com.prateek.datatoolkit.core.ui.enableInnerScroll
+
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
@@ -45,6 +47,7 @@ class WebScrapingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWebScrapingBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.etText.enableInnerScroll()
         cache = CacheManager(this)
 
         binding.btnScrape.setOnClickListener { runScrape() }

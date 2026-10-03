@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload build log and error list
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: build-log-and-errors
           path: |
@@ -73,7 +73,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: DataToolkit-debug-apk
           path: app/build/outputs/apk/debug/*.apk

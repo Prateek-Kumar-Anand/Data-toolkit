@@ -80,13 +80,17 @@
                     <EditText
                         android:id="@+id/etEmails"
                         android:layout_width="match_parent"
-                        android:layout_height="150dp"
+                        android:layout_height="340dp"
                         android:layout_marginTop="10dp"
                         android:background="@drawable/bg_input_field_focused"
                         android:gravity="top|start"
                         android:fontFamily="monospace"
                         android:textSize="12.5sp"
-                        android:inputType="textMultiLine" />
+                        android:inputType="textMultiLine" 
+                        android:scrollbars="vertical"
+                        android:overScrollMode="always"
+                        android:scrollbarStyle="insideInset"
+                        android:fadeScrollbars="false"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSaveCsv"

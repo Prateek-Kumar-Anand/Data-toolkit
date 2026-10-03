@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.invoice
 
+import com.prateek.datatoolkit.core.ui.enableInnerScroll
+
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
@@ -73,6 +75,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityInvoiceOcrBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.etItems.enableInnerScroll()
         cache = CacheManager(this)
         db = AppDatabase.get(this)
 

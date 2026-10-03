@@ -63,12 +63,15 @@
                     <TextView
                         android:id="@+id/tvLog"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:minHeight="160dp"
+                        android:layout_height="300dp"
                         android:layout_marginTop="12dp"
                         android:background="@drawable/bg_input_field"
                         android:fontFamily="monospace"
-                        android:textSize="12sp" />
+                        android:textSize="12sp" 
+                        android:scrollbars="vertical"
+                        android:overScrollMode="always"
+                        android:scrollbarStyle="insideInset"
+                        android:fadeScrollbars="false"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

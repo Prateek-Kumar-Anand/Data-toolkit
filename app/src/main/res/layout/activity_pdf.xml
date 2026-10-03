@@ -148,14 +148,18 @@
                     <EditText
                         android:id="@+id/etOutput"
                         android:layout_width="match_parent"
-                        android:layout_height="180dp"
+                        android:layout_height="340dp"
                         android:layout_marginTop="12dp"
                         android:background="@drawable/bg_input_field_focused"
                         android:gravity="top|start"
                         android:hint="Your result will appear here after you run an operation above"
                         android:textColorHint="@color/text_secondary"
                         android:textSize="13sp"
-                        android:inputType="textMultiLine" />
+                        android:inputType="textMultiLine" 
+                        android:scrollbars="vertical"
+                        android:overScrollMode="always"
+                        android:scrollbarStyle="insideInset"
+                        android:fadeScrollbars="false"/>
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSaveAs"

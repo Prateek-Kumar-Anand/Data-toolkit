@@ -1,5 +1,7 @@
 package com.prateek.datatoolkit.features.email
 
+import com.prateek.datatoolkit.core.ui.enableInnerScroll
+
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -28,6 +30,7 @@ class EmailExtractionActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityEmailExtractionBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        binding.etEmails.enableInnerScroll()
         cache = CacheManager(this)
 
         binding.btnExtractFromText.setOnClickListener { extractFromText(binding.etInput.text.toString()) }

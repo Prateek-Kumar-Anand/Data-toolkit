@@ -37,6 +37,9 @@ android {
     }
 
     packagingOptions {
+        jniLibs {
+            keepDebugSymbols += ['**/libimage_processing_util_jni.so', '**/libmlkit_google_ocr_pipeline.so']
+        }
         resources {
             // Broadened beyond the original 5 entries: with ML Kit/Play Services, jsoup,
             // pdfbox-android, fastexcel and camera all on the classpath, plain LICENSE/NOTICE

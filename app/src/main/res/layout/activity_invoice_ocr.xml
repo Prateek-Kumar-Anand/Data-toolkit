@@ -109,9 +109,13 @@
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp"
                         android:text="Items (one per line — Description | Qty | Unit Price | Amount)" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                     <EditText android:id="@+id/etItems"
-                        android:layout_width="match_parent" android:layout_height="100dp" android:layout_marginTop="4dp"
+                        android:layout_width="match_parent" android:layout_height="220dp" android:layout_marginTop="4dp"
                         android:background="@drawable/bg_input_field_focused" android:padding="10dp" android:textSize="12.5sp"
-                        android:gravity="top|start" android:inputType="textMultiLine" />
+                        android:gravity="top|start" android:inputType="textMultiLine" 
+                        android:scrollbars="vertical"
+                        android:overScrollMode="always"
+                        android:scrollbarStyle="insideInset"
+                        android:fadeScrollbars="false"/>
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
                         <EditText android:id="@+id/etSubtotal" android:hint="Subtotal"

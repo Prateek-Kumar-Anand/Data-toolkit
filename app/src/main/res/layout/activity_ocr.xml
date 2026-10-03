@@ -112,10 +112,14 @@
                     <EditText
                         android:id="@+id/etResult"
                         android:layout_width="match_parent"
-                        android:layout_height="190dp"
+                        android:layout_height="340dp"
                         android:layout_marginTop="10dp"
                         android:background="@drawable/bg_input_field_focused"
                         android:gravity="top|start"
+                        android:scrollbars="vertical"
+                        android:overScrollMode="always"
+                        android:scrollbarStyle="insideInset"
+                        android:fadeScrollbars="false"
                         android:textSize="13.5sp"
                         android:inputType="textMultiLine" />
 
