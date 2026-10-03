@@ -40,7 +40,7 @@ object OcrHelper {
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
                 val blockCount = visionText.textBlocks.size
-                val lines = visionText.textBlocks.flatMap { block ->
+                val lines = visionText.textBlocks.withIndex().flatMap { (blockIdx, block) ->
                     block.lines.mapNotNull { line ->
                         line.boundingBox?.let { box ->
                             val words = line.elements.mapNotNull { element ->
@@ -48,11 +48,17 @@ object OcrHelper {
                                     OcrWord(element.text, wordBox.left, wordBox.top, wordBox.right, wordBox.bottom)
                                 }
                             }
-                            OcrLine(line.text, words, box.left, box.top, box.right, box.bottom)
+                            OcrLine(line.text, words, box.left, box.top, box.right, box.bottom, blockIdx)
                         }
                     }
                 }
-                cont.resume(OcrResult(text = visionText.text, blockCount = blockCount, lines = lines))
+                cont.resume(
+                    OcrResult(
+                        text = visionText.text, blockCount = blockCount, lines = lines,
+                        layoutText = try { OcrLayout.toLayoutText(lines, visionText.text) } catch (_: Exception) { visionText.text },
+                        bookText = try { OcrBook.toBookText(lines, processed.width, processed.height, visionText.text) } catch (_: Exception) { visionText.text }
+                    )
+                )
             }
             .addOnFailureListener { e -> cont.resumeWithException(e) }
             .addOnCompleteListener {
@@ -150,7 +156,8 @@ object OcrHelper {
     }
 }
 
-data class OcrResult(val text: String, val blockCount: Int, val lines: List<OcrLine> = emptyList())
+/** [layoutText] = [text] with table rows rebuilt as TAB-separated lines (see [OcrLayout]). */
+data class OcrResult(val text: String, val blockCount: Int, val lines: List<OcrLine> = emptyList(), val layoutText: String = text, val bookText: String = text)
 
 /** One recognized word/token and its bounding box, in the coordinate space of the (possibly
  *  preprocessed/resized) bitmap that was actually recognized. */
@@ -160,6 +167,6 @@ data class OcrWord(val text: String, val left: Int, val top: Int, val right: Int
  *  order. This is the unit [com.prateek.datatoolkit.features.invoice.ReceiptTableDetector]
  *  reasons about: a receipt's item table is a run of these, and each word's horizontal
  *  position is what lets column boundaries be inferred instead of assumed. */
-data class OcrLine(val text: String, val words: List<OcrWord>, val left: Int, val top: Int, val right: Int, val bottom: Int) {
+data class OcrLine(val text: String, val words: List<OcrWord>, val left: Int, val top: Int, val right: Int, val bottom: Int, val block: Int = 0) {
     val height: Int get() = bottom - top
 }

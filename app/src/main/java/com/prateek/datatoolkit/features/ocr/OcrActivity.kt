@@ -72,6 +72,13 @@ class OcrActivity : AppCompatActivity() {
         }
         cache = CacheManager(this)
 
+        binding.cbBookMode.setOnCheckedChangeListener { _, _ ->
+            if (ocrResults.isNotEmpty()) {
+                pageTexts = textsFor(ocrResults)
+                binding.etResult.setText(buildCombined())
+            }
+        }
+
         binding.btnCamera.setOnClickListener { launchCamera() }
         binding.btnGallery.setOnClickListener { pickImage.launch("image/*") }
         binding.btnMultiPage.setOnClickListener { pickMultipleImages.launch("image/*") }
@@ -80,14 +87,14 @@ class OcrActivity : AppCompatActivity() {
             saveAs { saveOutput("ocr_${System.currentTimeMillis()}.txt", "text/plain") { file -> file.writeText(combinedText()) } }
         }
         binding.btnSavePdf.setOnClickListener {
-            saveAs { saveOutput("ocr_${System.currentTimeMillis()}.pdf", "application/pdf") { file -> PdfHelper.textToPdf(combinedText(), file) } }
+            saveAs { saveOutput("ocr_${System.currentTimeMillis()}.pdf", "application/pdf") { file -> if (bookMode()) PdfHelper.bookToPdf(combinedText(), file) else PdfHelper.textToPdfWithTables(combinedText(), file) } }
         }
         binding.btnSaveDocx.setOnClickListener {
             saveAs {
                 saveOutput(
                     "ocr_${System.currentTimeMillis()}.docx",
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                ) { file -> DocxWriter.writeText(combinedText(), file) }
+                ) { file -> if (bookMode()) DocxWriter.writeBookText(combinedText(), file) else DocxWriter.writeTextWithTables(combinedText(), file) }
             }
         }
         binding.btnSaveXlsx.setOnClickListener {
@@ -146,11 +153,12 @@ class OcrActivity : AppCompatActivity() {
                     binding.tvStatus.text = "Processing page $done of $total ($pct%)..."
                 }
 
-                pageTexts = results.map { it.text }
+                ocrResults = results
+                pageTexts = textsFor(results)
                 lastDurationMs = System.currentTimeMillis() - start
-                binding.etResult.setText(combinedText())
+                binding.etResult.setText(buildCombined())
 
-                val quality = QualityScorer.scoreText(combinedText())
+                val quality = QualityScorer.scoreText(buildCombined())
                 val charCount = pageTexts.sumOf { it.length }
                 val wordCount = pageTexts.sumOf { p -> p.split(Regex("\\s+")).count { it.isNotBlank() } }
 
@@ -165,7 +173,7 @@ class OcrActivity : AppCompatActivity() {
                     feature = "OCR",
                     inputBytes = bytes,
                     inputLabel = if (uris.size == 1) (uris.first().lastPathSegment ?: "image") else "${uris.size} images",
-                    outputPreview = combinedText(),
+                    outputPreview = buildCombined(),
                     outputPath = null,
                     qualityScore = quality,
                     status = "SUCCESS",
@@ -189,12 +197,29 @@ class OcrActivity : AppCompatActivity() {
         }
     }
 
+    /** What exports use: the editor's current content, so user edits are kept. */
     private fun combinedText(): String =
-        if (pageTexts.size <= 1) pageTexts.firstOrNull().orEmpty()
+        binding.etResult.text?.toString()?.takeIf { it.isNotBlank() } ?: buildCombined()
+
+    private var ocrResults: List<OcrResult> = emptyList()
+
+    private fun bookMode() = binding.cbBookMode.isChecked
+
+    private fun textsFor(rs: List<OcrResult>): List<String> = rs.map {
+        (if (bookMode()) it.bookText else it.layoutText).ifBlank { it.text }
+    }
+
+    private fun buildCombined(): String =
+        if (bookMode()) OcrBook.joinPages(pageTexts)
+        else if (pageTexts.size <= 1) pageTexts.firstOrNull().orEmpty()
         else pageTexts.mapIndexed { i, t -> "--- Page ${i + 1} ---\n$t" }.joinToString("\n\n")
 
-    private fun pageTextsToRows(): List<List<String>> =
-        listOf(listOf("Page", "Text")) + pageTexts.mapIndexed { i, t -> listOf((i + 1).toString(), t) }
+    /** One sheet row per text line; tab-separated table cells become separate columns. */
+    private fun pageTextsToRows(): List<List<String>> {
+        val rows = combinedText().replace("\r\n", "\n").replace('\r', '\n').trimEnd('\n').split("\n").map { it.split('\t') }
+        val cols = rows.maxOfOrNull { it.size } ?: 1
+        return rows.map { r -> r + List(cols - r.size) { "" } }
+    }
 
     private fun formatDuration(ms: Long): String =
         if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)

@@ -7,6 +7,10 @@ import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
+import com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.destination.PDPageFitDestination
+import com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.outline.PDDocumentOutline
+import com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem
+import com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineNode
 import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.tom_roush.pdfbox.multipdf.PDFMergerUtility
@@ -138,6 +142,199 @@ object PdfHelper {
                     }
                     cs.endText()
                 }
+            }
+            doc.save(output)
+        }
+        return replaced
+    }
+
+    /**
+     * Like [textToPdf], but runs of tab-separated lines are drawn as aligned columns (one
+     * column width per run, shrinking the font if needed so every column fits the page).
+     */
+    fun textToPdfWithTables(text: String, output: File, fontSize: Float = 11f): Int {
+        val font = PDType1Font.HELVETICA
+        val margin = 50f
+        val pageSize = PDRectangle.A4
+        val maxWidth = pageSize.width - 2 * margin
+        val leading = fontSize * 1.4f
+        val linesPerPage = ((pageSize.height - 2 * margin) / leading).toInt().coerceAtLeast(1)
+        var replaced = 0
+
+        class Item(val cells: List<String>?, val text: String, val size: Float, val xs: List<Float>)
+        val items = mutableListOf<Item>()
+        val raw = text.replace("\r\n", "\n").replace('\r', '\n').split("\n")
+        var i = 0
+        while (i < raw.size) {
+            if (raw[i].contains('\t')) {
+                var j = i
+                while (j < raw.size && raw[j].contains('\t')) j++
+                val group = raw.subList(i, j).map { l -> l.split('\t').map { sanitizeForWinAnsi(it) { replaced++ }.trim() } }
+                val cols = group.maxOf { it.size }
+                val widths = FloatArray(cols) { c -> group.maxOf { r -> font.getStringWidth(r.getOrElse(c) { "" }) / 1000f } }
+                val pad = 1.0f
+                val totalEm = widths.sum() + pad * (cols - 1)
+                val size = kotlin.math.min(fontSize, maxWidth / totalEm).coerceAtLeast(5f)
+                val xs = (0 until cols).map { c -> margin + (widths.take(c).sum() + pad * c) * size }
+                group.forEach { items.add(Item(it, "", size, xs)) }
+                i = j
+            } else {
+                val sanitized = sanitizeForWinAnsi(raw[i]) { replaced++ }
+                if (sanitized.isBlank()) items.add(Item(null, "", fontSize, emptyList()))
+                else wrapLine(sanitized, font, fontSize, maxWidth).forEach { items.add(Item(null, it, fontSize, emptyList())) }
+                i++
+            }
+        }
+        if (items.isEmpty()) items.add(Item(null, "", fontSize, emptyList()))
+
+        PDDocument().use { doc ->
+            var idx = 0
+            while (idx < items.size) {
+                val page = PDPage(pageSize)
+                doc.addPage(page)
+                PDPageContentStream(doc, page).use { cs ->
+                    cs.beginText()
+                    var px = 0f
+                    var py = 0f
+                    var y = pageSize.height - margin
+                    var onPage = 0
+                    while (idx < items.size && onPage < linesPerPage) {
+                        val item = items[idx]
+                        cs.setFont(font, item.size)
+                        if (item.cells != null) {
+                            item.cells.forEachIndexed { c, t ->
+                                if (t.isNotEmpty()) {
+                                    cs.newLineAtOffset(item.xs[c] - px, y - py)
+                                    px = item.xs[c]; py = y
+                                    cs.showText(t)
+                                }
+                            }
+                        } else {
+                            cs.newLineAtOffset(margin - px, y - py)
+                            px = margin; py = y
+                            cs.showText(item.text.ifEmpty { " " })
+                        }
+                        y -= leading
+                        idx++
+                        onPage++
+                    }
+                    cs.endText()
+                }
+            }
+            doc.save(output)
+        }
+        return replaced
+    }
+
+    /**
+     * Book-style PDF from OCR "book text": `#`/`##`/`###` lines are headings (bold, larger,
+     * H1 centered, kept with the paragraph that follows) and also become PDF bookmarks;
+     * blank-line separated blocks are justified-left paragraphs in a serif font; pages are
+     * numbered at the bottom.
+     */
+    fun bookToPdf(text: String, output: File, bodySize: Float = 12f): Int {
+        val body = PDType1Font.TIMES_ROMAN
+        val bold = PDType1Font.TIMES_BOLD
+        val pageSize = PDRectangle.A4
+        val margin = 64f
+        val maxWidth = pageSize.width - 2 * margin
+        val leading = bodySize * 1.45f
+        var replaced = 0
+
+        PDDocument().use { doc ->
+            lateinit var cs: PDPageContentStream
+            lateinit var page: PDPage
+            var y = 0f
+            var pageNo = 0
+            var started = false
+
+            fun closePage() {
+                if (!started) return
+                val label = pageNo.toString()
+                val w = body.getStringWidth(label) / 1000f * 9f
+                cs.beginText()
+                cs.setFont(body, 9f)
+                cs.newLineAtOffset((pageSize.width - w) / 2f, margin / 2f)
+                cs.showText(label)
+                cs.endText()
+                cs.close()
+                started = false
+            }
+            fun openPage() {
+                page = PDPage(pageSize)
+                doc.addPage(page)
+                pageNo++
+                cs = PDPageContentStream(doc, page)
+                started = true
+                y = pageSize.height - margin
+            }
+            fun ensure(height: Float) {
+                if (!started) openPage()
+                else if (y - height < margin) { closePage(); openPage() }
+            }
+            fun drawLine(t: String, font: PDType1Font, size: Float, x: Float) {
+                cs.beginText()
+                cs.setFont(font, size)
+                cs.newLineAtOffset(x, y - size)
+                cs.showText(t)
+                cs.endText()
+            }
+
+            val outline = PDDocumentOutline()
+            val stack = arrayOfNulls<PDOutlineItem>(4)
+            var bookmarks = 0
+            fun addBookmark(title: String, level: Int) {
+                try {
+                    val item = PDOutlineItem()
+                    item.title = title
+                    val dest = PDPageFitDestination()
+                    dest.page = page
+                    item.destination = dest
+                    val parent: PDOutlineNode = (level - 1 downTo 1).firstNotNullOfOrNull { stack[it] } ?: outline
+                    parent.addLast(item)
+                    stack[level] = item
+                    for (k in level + 1..3) stack[k] = null
+                    bookmarks++
+                } catch (_: Exception) { /* bookmarks are a bonus - never fail the export */ }
+            }
+
+            val blocks = text.replace("\r\n", "\n").replace('\r', '\n').split(Regex("\n\\s*\n"))
+            for (raw in blocks) {
+                val t = raw.trim()
+                if (t.isEmpty()) continue
+                val level = if (t.startsWith("#")) t.takeWhile { it == '#' }.length.coerceAtMost(3) else 0
+                val content = sanitizeForWinAnsi(
+                    (if (level > 0) t.drop(level).trim() else t).replace(Regex("\\s*\n\\s*"), " ").replace("\t", " ")
+                ) { replaced++ }
+                if (content.isBlank()) continue
+
+                if (level > 0) {
+                    val size = when (level) { 1 -> 22f; 2 -> 17f; else -> 14f }
+                    val lines = wrapLine(content, bold, size, maxWidth)
+                    val hLead = size * 1.3f
+                    val before = if (started && y < pageSize.height - margin - 1f) size * 1.1f else 0f
+                    ensure(before + lines.size * hLead + 3 * leading)
+                    y -= if (y < pageSize.height - margin - 1f) before else 0f
+                    addBookmark(content, level)
+                    for (ln in lines) {
+                        val w = bold.getStringWidth(ln) / 1000f * size
+                        drawLine(ln, bold, size, if (level == 1) margin + (maxWidth - w) / 2f else margin)
+                        y -= hLead
+                    }
+                    y -= size * 0.4f
+                } else {
+                    for (ln in wrapLine(content, body, bodySize, maxWidth)) {
+                        ensure(leading)
+                        drawLine(ln, body, bodySize, margin)
+                        y -= leading
+                    }
+                    y -= leading * 0.45f
+                }
+            }
+            if (!started && pageNo == 0) openPage()
+            closePage()
+            if (bookmarks > 0) {
+                try { outline.openNode(); doc.documentCatalog.documentOutline = outline } catch (_: Exception) { }
             }
             doc.save(output)
         }
