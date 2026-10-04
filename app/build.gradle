@@ -12,13 +12,29 @@ android {
         applicationId "com.prateek.datatoolkit"
         minSdk 24
         targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        // CI passes GITHUB_RUN_NUMBER, so every new build has a higher versionCode and Android
+        // accepts it as an update over the installed one (local builds fall back to 1).
+        def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    // One fixed signing key for every build. Android only installs a new APK over an existing
+    // app ("update", keeping its data) when both are signed with the same key - the default
+    // debug key is regenerated on each CI runner, which is why updates used to be refused.
+    signingConfigs {
+        debug {
+            storeFile file("keystore/datatoolkit.jks")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "datatoolkit"
+            keyAlias "datatoolkit"
+            keyPassword System.getenv("KEY_PASSWORD") ?: "datatoolkit"
+        }
     }
 
     buildTypes {
         release {
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }

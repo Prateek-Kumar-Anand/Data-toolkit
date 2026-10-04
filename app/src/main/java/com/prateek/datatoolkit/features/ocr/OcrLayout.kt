@@ -46,7 +46,7 @@ object OcrLayout {
         val cellRows = rows.map { cellsOf(it, gap) }
         val n = rows.size
 
-        val blocks = findBlocks(cellRows, rows)
+        val blocks = findBlocks(cellRows, rows, medianH)
         val rendered = mutableMapOf<Int, List<List<String>>>() // block start -> table rows
         val blockEnd = mutableMapOf<Int, Int>()
         for (b in blocks) {
@@ -61,7 +61,10 @@ object OcrLayout {
         while (i < n) {
             val table = rendered[i]
             if (table != null) {
+                // A blank line before/after keeps neighbouring tables from fusing into one.
+                if (out.isNotEmpty() && !out.endsWith("\n\n")) out.append('\n')
                 table.forEach { out.append(it.joinToString("\t")).append('\n') }
+                out.append('\n')
                 i = blockEnd.getValue(i) + 1
             } else {
                 out.append(cellRows[i].joinToString(" ") { it.text }).append('\n')
@@ -94,25 +97,81 @@ object OcrLayout {
         return out
     }
 
-    /** Runs of rows with 2+ cells (one single-cell row may sit inside a run: a wrapped line). */
-    private fun findBlocks(cellRows: List<List<Cell>>, rows: List<Row>): List<IntRange> {
-        val n = cellRows.size
-        val multi = BooleanArray(n) { cellRows[it].size >= 2 }
+    /**
+     * Splits the page into separate tables. Rows are added to the current table only while
+     * they fit its column structure and sit close to the previous row; a new column layout,
+     * or a clear vertical gap, starts the next table. One single-cell row directly under a
+     * table row (a wrapped line) stays inside the table.
+     */
+    private fun findBlocks(cellRows: List<List<Cell>>, rows: List<Row>, medianH: Int): List<IntRange> {
         val blocks = mutableListOf<IntRange>()
-        var i = 0
-        while (i < n) {
-            if (!multi[i]) { i++; continue }
-            var end = i
-            var j = i + 1
-            while (j < n) {
-                if (multi[j]) { end = j; j++ }
-                else if (j + 1 < n && multi[j + 1]) j++
-                else break
-            }
-            if ((i..end).count { multi[it] } >= 2) blocks.add(i..end)
-            i = end + 1
+        var start = -1
+        var lastMulti = -1
+        var last = -1
+        var groupCells = mutableListOf<Cell>()
+        var multiCount = 0
+        val tol = (0.4f * medianH).toInt()
+
+        fun close() {
+            if (start >= 0 && multiCount >= 2) blocks.add(start..lastMulti)
+            start = -1; lastMulti = -1; last = -1; multiCount = 0
+            groupCells = mutableListOf()
         }
+
+        for (r in cellRows.indices) {
+            val cells = cellRows[r]
+            if (cells.size >= 2) {
+                if (start >= 0) {
+                    val gap = rows[r].top - rows[last].bottom
+                    if (gap > 2.2f * medianH || !compatible(cells, bandsOf(groupCells), tol)) close()
+                }
+                if (start < 0) start = r
+                groupCells.addAll(cells)
+                multiCount++
+                lastMulti = r
+                last = r
+            } else if (start >= 0) {
+                val gap = rows[r].top - rows[last].bottom
+                val bands = bandsOf(groupCells)
+                val fits = cells.isNotEmpty() && bands.any { overlaps(cells[0], it, tol) }
+                if (gap <= 0.8f * medianH && fits) last = r else close()
+            }
+        }
+        close()
         return blocks
+    }
+
+    private fun overlaps(c: Cell, b: IntArray, tol: Int) = c.left <= b[1] + tol && c.right >= b[0] - tol
+
+    /** Column bands = merged horizontal extents of the cells (very wide spanning cells ignored). */
+    private fun bandsOf(cells: List<Cell>): List<IntArray> {
+        if (cells.isEmpty()) return emptyList()
+        val width = (cells.maxOf { it.right } - cells.minOf { it.left }).coerceAtLeast(1)
+        val usable = cells.filter { it.right - it.left <= 0.5f * width }.ifEmpty { cells }
+        val bands = mutableListOf<IntArray>()
+        for (c in usable.sortedBy { it.left }) {
+            val last = bands.lastOrNull()
+            if (last != null && c.left <= last[1]) last[1] = max(last[1], c.right) else bands.add(intArrayOf(c.left, c.right))
+        }
+        return bands
+    }
+
+    /** True if a row's cells line up with the table's columns (no spanning, no two cells in one column). */
+    private fun compatible(cells: List<Cell>, bands: List<IntArray>, tol: Int): Boolean {
+        if (bands.isEmpty()) return true
+        val width = (bands.last()[1] - bands.first()[0]).coerceAtLeast(1)
+        val hit = IntArray(bands.size)
+        var shared = false
+        for (c in cells) {
+            if (bands.size >= 2 && c.right - c.left > 0.5f * width) continue
+            val idx = bands.indices.filter { overlaps(c, bands[it], tol) }
+            if (idx.size >= 2) return false
+            if (idx.size == 1) {
+                if (++hit[idx[0]] > 1) return false
+                shared = true
+            }
+        }
+        return shared
     }
 
     private fun buildTable(block: IntRange, cellRows: List<List<Cell>>, rows: List<Row>, medianH: Int): List<List<String>>? {
@@ -121,17 +180,7 @@ object OcrLayout {
         val avgWords = multiCells.map { it.text.split(' ').size }.average()
         if (avgWords > 6) return null
 
-        val minL = multiCells.minOf { it.left }
-        val maxR = multiCells.maxOf { it.right }
-        val width = (maxR - minL).coerceAtLeast(1)
-        val usable = multiCells.filter { it.right - it.left <= 0.5f * width }.ifEmpty { multiCells }
-
-        // Column bands = merged horizontal extents of cells across all rows.
-        val bands = mutableListOf<IntArray>()
-        for (c in usable.sortedBy { it.left }) {
-            val last = bands.lastOrNull()
-            if (last != null && c.left <= last[1]) last[1] = max(last[1], c.right) else bands.add(intArrayOf(c.left, c.right))
-        }
+        val bands = bandsOf(multiCells)
         if (bands.size !in 2..15) return null
 
         fun bandOf(c: Cell): Int {
