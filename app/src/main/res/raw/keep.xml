@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resources intentionally kept although nothing references them yet (silences lint UnusedResources). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/bg_badge_pill,@drawable/bg_featured_card,@drawable/bg_hero_gradient,@drawable/btn_bevel_accent,@drawable/btn_bevel_invoice,@drawable/ic_check_mark,@color/accent_dark,@color/background_soft,@color/stroke_soft,@color/surface_bevel_hi,@color/surface_bevel_lo,@color/groove_edge_dark,@color/text_on_primary_muted,@color/workflow_gradient_start,@color/workflow_gradient_mid,@color/workflow_gradient_end,@color/accent_cleaning,@color/accent_ocr,@color/accent_scraping,@color/accent_email,@color/accent_batch,@color/accent_dashboard,@color/accent_workflow_bg,@color/accent_invoice_bg,@color/badge_locked,@style/Widget_App_Button_Accent,@style/Widget_App_Button_Invoice,@style/TextAppearance_App_Readout" />
