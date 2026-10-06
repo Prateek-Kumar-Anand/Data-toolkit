@@ -6,7 +6,6 @@
     <color name="primary_light">#8FB0FF</color>
     <color name="secondary">#6C5CE7</color>
     <color name="accent">#F5A524</color>
-    <color name="accent_dark">#C77F0A</color>
 
     <color name="gradient_start">#FFFFFF</color>
     <color name="gradient_mid">#FFFFFF</color>
@@ -14,20 +13,14 @@
 
     <color name="background">#FFFFFF</color>
     <color name="background_alt">#FFFFFF</color>
-    <color name="background_soft">#F6F8FC</color>
     <color name="surface">#FFFFFF</color>
     <color name="surface_muted">#F3F6FF</color>
     <color name="stroke">#E1E7F5</color>
-    <color name="stroke_soft">#12000000</color>
-    <color name="surface_bevel_hi">#FFFFFF</color>
-    <color name="surface_bevel_lo">#D5DCF0</color>
     <color name="groove_bg">#F1F4FD</color>
-    <color name="groove_edge_dark">#D5DCF0</color>
 
     <color name="text_primary">#101828</color>
     <color name="text_secondary">#6B7488</color>
     <color name="text_on_primary">#FFFFFF</color>
-    <color name="text_on_primary_muted">#6B7488</color>
 
     <color name="success">#16A34A</color>
     <color name="error">#DC2626</color>
@@ -36,19 +29,10 @@
     <color name="ripple_on_primary">#30FFFFFF</color>
     <color name="icon_chip_bg">#E8EEFF</color>
 
-    <color name="workflow_gradient_start">#FFFFFF</color>
-    <color name="workflow_gradient_mid">#FFFFFF</color>
-    <color name="workflow_gradient_end">#FFFFFF</color>
     <color name="accent_workflow">#7C4DFF</color>
 
-    <color name="accent_cleaning">#7C5CE0</color>
-    <color name="accent_ocr">#2F6FED</color>
     <color name="accent_pdf">#E5484D</color>
     <color name="accent_excel">#12A150</color>
-    <color name="accent_scraping">#0EA5B7</color>
-    <color name="accent_email">#E5408A</color>
-    <color name="accent_batch">#F59E0B</color>
-    <color name="accent_dashboard">#3B6FD8</color>
     <color name="accent_invoice">#0F9D82</color>
     <color name="accent_conversion">#A34FD8</color>
 
@@ -60,9 +44,6 @@
     <color name="accent_email_bg">#FCE1EE</color>
     <color name="accent_batch_bg">#FEEFD2</color>
     <color name="accent_dashboard_bg">#E0E9FB</color>
-    <color name="accent_workflow_bg">#E9E1FF</color>
-    <color name="accent_invoice_bg">#D8F3EC</color>
     <color name="accent_conversion_bg">#F1E1FA</color>
 
-    <color name="badge_locked">#C9D0E0</color>
 </resources>

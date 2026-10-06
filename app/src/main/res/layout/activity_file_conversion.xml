@@ -9,19 +9,17 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <FrameLayout
+        <LinearLayout android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_header_flat"
             android:paddingStart="20dp" android:paddingEnd="20dp"
             android:paddingTop="26dp" android:paddingBottom="22dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="🔁  File Conversion" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
-                    android:text="Documents, images and audio — convert between formats, on-device" android:textColor="@color/text_secondary" android:textSize="13sp" />
-            </LinearLayout>
-        </FrameLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/file_conversion_file_conversion" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                android:text="@string/file_conversion_documents_images_and_audio" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -32,13 +30,13 @@
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="1. Choose a file" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        android:text="@string/file_conversion_choose_a_file" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnPickFile"
                         style="@style/Widget.App.Button.Outlined"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
-                        android:text="Pick any document, image, audio or video file" />
+                        android:text="@string/file_conversion_pick_any_document_image" />
                     <TextView android:id="@+id/tvSourceInfo" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="10dp" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
                 </LinearLayout>
@@ -47,7 +45,7 @@
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="2. Pick a target format" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        android:text="@string/file_conversion_pick_a_target_format" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                     <Spinner android:id="@+id/spinnerTargetFormat" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
                     <com.google.android.material.button.MaterialButton
@@ -56,7 +54,7 @@
                         android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:enabled="false"
-                        android:text="🔁  Convert" />
+                        android:text="@string/file_conversion_convert" />
                     <ProgressBar
                         android:id="@+id/progressBar"
                         style="?android:attr/progressBarStyleHorizontal"
@@ -76,13 +74,12 @@
                 style="@style/Widget.App.Button.Outlined"
                 android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:enabled="false"
-                android:text="💾  Save Converted File As…" />
+                android:text="@string/file_conversion_save_converted_file_as" />
 
             <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Notes: document conversion carries over text only (no fonts/layout). Video is limited to extracting the audio track as .m4a — full video re-encoding isn't supported on-device."
+                android:text="@string/file_conversion_notes_document_conversion_carries"
                 android:textColor="@color/text_secondary" android:textSize="11.5sp" />
-
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

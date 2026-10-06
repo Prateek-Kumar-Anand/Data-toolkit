@@ -13,31 +13,26 @@
         android:orientation="vertical">
 
         <!-- Hero header - a distinct fuchsia-to-violet gradient marks this as the newest tool. -->
-        <FrameLayout
+        <LinearLayout android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_header_workflow"
             android:paddingStart="20dp" android:paddingEnd="20dp"
             android:paddingTop="26dp" android:paddingBottom="22dp">
-            <LinearLayout
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/workflow_workflow_builder"
+                android:textColor="@color/text_primary"
+                android:textAppearance="@style/TextAppearance.App.HeroTitle" />
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🔀  Workflow Builder"
-                    android:textColor="@color/text_primary"
-                    android:textAppearance="@style/TextAppearance.App.HeroTitle" />
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Chain tools together — one step feeds the next, right through to a saved file"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
-            </LinearLayout>
-        </FrameLayout>
+                android:layout_marginTop="4dp"
+                android:text="@string/workflow_chain_tools_together_one"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -59,7 +54,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="YOUR PIPELINE"
+                        android:text="@string/workflow_your_pipeline"
                         android:textAppearance="@style/TextAppearance.App.Eyebrow" />
 
                     <TextView
@@ -67,7 +62,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
-                        android:text="Empty for now — add the first step below to get started."
+                        android:text="@string/workflow_empty_for_now_add"
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp" />
 
@@ -94,14 +89,14 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="ADD A STEP"
+                        android:text="@string/workflow_add_a_step"
                         android:textAppearance="@style/TextAppearance.App.Eyebrow" />
 
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="Only steps that make sense next are shown"
+                        android:text="@string/workflow_only_steps_that_make"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
 
@@ -132,13 +127,13 @@
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginEnd="6dp"
-                            android:text="↺ Start Over" />
+                            android:text="@string/workflow_start_over" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnRunWorkflow"
                             style="@style/Widget.App.Button.Workflow"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginStart="6dp"
-                            android:text="▶ Run Workflow" />
+                            android:text="@string/workflow_run_workflow" />
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
@@ -147,7 +142,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="💾 Save This Workflow…" />
+                        android:text="@string/workflow_save_this_workflow" />
 
                     <ProgressBar
                         android:id="@+id/progressBar"
@@ -198,7 +193,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="SAVED WORKFLOWS"
+                        android:text="@string/workflow_saved_workflows"
                         android:textAppearance="@style/TextAppearance.App.Eyebrow" />
 
                     <TextView
@@ -206,7 +201,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="Nothing saved yet — build a pipeline above, then &quot;Save This Workflow…&quot;."
+                        android:text="@string/workflow_nothing_saved_yet_build"
                         android:textColor="@color/text_secondary"
                         android:textSize="12.5sp" />
 
@@ -233,7 +228,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="RUN HISTORY"
+                        android:text="@string/workflow_run_history"
                         android:textAppearance="@style/TextAppearance.App.Eyebrow" />
 
                     <TextView
@@ -241,7 +236,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="No runs yet — run a workflow above to see it here."
+                        android:text="@string/workflow_no_runs_yet_run"
                         android:textColor="@color/text_secondary"
                         android:textSize="12.5sp" />
 
@@ -253,7 +248,6 @@
                         android:orientation="vertical" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

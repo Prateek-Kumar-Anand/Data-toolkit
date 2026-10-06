@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout android:baselineAligned="false" xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/bottomNav"
     android:layout_width="match_parent" android:layout_height="wrap_content"
     android:background="@drawable/bg_nav_bar" android:elevation="6dp"
@@ -9,31 +9,31 @@
         android:orientation="vertical" android:gravity="center_horizontal"
         android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:focusable="true">
         <View android:layout_width="22dp" android:layout_height="3dp" android:background="@drawable/bg_nav_indicator" android:visibility="invisible" />
-        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_tools" android:contentDescription="Tools" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Tools" android:textSize="11sp" />
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_tools" android:contentDescription="@string/bottom_nav_tools" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/bottom_nav_tools" android:textSize="11sp" />
     </LinearLayout>
 
     <LinearLayout android:id="@+id/navBatch" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
         android:orientation="vertical" android:gravity="center_horizontal"
         android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:focusable="true">
         <View android:layout_width="22dp" android:layout_height="3dp" android:background="@drawable/bg_nav_indicator" android:visibility="invisible" />
-        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_batch" android:contentDescription="Batch" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Batch" android:textSize="11sp" />
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_batch" android:contentDescription="@string/bottom_nav_batch" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/bottom_nav_batch" android:textSize="11sp" />
     </LinearLayout>
 
     <LinearLayout android:id="@+id/navWorkflow" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
         android:orientation="vertical" android:gravity="center_horizontal"
         android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:focusable="true">
         <View android:layout_width="22dp" android:layout_height="3dp" android:background="@drawable/bg_nav_indicator" android:visibility="invisible" />
-        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_workflow" android:contentDescription="Workflow" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Workflow" android:textSize="11sp" />
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_workflow" android:contentDescription="@string/bottom_nav_workflow" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/bottom_nav_workflow" android:textSize="11sp" />
     </LinearLayout>
 
     <LinearLayout android:id="@+id/navStats" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
         android:orientation="vertical" android:gravity="center_horizontal"
         android:background="?attr/selectableItemBackgroundBorderless" android:clickable="true" android:focusable="true">
         <View android:layout_width="22dp" android:layout_height="3dp" android:background="@drawable/bg_nav_indicator" android:visibility="invisible" />
-        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_stats" android:contentDescription="Stats" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Stats" android:textSize="11sp" />
+        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginTop="7dp" android:src="@drawable/ic_nav_stats" android:contentDescription="@string/bottom_nav_stats" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/bottom_nav_stats" android:textSize="11sp" />
     </LinearLayout>
 </LinearLayout>

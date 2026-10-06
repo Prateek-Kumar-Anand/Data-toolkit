@@ -8,19 +8,17 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <FrameLayout
+    <LinearLayout android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_header_flat"
         android:paddingStart="20dp" android:paddingEnd="20dp"
         android:paddingTop="26dp" android:paddingBottom="16dp">
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="📊  Excel / CSV" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
-                android:text="Open, edit cells and formulas, convert either way" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="@string/excel_csv_excel_csv" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+            android:text="@string/excel_csv_open_edit_cells_and" android:textColor="@color/text_secondary" android:textSize="13sp" />
         </LinearLayout>
-    </FrameLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -35,12 +33,12 @@
                 android:id="@+id/btnPickXlsx"
                 style="@style/Widget.App.Button.Compact"
                 android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginEnd="6dp" android:text="Open .xlsx" />
+                android:layout_marginEnd="6dp" android:text="@string/excel_csv_open_xlsx" />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnPickCsv"
                 style="@style/Widget.App.Button.Compact.Outlined"
                 android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginStart="6dp" android:text="Open .csv" />
+                android:layout_marginStart="6dp" android:text="@string/excel_csv_open_csv" />
         </LinearLayout>
 
         <ProgressBar
@@ -53,7 +51,7 @@
             android:visibility="gone" />
 
         <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="Open a file, or just start typing below to build one from scratch."
+            android:layout_marginTop="8dp" android:text="@string/excel_csv_open_a_file_or"
             android:textColor="@color/text_secondary" android:textSize="12.5sp" />
 
         <HorizontalScrollView
@@ -76,23 +74,23 @@
             <TextView
                 android:id="@+id/tvCellRef"
                 android:layout_width="52dp" android:layout_height="wrap_content"
-                android:text="A1" android:textColor="@color/accent_excel" android:textStyle="bold"
+                android:text="@string/excel_csv_a" android:textColor="@color/accent_excel" android:textStyle="bold"
                 android:textSize="13sp" android:fontFamily="monospace" android:gravity="center" />
             <TextView
                 android:id="@+id/btnBold"
                 android:layout_width="36dp" android:layout_height="36dp"
                 android:layout_marginStart="6dp"
-                android:text="B" android:textColor="@color/text_secondary" android:textStyle="bold"
+                android:text="@string/excel_csv_b" android:textColor="@color/text_secondary" android:textStyle="bold"
                 android:textSize="15sp" android:gravity="center"
                 android:background="@drawable/bg_pill_muted"
                 android:clickable="true" android:focusable="true" />
-            <EditText
+            <EditText android:importantForAutofill="no"
                 android:id="@+id/formulaBar"
                 android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                 android:layout_marginStart="6dp"
                 android:background="@drawable/bg_input_field"
                 android:fontFamily="monospace" android:textSize="14sp" android:textColor="@color/text_primary"
-                android:hint="Cell value or formula, e.g. =SUM(A1:A3)"
+                android:hint="@string/excel_csv_cell_value_or_formula"
                 android:inputType="text" android:imeOptions="actionDone" android:maxLines="1"
                 android:paddingTop="8dp" android:paddingBottom="8dp" />
         </LinearLayout>
@@ -119,12 +117,12 @@
                 android:id="@+id/btnExportCsv"
                 style="@style/Widget.App.Button.Compact"
                 android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginEnd="6dp" android:text="💾 Save .csv" />
+                android:layout_marginEnd="6dp" android:text="@string/excel_csv_save_csv" />
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnExportXlsx"
                 style="@style/Widget.App.Button.Compact.Outlined"
                 android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                android:layout_marginStart="6dp" android:text="💾 Save .xlsx" />
+                android:layout_marginStart="6dp" android:text="@string/excel_csv_save_xlsx" />
         </LinearLayout>
         <!-- Overwrites the opened file in place; disabled until a file's actually been opened
              (there's nothing to overwrite for the blank starter sheet). -->
@@ -132,6 +130,6 @@
             android:id="@+id/btnUpdate"
             style="@style/Widget.App.Button.Compact.Outlined"
             android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" android:text="🔁 Update opened file" android:enabled="false" />
+            android:layout_marginTop="8dp" android:text="@string/excel_csv_update_opened_file" android:enabled="false" />
     </LinearLayout>
 </LinearLayout>

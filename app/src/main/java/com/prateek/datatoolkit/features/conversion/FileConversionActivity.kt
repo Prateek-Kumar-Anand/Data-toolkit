@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.features.conversion
 
+import com.prateek.datatoolkit.R
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -114,13 +115,13 @@ class FileConversionActivity : AppCompatActivity() {
 
         availableTargets = FileConversionHelper.targetFormats(category, ext)
         if (availableTargets.isEmpty()) {
-            binding.tvSourceInfo.text = "$name — already in its only supported format"
+            binding.tvSourceInfo.text = getString(R.string.conversion_already_in_its_only, name)
             return
         }
         binding.spinnerTargetFormat.adapter = ArrayAdapter(
             this, android.R.layout.simple_spinner_dropdown_item, availableTargets.map { it.label }
         )
-        binding.tvSourceInfo.text = "Loading $name…"
+        binding.tvSourceInfo.text = getString(R.string.conversion_loading, name)
         setBusy(true)
 
         lifecycleScope.launch {
@@ -130,11 +131,11 @@ class FileConversionActivity : AppCompatActivity() {
                 }
                 if (generation != loadGeneration) { temp.delete(); return@launch }
                 sourceTempFile = temp
-                binding.tvSourceInfo.text = "$name  •  ${categoryLabel(category)}"
+                binding.tvSourceInfo.text = getString(R.string.conversion_text, name, categoryLabel(category))
                 binding.btnConvert.isEnabled = true
             } catch (e: Throwable) {
                 if (generation == loadGeneration) {
-                    binding.tvSourceInfo.text = "Failed to read $name: ${friendlyError(e)}"
+                    binding.tvSourceInfo.text = getString(R.string.conversion_failed_to_read, name, friendlyError(e))
                 }
             } finally {
                 if (generation == loadGeneration) setBusy(false)
@@ -157,7 +158,7 @@ class FileConversionActivity : AppCompatActivity() {
         binding.btnConvert.isEnabled = false
         binding.btnSaveAs.isEnabled = false
         setBusy(true)
-        binding.tvStatus.text = "Converting to ${target.label}…"
+        binding.tvStatus.text = getString(R.string.conversion_converting_to, target.label)
 
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
@@ -169,8 +170,8 @@ class FileConversionActivity : AppCompatActivity() {
                 convertedFile = outFile
                 convertedTargetPos = targetPos
                 binding.btnSaveAs.isEnabled = true
-                binding.tvStatus.text = "Done — ${outFile.name} (${formatSize(outFile.length())}) ready to save" +
-                    (warning?.let { "\n⚠ $it" } ?: "")
+                binding.tvStatus.text = getString(R.string.conversion_done_ready, outFile.name, formatSize(outFile.length())) +
+                    (warning?.let { getString(R.string.conversion_warning_suffix, it) } ?: "")
                 safeRecord(
                     feature = "FILE_CONVERSION",
                     inputText = "$sourceFileName->${target.extension}:${System.currentTimeMillis()}",
@@ -186,7 +187,7 @@ class FileConversionActivity : AppCompatActivity() {
                 throw e
             } catch (e: Throwable) {
                 outFile.delete() // never leave a half-written output behind
-                binding.tvStatus.text = "Conversion failed: ${friendlyError(e)}"
+                binding.tvStatus.text = getString(R.string.conversion_conversion_failed, friendlyError(e))
                 safeRecord(
                     feature = "FILE_CONVERSION",
                     inputText = "$sourceFileName->${target.extension}:${System.currentTimeMillis()}",

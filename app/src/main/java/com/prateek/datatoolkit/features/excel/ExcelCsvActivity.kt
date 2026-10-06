@@ -216,7 +216,7 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
                 openedAsXlsx = asXlsx
                 openWorkbook(loaded, uri.lastPathSegment ?: defaultName, start)
             } catch (e: Throwable) {
-                binding.tvStatus.text = "Failed to open: ${e.message}"
+                binding.tvStatus.text = getString(R.string.excel_failed_to_open, e.message)
             } finally {
                 binding.progressBar.visibility = View.GONE
             }

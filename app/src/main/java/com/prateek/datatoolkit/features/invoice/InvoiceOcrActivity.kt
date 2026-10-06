@@ -95,7 +95,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
     private fun processSingle(uri: Uri) {
         setBusy(true)
         clearFields()
-        binding.tvStatus.text = "Recognizing text..."
+        binding.tvStatus.text = getString(R.string.invoice_recognizing_text_2)
         binding.progressBar.max = 100
         binding.progressBar.progress = 0
 
@@ -110,9 +110,9 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
                 val results = OcrHelper.recognizeBatch(listOf(bitmap)) { done, total ->
                     binding.progressBar.progress = (done * 100) / total
-                    binding.tvStatus.text = "Recognizing text... (${(done * 100) / total}%)"
+                    binding.tvStatus.text = getString(R.string.invoice_recognizing_text, (done * 100) / total)
                 }
-                binding.tvStatus.text = "Parsing invoice fields..."
+                binding.tvStatus.text = getString(R.string.invoice_parsing_invoice_fields)
                 val ocrResult = results.first()
                 // Passing the full OcrResult (not just its flattened text) lets the parser
                 // detect the item table's structure from where words actually sit on the
@@ -140,7 +140,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
                 recordScan(uri.toString(), displayNameOf(uri), ocrResult.text, quality, "SUCCESS", durationMs)
             } catch (e: Throwable) {
-                binding.tvStatus.text = "Scan failed: ${e.message}"
+                binding.tvStatus.text = getString(R.string.invoice_scan_failed, e.message)
                 recordScan(uri.toString(), displayNameOf(uri), "", 0, "FAILED", System.currentTimeMillis() - start)
             } finally {
                 setBusy(false)
@@ -155,7 +155,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         clearFields()
         binding.progressBar.max = 100
         binding.progressBar.progress = 0
-        binding.tvStatus.text = "Processing 1 of ${uris.size} (0%)..."
+        binding.tvStatus.text = getString(R.string.invoice_processing_of_2, uris.size)
 
         lifecycleScope.launch {
             var added = 0
@@ -190,9 +190,9 @@ class InvoiceOcrActivity : AppCompatActivity() {
                 }
                 val pct = ((index + 1) * 100) / uris.size
                 binding.progressBar.progress = pct
-                binding.tvStatus.text = "Processing ${index + 1} of ${uris.size} ($pct%)..."
+                binding.tvStatus.text = getString(R.string.invoice_processing_of, index + 1, uris.size, pct)
             }
-            binding.tvStatus.text = "Batch scan done — $added of ${uris.size} invoice(s) added to the batch below"
+            binding.tvStatus.text = getString(R.string.invoice_batch_scan_done_of, added, uris.size)
             renderBatch()
             renderHistory()
             setBusy(false)
@@ -333,7 +333,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         batch.add(entry)
         renderBatch()
         clearFields()
-        binding.tvStatus.text = "Added to batch (${batch.size} total) — scan another, or export below"
+        binding.tvStatus.text = getString(R.string.invoice_added_to_batch_total, batch.size)
         Toast.makeText(this, "Added to batch", Toast.LENGTH_SHORT).show()
     }
 
@@ -367,7 +367,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         val icon = if (invoice.itemsNeedReview || invoice.totalsNeedReview) "⚠️" else "🧾"
 
         row.addView(TextView(this).apply {
-            text = "$icon  $label"
+            text = getString(R.string.invoice_text, icon, label)
             setTextColor(colorOf(R.color.text_primary))
             textSize = 13f
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -504,7 +504,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         })
         row.addView(headerRow)
         row.addView(TextView(this).apply {
-            text = "${dateLabel(item.timestamp)}  •  quality ${item.qualityScore}%  •  ${formatDuration(item.durationMs)}"
+            text = getString(R.string.invoice_quality, dateLabel(item.timestamp), item.qualityScore, formatDuration(item.durationMs))
             setTextColor(colorOf(R.color.text_secondary))
             textSize = 11f
             setPadding(0, dp(2), 0, 0)

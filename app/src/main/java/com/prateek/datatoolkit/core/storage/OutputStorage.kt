@@ -6,6 +6,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import androidx.annotation.RequiresApi
 import android.provider.MediaStore
 import com.prateek.datatoolkit.core.io.FileGuards
 import java.io.File
@@ -95,6 +96,7 @@ object OutputStorage {
 
     // ---- API 29+ : MediaStore.Downloads -------------------------------------------------------
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun writeViaMediaStore(context: Context, module: Module, desiredName: String, mimeType: String, writer: (OutputStream) -> Unit): SavedFile {
         val resolver = context.contentResolver
         val relPath = relativePath(module)
@@ -126,6 +128,7 @@ object OutputStorage {
      *  reject or dedupe a repeated DISPLAY_NAME the same way across every OEM/API level, so this
      *  checks ourselves rather than trusting the provider not to produce two files that look
      *  like an overwrite to the user. */
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun existingDisplayNames(context: Context, relPath: String): Set<String> {
         val names = mutableSetOf<String>()
         context.contentResolver.query(

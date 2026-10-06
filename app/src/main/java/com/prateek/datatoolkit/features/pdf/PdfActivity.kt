@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.features.pdf
 
+import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.ui.enableInnerScroll
 
 import android.net.Uri
@@ -92,7 +93,7 @@ class PdfActivity : AppCompatActivity() {
 
     private fun extractText(uri: Uri) {
         setBusy(true)
-        binding.tvStatus.text = "Extracting text..."
+        binding.tvStatus.text = getString(R.string.pdf_extracting_text)
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
             try {
@@ -103,10 +104,10 @@ class PdfActivity : AppCompatActivity() {
                 lastPdfFile = null // this result is text, not a PDF file
                 binding.etOutput.setText(text)
                 val quality = QualityScorer.scoreText(text)
-                binding.tvStatus.text = "Extracted ${text.length} characters  |  Quality: $quality/100"
+                binding.tvStatus.text = getString(R.string.pdf_extracted_characters_quality, text.length, quality)
                 cache.record("PDF", (uri.toString() + text.length).toByteArray(), uri.lastPathSegment ?: "pdf", text, null, quality, "SUCCESS", durationMs = System.currentTimeMillis() - start)
             } catch (e: Exception) {
-                binding.tvStatus.text = "Failed: ${e.message}"
+                binding.tvStatus.text = getString(R.string.pdf_failed, e.message)
             } finally {
                 setBusy(false)
             }
@@ -119,7 +120,7 @@ class PdfActivity : AppCompatActivity() {
             return
         }
         setBusy(true)
-        binding.tvStatus.text = "Merging ${uris.size} PDFs..."
+        binding.tvStatus.text = getString(R.string.pdf_merging_pdfs, uris.size)
         lifecycleScope.launch {
             try {
                 val outFile = File(cacheDir, "merged_${System.currentTimeMillis()}.pdf")
@@ -133,11 +134,11 @@ class PdfActivity : AppCompatActivity() {
                     }
                 }
                 lastPdfFile = outFile
-                binding.tvStatus.text = "Merged ${uris.size} PDFs — tap Save to save it"
-                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
+                binding.tvStatus.text = getString(R.string.pdf_merged_pdfs_tap_save, uris.size)
+                binding.etOutput.setText(getString(R.string.pdf_ready_tap_save_last, outFile.name))
                 cache.record("PDF", outFile.name.toByteArray(), "${uris.size} PDFs merged", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
-                binding.tvStatus.text = "Merge failed: ${e.message}"
+                binding.tvStatus.text = getString(R.string.pdf_merge_failed, e.message)
             } finally {
                 setBusy(false)
             }
@@ -152,7 +153,7 @@ class PdfActivity : AppCompatActivity() {
             return
         }
         setBusy(true)
-        binding.tvStatus.text = "Splitting pages $start-$end..."
+        binding.tvStatus.text = getString(R.string.pdf_splitting_pages, start, end)
         lifecycleScope.launch {
             try {
                 val outFile = File(cacheDir, "split_${start}_${end}_${System.currentTimeMillis()}.pdf")
@@ -161,11 +162,11 @@ class PdfActivity : AppCompatActivity() {
                     try { PdfHelper.splitRange(file, start, end, outFile) } finally { file.delete() }
                 }
                 lastPdfFile = outFile
-                binding.tvStatus.text = "Split ready — tap Save to save it"
-                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
+                binding.tvStatus.text = getString(R.string.pdf_split_ready_tap_save)
+                binding.etOutput.setText(getString(R.string.pdf_ready_tap_save_last, outFile.name))
                 cache.record("PDF", outFile.name.toByteArray(), uri.lastPathSegment ?: "pdf", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
-                binding.tvStatus.text = "Split failed: ${e.message}"
+                binding.tvStatus.text = getString(R.string.pdf_split_failed, e.message)
             } finally {
                 setBusy(false)
             }
@@ -174,7 +175,7 @@ class PdfActivity : AppCompatActivity() {
 
     private fun imagesToPdf(uris: List<Uri>) {
         setBusy(true)
-        binding.tvStatus.text = "Building PDF from ${uris.size} images..."
+        binding.tvStatus.text = getString(R.string.pdf_building_pdf_from_images, uris.size)
         lifecycleScope.launch {
             try {
                 val outFile = File(cacheDir, "images_${System.currentTimeMillis()}.pdf")
@@ -187,11 +188,11 @@ class PdfActivity : AppCompatActivity() {
                     }
                 }
                 lastPdfFile = outFile
-                binding.tvStatus.text = "Built from ${uris.size} images — tap Save to save it"
-                binding.etOutput.setText("Ready: ${outFile.name}\n\nTap \"Save Last Result\" below to save this PDF to Downloads/Output/PDF/.")
+                binding.tvStatus.text = getString(R.string.pdf_built_from_images_tap, uris.size)
+                binding.etOutput.setText(getString(R.string.pdf_ready_tap_save_last, outFile.name))
                 cache.record("PDF", outFile.name.toByteArray(), "${uris.size} images", outFile.name, null, 100, "SUCCESS")
             } catch (e: Exception) {
-                binding.tvStatus.text = "Failed: ${e.message}"
+                binding.tvStatus.text = getString(R.string.pdf_failed, e.message)
             } finally {
                 setBusy(false)
             }

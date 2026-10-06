@@ -93,7 +93,12 @@ object AudioTranscoder {
                     bufferInfo.offset = 0
                     bufferInfo.size = sampleSize
                     bufferInfo.presentationTimeUs = extractor.sampleTime
-                    bufferInfo.flags = extractor.sampleFlags
+                    bufferInfo.flags = extractor.sampleFlags.let { f ->
+                        var out = 0
+                        if (f and MediaExtractor.SAMPLE_FLAG_SYNC != 0) out = out or MediaCodec.BUFFER_FLAG_KEY_FRAME
+                        if (f and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME != 0) out = out or MediaCodec.BUFFER_FLAG_PARTIAL_FRAME
+                        out
+                    }
                     muxer.writeSampleData(muxerTrack, buffer, bufferInfo)
                     samples++
                     extractor.advance()

@@ -9,19 +9,17 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <FrameLayout
+        <LinearLayout android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_header_flat"
             android:paddingStart="20dp" android:paddingEnd="20dp"
             android:paddingTop="26dp" android:paddingBottom="22dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="🔍  OCR" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
-                    android:text="Scanned documents → editable text, on-device, multi-page" android:textColor="@color/text_secondary" android:textSize="13sp" />
-            </LinearLayout>
-        </FrameLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/ocr_ocr" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                android:text="@string/ocr_scanned_documents_editable_text" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -39,8 +37,8 @@
                         android:layout_marginBottom="10dp"
                         android:checked="true"
                         android:button="@drawable/checkbox_bevel"
-                        android:paddingStart="10dp"
-                        android:text="Book mode: keep headings and paragraphs (untick for tables)"
+                        android:paddingStart="10dp" android:paddingEnd="10dp"
+                        android:text="@string/ocr_book_mode_keep_headings"
                         android:textColor="@color/text_primary"
                         android:textSize="13sp" />
 
@@ -56,7 +54,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="6dp"
-                            android:text="📷 Camera" />
+                            android:text="@string/invoice_ocr_camera" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnGallery"
@@ -65,7 +63,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="6dp"
-                            android:text="🖼 Gallery" />
+                            android:text="@string/invoice_ocr_gallery" />
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
@@ -74,9 +72,9 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="📚 Multi-page (pick several images)" />
+                        android:text="@string/ocr_multi_page_pick_several" />
 
-                    <ImageView
+                    <ImageView android:contentDescription="@string/cd_preview_image"
                         android:id="@+id/ivPreview"
                         android:layout_width="match_parent"
                         android:layout_height="200dp"
@@ -115,13 +113,13 @@
 
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <TextView
+                    <TextView android:labelFor="@id/etResult"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Recognized text (editable)"
+                        android:text="@string/ocr_recognized_text_editable"
                         android:textAppearance="@style/TextAppearance.App.SectionTitle" />
 
-                    <EditText
+                    <EditText android:importantForAutofill="no"
                         android:id="@+id/etResult"
                         android:layout_width="match_parent"
                         android:layout_height="340dp"
@@ -139,7 +137,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="14dp"
-                        android:text="Export as"
+                        android:text="@string/data_cleaning_export_as"
                         android:textAppearance="@style/TextAppearance.App.SectionTitle" />
 
                     <LinearLayout
@@ -153,32 +151,31 @@
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginEnd="4dp" android:enabled="false"
-                            android:text="TXT" />
+                            android:text="@string/ocr_txt" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSavePdf"
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginStart="4dp" android:layout_marginEnd="4dp" android:enabled="false"
-                            android:text="PDF" />
+                            android:text="@string/ocr_pdf" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSaveDocx"
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginStart="4dp" android:layout_marginEnd="4dp" android:enabled="false"
-                            android:text="DOCX" />
+                            android:text="@string/ocr_docx" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSaveXlsx"
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginStart="4dp" android:enabled="false"
-                            android:text="XLSX" />
+                            android:text="@string/ocr_xlsx" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

@@ -74,10 +74,10 @@ class DashboardActivity : AppCompatActivity() {
             val successRate = if (total > 0) (success.toDouble() / total * 100) else 0.0
 
             // ---- Stat strip ----
-            binding.tvTotalJobs.text = total.toString()
-            binding.tvSuccessRate.text = "${successRate.toInt()}%"
+            binding.tvTotalJobs.text = String.format(java.util.Locale.getDefault(), "%d", total)
+            binding.tvSuccessRate.text = getString(R.string.dashboard_text, successRate.toInt())
             binding.tvSuccessRate.setTextColor(colorOf(rateColor(successRate.toInt())))
-            binding.tvAvgQuality.text = avgQuality.toInt().toString()
+            binding.tvAvgQuality.text = String.format(java.util.Locale.getDefault(), "%d", avgQuality.toInt())
             binding.tvAvgQuality.setTextColor(colorOf(rateColor(avgQuality.toInt())))
             binding.tvBreakdown.text = if (total == 0) "Nothing processed yet"
                 else "$success succeeded  •  $failed failed  •  avg quality ${"%.0f".format(avgQuality)}/100 (${QualityScorer.label(avgQuality.toInt())})"
@@ -147,7 +147,7 @@ class DashboardActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
         headerRow.addView(TextView(this).apply {
-            text = "${item.feature}  ${item.inputLabel.take(30)}"
+            text = getString(R.string.invoice_text, item.feature, item.inputLabel.take(30))
             setTextColor(colorOf(R.color.text_primary))
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             textSize = 13f
@@ -164,7 +164,7 @@ class DashboardActivity : AppCompatActivity() {
         })
         row.addView(headerRow)
         row.addView(TextView(this).apply {
-            text = "${dateLabel(item.timestamp)}  •  quality ${item.qualityScore}/100"
+            text = getString(R.string.dashboard_quality, dateLabel(item.timestamp), item.qualityScore)
             setTextColor(colorOf(R.color.text_secondary))
             textSize = 11f
             setPadding(0, dp(2), 0, 0)

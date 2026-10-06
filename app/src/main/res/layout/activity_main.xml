@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:tools="http://schemas.android.com/tools" xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent" android:layout_height="match_parent">
 
     <ScrollView
@@ -10,13 +11,13 @@
             android:orientation="vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="24dp">
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp"
-                android:text="Data Toolkit" android:textColor="@color/text_primary" android:textSize="28sp" android:textStyle="bold" />
+                android:text="@string/main_data_toolkit" android:textColor="@color/text_primary" android:textSize="28sp" android:textStyle="bold" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="2dp"
-                android:text="OCR, PDF, Excel, conversion, scraping — all on-device." android:textColor="@color/text_secondary" android:textSize="13.5sp" />
+                android:text="@string/main_ocr_pdf_excel_conversion" android:textColor="@color/text_secondary" android:textSize="13.5sp" />
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_marginStart="4dp" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"
-                android:text="Featured" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
+                android:text="@string/main_featured" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
             <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:scrollbars="none" android:clipToPadding="false" android:overScrollMode="never">
                 <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
@@ -29,12 +30,12 @@
                     android:foreground="?attr/selectableItemBackground"
                     android:clickable="true" android:focusable="true"
                     android:orientation="vertical" android:padding="16dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🔀" android:textSize="26sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/main_symbol" android:textSize="26sp" />
                     <View android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="bottom" android:orientation="horizontal">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Workflow Builder" android:textColor="@color/white" android:textSize="17sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Chain tools into one pipeline" android:textColor="#D9FFFFFF" android:textSize="12.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/main_workflow_builder" android:textColor="@color/white" android:textSize="17sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="@string/main_chain_tools_into_one" android:textColor="#D9FFFFFF" android:textSize="12.5sp" />
                         </LinearLayout>
                         <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:contentDescription="@null" />
                     </LinearLayout>
@@ -48,12 +49,12 @@
                     android:foreground="?attr/selectableItemBackground"
                     android:clickable="true" android:focusable="true"
                     android:orientation="vertical" android:padding="16dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🧾" android:textSize="26sp" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/main_symbol_2" android:textSize="26sp" />
                     <View android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="bottom" android:orientation="horizontal">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Invoice &amp; Receipt OCR" android:textColor="@color/white" android:textSize="17sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="Scan, batch and export" android:textColor="#D9FFFFFF" android:textSize="12.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/main_invoice_receipt_ocr" android:textColor="@color/white" android:textSize="17sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:text="@string/main_scan_batch_and_export" android:textColor="#D9FFFFFF" android:textSize="12.5sp" />
                         </LinearLayout>
                         <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron_right" android:contentDescription="@null" />
                     </LinearLayout>
@@ -63,7 +64,7 @@
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_marginStart="4dp" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"
-                android:text="Quick Tools" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
+                android:text="@string/main_quick_tools" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
 
                 <com.google.android.material.card.MaterialCardView
@@ -73,12 +74,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="38dp" android:layout_height="38dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_ocr_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🔍" android:textSize="18sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/main_symbol_3" android:textSize="18sp" />
                         </FrameLayout>
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical" android:orientation="horizontal">
+                        <LinearLayout tools:ignore="UseCompoundDrawables" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical" android:orientation="horizontal">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                                android:text="OCR" android:maxLines="1" android:ellipsize="end" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="14sp" />
-                            <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_right" android:tint="@color/text_secondary" android:contentDescription="@null" />
+                                android:text="@string/main_ocr" android:maxLines="1" android:ellipsize="end" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="14sp" />
+                            <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_right" app:tint="@color/text_secondary" android:contentDescription="@null" />
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -90,12 +91,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="38dp" android:layout_height="38dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_pdf_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📄" android:textSize="18sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/main_symbol_4" android:textSize="18sp" />
                         </FrameLayout>
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical" android:orientation="horizontal">
+                        <LinearLayout tools:ignore="UseCompoundDrawables" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical" android:orientation="horizontal">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                                android:text="PDF Tools" android:maxLines="1" android:ellipsize="end" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="14sp" />
-                            <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_right" android:tint="@color/text_secondary" android:contentDescription="@null" />
+                                android:text="@string/main_pdf_tools" android:maxLines="1" android:ellipsize="end" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="14sp" />
+                            <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_right" app:tint="@color/text_secondary" android:contentDescription="@null" />
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -107,12 +108,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="38dp" android:layout_height="38dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_conversion_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🔁" android:textSize="18sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol_6" android:textSize="18sp" />
                         </FrameLayout>
-                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical" android:orientation="horizontal">
+                        <LinearLayout tools:ignore="UseCompoundDrawables" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:gravity="center_vertical" android:orientation="horizontal">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                                android:text="Convert" android:maxLines="1" android:ellipsize="end" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="14sp" />
-                            <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_right" android:tint="@color/text_secondary" android:contentDescription="@null" />
+                                android:text="@string/main_convert" android:maxLines="1" android:ellipsize="end" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="14sp" />
+                            <ImageView android:layout_width="16dp" android:layout_height="16dp" android:src="@drawable/ic_chevron_right" app:tint="@color/text_secondary" android:contentDescription="@null" />
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -120,7 +121,7 @@
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_marginStart="4dp" android:layout_marginTop="22dp" android:layout_marginBottom="10dp"
-                android:text="More Tools" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
+                android:text="@string/main_more_tools" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
 
                 <com.google.android.material.card.MaterialCardView
@@ -130,12 +131,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="42dp" android:layout_height="42dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_cleaning_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🧹" android:textSize="19sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol" android:textSize="19sp" />
                         </FrameLayout>
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
-                            android:text="Data Cleaning" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/data_cleaning_data_cleaning" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Trim, dedupe, export" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
+                            android:text="@string/main_trim_dedupe_export" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -146,12 +147,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="42dp" android:layout_height="42dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_excel_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📊" android:textSize="19sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/main_symbol_5" android:textSize="19sp" />
                         </FrameLayout>
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
-                            android:text="Excel / CSV" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/main_excel_csv" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Open, preview, convert" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
+                            android:text="@string/main_open_preview_convert" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -164,12 +165,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="42dp" android:layout_height="42dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_scraping_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🌐" android:textSize="19sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/main_symbol_6" android:textSize="19sp" />
                         </FrameLayout>
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
-                            android:text="Web Scraping" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/main_web_scraping" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Auto-detect &amp; export" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
+                            android:text="@string/main_auto_detect_export" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -180,12 +181,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="42dp" android:layout_height="42dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_email_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="✉️" android:textSize="19sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/main_symbol_7" android:textSize="19sp" />
                         </FrameLayout>
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp"
-                            android:text="Email Extraction" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/main_email_extraction" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Pull &amp; validate emails" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
+                            android:text="@string/main_pull_validate_emails" android:textAppearance="@style/TextAppearance.App.Body" android:textSize="12.5sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>

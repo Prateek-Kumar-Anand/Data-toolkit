@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.features.email
 
+import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.ui.enableInnerScroll
 
 import android.os.Bundle
@@ -55,14 +56,14 @@ class EmailExtractionActivity : AppCompatActivity() {
         val normalized = if (!url.startsWith("http://") && !url.startsWith("https://")) "https://$url" else url
         binding.progressBar.visibility = View.VISIBLE
         binding.btnExtractFromUrl.isEnabled = false
-        binding.tvStatus.text = "Scraping (with auto-retry)..."
+        binding.tvStatus.text = getString(R.string.email_scraping_with_auto_retry)
         lifecycleScope.launch {
             try {
                 val scraped = Scraper.scrape(normalized)
                 val result = EmailExtractor.extract(scraped.text)
                 showResult(result, normalized, scraped.title.ifBlank { normalized })
             } catch (e: Exception) {
-                binding.tvStatus.text = "Scrape failed: ${e.message}"
+                binding.tvStatus.text = getString(R.string.email_scrape_failed, e.message)
             } finally {
                 binding.progressBar.visibility = View.GONE
                 binding.btnExtractFromUrl.isEnabled = true
@@ -73,8 +74,7 @@ class EmailExtractionActivity : AppCompatActivity() {
     private fun showResult(result: EmailExtractor.ExtractionResult, source: String, label: String) {
         binding.etEmails.setText(result.emails.joinToString("\n"))
         val quality = QualityScorer.scoreEmailList(result.emails)
-        binding.tvStatus.text = "${result.emails.size} valid emails  |  ${result.duplicatesRemoved} duplicates removed  |  " +
-            "${result.rejected.size} rejected  |  Quality: $quality/100 (${QualityScorer.label(quality)})"
+        binding.tvStatus.text = getString(R.string.email_valid_emails_duplicates_removed, result.emails.size, result.duplicatesRemoved, result.rejected.size, quality, QualityScorer.label(quality))
 
         lifecycleScope.launch {
             cache.record(

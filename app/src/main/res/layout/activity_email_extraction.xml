@@ -9,19 +9,17 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <FrameLayout
+        <LinearLayout android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_header_flat"
             android:paddingStart="20dp" android:paddingEnd="20dp"
             android:paddingTop="26dp" android:paddingBottom="22dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="✉️  Email Extraction" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
-                    android:text="Pull, validate and de-dupe emails" android:textColor="@color/text_secondary" android:textSize="13sp" />
-            </LinearLayout>
-        </FrameLayout>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/email_extraction_email_extraction" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                android:text="@string/email_extraction_pull_validate_and_de" android:textColor="@color/text_secondary" android:textSize="13sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -32,16 +30,16 @@
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="14dp">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Paste text, or a URL to scrape first" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                        android:text="@string/email_extraction_paste_text_or_a" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
 
-                    <EditText
+                    <EditText android:importantForAutofill="no"
                         android:id="@+id/etInput"
                         android:layout_width="match_parent"
                         android:layout_height="150dp"
                         android:layout_marginTop="10dp"
                         android:background="@drawable/bg_input_field_focused"
                         android:gravity="top|start"
-                        android:hint="Paste text with emails, or a page URL"
+                        android:hint="@string/email_extraction_paste_text_with_emails"
                         android:textColorHint="@color/text_secondary"
                         android:textSize="13.5sp"
                         android:inputType="textMultiLine" />
@@ -51,12 +49,12 @@
                             android:id="@+id/btnExtractFromText"
                             style="@style/Widget.App.Button.Compact"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                            android:layout_marginEnd="6dp" android:text="Extract from Text" />
+                            android:layout_marginEnd="6dp" android:text="@string/email_extraction_extract_from_text" />
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnExtractFromUrl"
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                            android:layout_marginStart="6dp" android:text="Scrape URL First" />
+                            android:layout_marginStart="6dp" android:text="@string/email_extraction_scrape_url_first" />
                     </LinearLayout>
 
                     <ProgressBar
@@ -76,8 +74,8 @@
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Emails found" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
-                    <EditText
+                        android:text="@string/email_extraction_emails_found" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                    <EditText android:importantForAutofill="no"
                         android:id="@+id/etEmails"
                         android:layout_width="match_parent"
                         android:layout_height="340dp"
@@ -98,10 +96,9 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="💾  Save (.csv)" />
+                        android:text="@string/email_extraction_save_csv" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

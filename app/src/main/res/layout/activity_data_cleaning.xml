@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:tools="http://schemas.android.com/tools" tools:ignore="TooManyViews" xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -11,24 +11,22 @@
         android:orientation="vertical">
 
         <!-- Hero header, matching the icon-chip treatment used on the dashboard -->
-        <FrameLayout
+        <LinearLayout android:baselineAligned="false" android:orientation="horizontal" android:gravity="center_vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_header_flat"
             android:paddingStart="20dp" android:paddingEnd="20dp"
             android:paddingTop="26dp" android:paddingBottom="24dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-                <FrameLayout android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_icon_chip_on_primary">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🧹" android:textSize="24sp" />
-                </FrameLayout>
-                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="Data Cleaning" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
-                        android:text="Upload CSV/Excel/JSON/TXT, or paste rows directly" android:textColor="@color/text_secondary" android:textSize="13sp" />
-                </LinearLayout>
+            <FrameLayout android:layout_width="52dp" android:layout_height="52dp" android:background="@drawable/bg_icon_chip_on_primary">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol" android:textSize="24sp" />
+            </FrameLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="14dp" android:orientation="vertical">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/data_cleaning_data_cleaning" android:textColor="@color/text_primary" android:textSize="22sp" android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="3dp"
+                    android:text="@string/data_cleaning_upload_csv_excel_json" android:textColor="@color/text_secondary" android:textSize="13sp" />
             </LinearLayout>
-        </FrameLayout>
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -41,14 +39,14 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="STEP 1" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
+                        android:text="@string/data_cleaning_step" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
                         <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📥" android:textSize="17sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol_2" android:textSize="17sp" />
                         </FrameLayout>
                         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp"
-                            android:text="Add your data" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/data_cleaning_add_your_data" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                     </LinearLayout>
 
                     <!-- Upload "dropzone" - keeps the id/click target Kotlin already listens on -->
@@ -66,12 +64,12 @@
                         android:paddingTop="20dp"
                         android:paddingBottom="20dp">
                         <FrameLayout android:layout_width="44dp" android:layout_height="44dp" android:background="@drawable/bg_icon_chip">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📁" android:textSize="19sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol_3" android:textSize="19sp" />
                         </FrameLayout>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10dp"
-                            android:text="Tap to upload a file" android:textColor="@color/text_primary" android:textStyle="bold" android:textSize="14.5sp" />
+                            android:text="@string/data_cleaning_tap_to_upload_a" android:textColor="@color/text_primary" android:textStyle="bold" android:textSize="14.5sp" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text=".csv  ·  .xlsx  ·  .json  ·  .txt" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                            android:text="@string/data_cleaning_csv_xlsx_json_txt" android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
 
                     <ProgressBar
@@ -99,18 +97,18 @@
                         android:gravity="center_vertical" android:layout_marginTop="16dp">
                         <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="@color/stroke" />
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:layout_marginEnd="10dp"
-                            android:text="OR PASTE ROWS BELOW" android:textColor="@color/text_secondary" android:textSize="10.5sp" android:textStyle="bold" android:letterSpacing="0.06" />
+                            android:text="@string/data_cleaning_or_paste_rows_below" android:textColor="@color/text_secondary" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.06" />
                         <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="@color/stroke" />
                     </LinearLayout>
 
-                    <EditText
+                    <EditText android:importantForAutofill="no"
                         android:id="@+id/etInput"
                         android:layout_width="match_parent"
                         android:layout_height="150dp"
                         android:layout_marginTop="12dp"
                         android:background="@drawable/bg_input_field_focused"
                         android:gravity="top|start"
-                        android:hint="name,email,city&#10;Asha, asha@mail.com , Delhi&#10;Asha, asha@mail.com , Delhi"
+                        android:hint="@string/data_cleaning_name_email_city_asha"
                         android:textColor="@color/text_primary"
                         android:textColorHint="@color/text_secondary"
                         android:textSize="13.5sp"
@@ -123,21 +121,21 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="STEP 2" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
+                        android:text="@string/data_cleaning_step_2" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="4dp">
                         <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🧼" android:textSize="17sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol_4" android:textSize="17sp" />
                         </FrameLayout>
                         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp"
-                            android:text="Cleaning options" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/data_cleaning_cleaning_options" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                     </LinearLayout>
 
                     <!-- Toggle rows: title + caption on the left, switch-style checkbox on the right -->
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="12dp" android:paddingBottom="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Trim whitespace" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Removes leading/trailing spaces" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_trim_whitespace" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_removes_leading_trailing_spaces" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbTrim" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
@@ -145,8 +143,8 @@
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp" android:paddingBottom="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Collapse inner spaces" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Turns double spaces into one" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_collapse_inner_spaces" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_turns_double_spaces_into" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbCollapse" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
@@ -154,8 +152,8 @@
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp" android:paddingBottom="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Remove duplicate rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Keeps the first occurrence only" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_remove_duplicate_rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_keeps_the_first_occurrence" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
@@ -163,8 +161,8 @@
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp" android:paddingBottom="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Remove empty rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Drops rows that are entirely blank" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_remove_empty_rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_drops_rows_that_are" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbEmptyRows" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
@@ -172,52 +170,52 @@
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp" android:paddingBottom="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Remove unwanted characters" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Strips stray symbols, keeps normal punctuation" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_remove_unwanted_characters" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_strips_stray_symbols_keeps" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbUnwantedChars" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="false" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp"
-                        android:text="Case standardization (global)" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                        android:text="@string/data_cleaning_case_standardization_global" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
                     <Spinner android:id="@+id/spinnerCaseMode" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp"
-                        android:text="Missing values" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                        android:text="@string/data_cleaning_missing_values" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
                     <Spinner android:id="@+id/spinnerMissingValues" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
 
-                    <EditText
+                    <EditText android:importantForAutofill="no"
                         android:id="@+id/etFillMissing"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="10dp" android:background="@drawable/bg_input_field"
-                        android:hint="Fill value, used when strategy above is &quot;Fill with text&quot; (e.g. N/A)" android:textColor="@color/text_primary" android:textSize="13sp"
+                        android:hint="@string/data_cleaning_fill_value_used_when" android:textColor="@color/text_primary" android:textSize="13sp"
                         android:inputType="text" />
 
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" android:layout_marginTop="16dp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp" android:paddingBottom="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Fuzzy match when de-duplicating" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Ignores case/spacing, e.g. &quot;Asha &quot; = &quot;asha&quot;" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_fuzzy_match_when_de" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_ignores_case_spacing_e" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbFuzzyDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
 
-                    <EditText
+                    <EditText android:importantForAutofill="no"
                         android:id="@+id/etDedupeKeys"
                         android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="2dp" android:background="@drawable/bg_input_field"
-                        android:hint="Dedupe by columns (comma-separated, blank = whole row)" android:textColor="@color/text_primary" android:textSize="13sp"
+                        android:hint="@string/data_cleaning_dedupe_by_columns_comma" android:textColor="@color/text_primary" android:textSize="13sp"
                         android:inputType="text" />
 
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/stroke" android:layout_marginTop="16dp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Flag invalid values" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Auto-detects email/phone/number/date and reports mismatches" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_flag_invalid_values" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_auto_detects_email_phone" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbFlagInvalid" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:checked="true" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
@@ -228,7 +226,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="✨ Clean Data" />
+                        android:text="@string/data_cleaning_clean_data" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -237,30 +235,30 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="STEP 2B" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
+                        android:text="@string/data_cleaning_step_b" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
 
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="10dp">
+                    <LinearLayout android:baselineAligned="false" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="10dp">
                         <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="✅" android:textSize="17sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/dashboard_symbol_3" android:textSize="17sp" />
                         </FrameLayout>
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Data validation &amp; normalization" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Emails, phones, dates, currency, ranges and Yes/No are cleaned automatically" android:textAppearance="@style/TextAppearance.App.Body" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_data_validation_normalization" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_emails_phones_dates_currency" android:textAppearance="@style/TextAppearance.App.Body" />
                         </LinearLayout>
                     </LinearLayout>
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="When a value fails validation" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                        android:text="@string/data_cleaning_when_a_value_fails" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
                     <Spinner android:id="@+id/spinnerInvalidAction" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp"
-                        android:text="Ambiguous date order (e.g. 05-06-2024)" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                        android:text="@string/data_cleaning_ambiguous_date_order_e" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
                     <Spinner android:id="@+id/spinnerDateOrder" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp"
-                        android:text="Yes/No output format" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                        android:text="@string/data_cleaning_yes_no_output_format" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
                     <Spinner android:id="@+id/spinnerBooleanFormat" android:layout_width="match_parent" android:layout_height="wrap_content"
                         android:layout_marginTop="8dp" android:background="@drawable/bg_input_field" android:popupBackground="@drawable/bg_input_field" />
 
@@ -268,8 +266,8 @@
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingTop="10dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Catch near-duplicate rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Similarity match beyond exact/normalized - slower on large tables" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_catch_near_duplicate_rows" android:textColor="@color/text_primary" android:textSize="14sp" android:textStyle="bold" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_similarity_match_beyond_exact" android:textColor="@color/text_secondary" android:textSize="11.5sp" />
                         </LinearLayout>
                         <CheckBox android:id="@+id/cbSimilarityDedupe" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="" android:button="@drawable/checkbox_bevel" />
                     </LinearLayout>
@@ -282,15 +280,15 @@
 
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="OPTIONAL" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
+                        android:text="@string/data_cleaning_optional" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
 
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                    <LinearLayout android:baselineAligned="false" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
                         <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🎛" android:textSize="17sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol_5" android:textSize="17sp" />
                         </FrameLayout>
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Per-column rules" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="Override the global settings above for specific columns" android:textAppearance="@style/TextAppearance.App.Body" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/data_cleaning_per_column_rules" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="1dp" android:text="@string/data_cleaning_override_the_global_settings" android:textAppearance="@style/TextAppearance.App.Body" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -300,7 +298,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="🔍 Detect Columns" />
+                        android:text="@string/data_cleaning_detect_columns" />
 
                     <LinearLayout
                         android:id="@+id/columnRulesContainer"
@@ -316,14 +314,14 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="OPTIONAL" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
+                        android:text="@string/data_cleaning_optional" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
                         <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🔁" android:textSize="17sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol_6" android:textSize="17sp" />
                         </FrameLayout>
                         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp"
-                            android:text="Find &amp; replace rules" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/data_cleaning_find_replace_rules" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -339,13 +337,13 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="+ Add Rule" />
+                        android:text="@string/data_cleaning_add_rule" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Results -->
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="RESULTS" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" android:layout_marginStart="4dp" />
+                android:text="@string/data_cleaning_results" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" android:layout_marginStart="4dp" />
             <TextView
                 android:id="@+id/tvReport"
                 android:layout_width="match_parent"
@@ -361,17 +359,17 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                        android:text="OUTPUT" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
+                        android:text="@string/data_cleaning_output" android:textAppearance="@style/TextAppearance.App.Eyebrow" android:layout_marginBottom="6dp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
                         <FrameLayout android:layout_width="40dp" android:layout_height="40dp" android:background="@drawable/bg_icon_chip">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="📤" android:textSize="17sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/data_cleaning_symbol_7" android:textSize="17sp" />
                         </FrameLayout>
                         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="12dp"
-                            android:text="Cleaned output" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
+                            android:text="@string/data_cleaning_cleaned_output" android:textAppearance="@style/TextAppearance.App.SectionTitle" />
                     </LinearLayout>
 
-                    <EditText
+                    <EditText android:importantForAutofill="no"
                         android:id="@+id/etOutput"
                         android:layout_width="match_parent"
                         android:layout_height="340dp"
@@ -389,7 +387,7 @@
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="Export as" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
+                        android:text="@string/data_cleaning_export_as" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="13.5sp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -402,32 +400,31 @@
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginEnd="4dp" android:enabled="false"
-                            android:text="📄 CSV" />
+                            android:text="@string/data_cleaning_csv" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnExportXlsx"
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginStart="4dp" android:layout_marginEnd="4dp" android:enabled="false"
-                            android:text="📊 XLSX" />
+                            android:text="@string/data_cleaning_xlsx" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnExportJson"
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginStart="4dp" android:layout_marginEnd="4dp" android:enabled="false"
-                            android:text="🗂 JSON" />
+                            android:text="@string/data_cleaning_json" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnExportTxt"
                             style="@style/Widget.App.Button.Compact.Outlined"
                             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                             android:layout_marginStart="4dp" android:enabled="false"
-                            android:text="📝 TXT" />
+                            android:text="@string/data_cleaning_txt" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

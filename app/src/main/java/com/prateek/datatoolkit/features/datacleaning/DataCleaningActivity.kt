@@ -141,7 +141,7 @@ class DataCleaningActivity : AppCompatActivity() {
     private fun loadFile(uri: Uri) {
         binding.progressBar.isIndeterminate = true
         binding.progressBar.visibility = View.VISIBLE
-        binding.tvColumnsPreview.text = "Reading file..."
+        binding.tvColumnsPreview.text = getString(R.string.cleaning_reading_file)
         lifecycleScope.launch {
             try {
                 val name = displayNameOf(uri)
@@ -160,7 +160,7 @@ class DataCleaningActivity : AppCompatActivity() {
                 }
 
                 if (rows.isEmpty()) {
-                    binding.tvColumnsPreview.text = "Could not find any rows in $name"
+                    binding.tvColumnsPreview.text = getString(R.string.cleaning_could_not_find_any, name)
                 } else {
                     // Show the loaded table as editable CSV, same shape the paste box always used -
                     // every downstream step (cleaning, export) works off this one table representation
@@ -180,7 +180,7 @@ class DataCleaningActivity : AppCompatActivity() {
                 // Throwable, not just Exception: a bad/corrupt spreadsheet can surface as a
                 // java.lang.Error (e.g. a StAX factory error) rather than a normal Exception,
                 // which would otherwise crash the whole app instead of showing this message.
-                binding.tvColumnsPreview.text = "Failed to read file: ${e.message}"
+                binding.tvColumnsPreview.text = getString(R.string.cleaning_failed_to_read_file, e.message)
                 Toast.makeText(this@DataCleaningActivity, "Failed to read file: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 binding.progressBar.isIndeterminate = false
@@ -443,7 +443,7 @@ class DataCleaningActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
         headerRow.addView(TextView(this).apply {
-            text = "Rule ${replaceRuleViews.size + 1}"
+            text = getString(R.string.cleaning_rule, replaceRuleViews.size + 1)
             setTextColor(colorOf(R.color.text_secondary))
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             textSize = 11.5f
@@ -451,7 +451,7 @@ class DataCleaningActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         })
         val removeBtn = TextView(this).apply {
-            text = "✕ Remove"
+            text = getString(R.string.cleaning_remove)
             setTextColor(colorOf(R.color.error))
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             textSize = 12f
@@ -495,12 +495,12 @@ class DataCleaningActivity : AppCompatActivity() {
                 .apply { topMargin = dp(2) }
         }
         val regexCheck = CheckBox(this).apply {
-            text = "Regex"
+            text = getString(R.string.cleaning_regex)
             textSize = 12.5f
             buttonTintList = ContextCompat.getColorStateList(this@DataCleaningActivity, R.color.primary)
         }
         val ignoreCaseCheck = CheckBox(this).apply {
-            text = "Ignore case"
+            text = getString(R.string.cleaning_ignore_case)
             textSize = 12.5f
             buttonTintList = ContextCompat.getColorStateList(this@DataCleaningActivity, R.color.primary)
         }
@@ -586,7 +586,7 @@ class DataCleaningActivity : AppCompatActivity() {
 
         binding.progressBar.isIndeterminate = true
         binding.progressBar.visibility = View.VISIBLE
-        binding.tvReport.text = "Cleaning..."
+        binding.tvReport.text = getString(R.string.cleaning_cleaning)
 
         lifecycleScope.launch {
             val start = System.currentTimeMillis()
@@ -666,7 +666,7 @@ class DataCleaningActivity : AppCompatActivity() {
                     durationMs = System.currentTimeMillis() - start
                 )
             } catch (e: Exception) {
-                binding.tvReport.text = "Cleaning failed: ${e.message}"
+                binding.tvReport.text = getString(R.string.cleaning_cleaning_failed, e.message)
                 Toast.makeText(this@DataCleaningActivity, "Cleaning failed: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 binding.progressBar.isIndeterminate = false

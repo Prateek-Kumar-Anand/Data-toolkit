@@ -238,7 +238,7 @@ class WorkflowActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
         headerRow.addView(TextView(this).apply {
-            text = "${step.kind.emoji}  ${index + 1}. ${step.kind.stepLabel}"
+            text = getString(R.string.workflow_text_2, step.kind.emoji, index + 1, step.kind.stepLabel)
             setTextColor(colorOf(R.color.text_primary))
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             textSize = 14f
@@ -298,7 +298,7 @@ class WorkflowActivity : AppCompatActivity() {
 
         chainProblem(index)?.let { problem ->
             card.addView(TextView(this).apply {
-                text = "⚠ $problem"
+                text = getString(R.string.workflow_text, problem)
                 setTextColor(colorOf(R.color.error))
                 textSize = 12f
                 setPadding(0, dp(6), 0, 0)
@@ -490,7 +490,7 @@ class WorkflowActivity : AppCompatActivity() {
                 // on their own.
                 val label = if (category == StepCategory.EXPORT) stepKind.stepLabel.removePrefix("Export as ") else stepKind.stepLabel
                 val chip = TextView(this).apply {
-                    text = "${stepKind.emoji}  $label"
+                    text = getString(R.string.invoice_text, stepKind.emoji, label)
                     setTextColor(colorOf(R.color.text_primary))
                     setTypeface(Typeface.DEFAULT, Typeface.BOLD)
                     textSize = 12.5f
@@ -546,10 +546,10 @@ class WorkflowActivity : AppCompatActivity() {
         setRunning(true)
         exportResults.clear()
         binding.resultsContainer.removeAllViews()
-        binding.tvRunSummary.text = "Running…"
+        binding.tvRunSummary.text = getString(R.string.workflow_running)
         binding.progressBar.max = steps.size
         binding.progressBar.progress = 0
-        binding.tvProgressLabel.text = "Step 1 of ${steps.size} (0%)"
+        binding.tvProgressLabel.text = getString(R.string.workflow_step_of_3, steps.size)
 
         lifecycleScope.launch {
             var current: WorkflowData = WorkflowData.Empty
@@ -575,7 +575,7 @@ class WorkflowActivity : AppCompatActivity() {
                 step.errorMessage = null
                 renderSteps()
                 binding.tvProgressLabel.text =
-                    "Step ${index + 1} of ${steps.size} (${(index * 100) / steps.size}%) — ${step.kind.stepLabel}"
+                    getString(R.string.workflow_step_of_2, index + 1, steps.size, (index * 100) / steps.size, step.kind.stepLabel)
                 try {
                     val result = WorkflowEngine.runStep(applicationContext, step, current)
                     step.status = StepStatus.SUCCESS
@@ -600,14 +600,14 @@ class WorkflowActivity : AppCompatActivity() {
                 }
                 renderSteps()
                 binding.progressBar.progress = index + 1
-                binding.tvProgressLabel.text = "Step ${index + 1} of ${steps.size} (${((index + 1) * 100) / steps.size}%)"
+                binding.tvProgressLabel.text = getString(R.string.workflow_step_of, index + 1, steps.size, ((index + 1) * 100) / steps.size)
             }
             if (skipCount > 0) renderSteps()
 
             val totalMs = System.currentTimeMillis() - start
-            binding.tvRunSummary.text = "Finished in ${formatDuration(totalMs)}  •  $okCount step(s) succeeded" +
-                (if (failCount > 0) ", $failCount failed" else "") +
-                (if (skipCount > 0) ", $skipCount skipped" else "")
+            binding.tvRunSummary.text = getString(R.string.workflow_finished_summary, formatDuration(totalMs), okCount) +
+                (if (failCount > 0) getString(R.string.workflow_failed_suffix, failCount) else "") +
+                (if (skipCount > 0) getString(R.string.workflow_skipped_suffix, skipCount) else "")
 
             renderResults()
             recordRun(okCount, failCount, totalMs)
@@ -625,7 +625,7 @@ class WorkflowActivity : AppCompatActivity() {
         if (exportResults.isEmpty()) return
 
         binding.resultsContainer.addView(TextView(this).apply {
-            text = "FILES READY"
+            text = getString(R.string.workflow_files_ready)
             setTextColor(colorOf(R.color.primary))
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             textSize = 11.5f
@@ -642,14 +642,14 @@ class WorkflowActivity : AppCompatActivity() {
             }
             row.addView(TextView(this).apply {
                 val kb = (outcome.file.length() + 512) / 1024
-                text = "${outcome.kind.emoji}  ${outcome.file.name}  (${if (kb == 0L) "<1" else kb.toString()} KB)"
+                text = getString(R.string.workflow_kb, outcome.kind.emoji, outcome.file.name, if (kb == 0L) "<1" else kb.toString())
                 setTextColor(colorOf(R.color.text_primary))
                 textSize = 13f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
             row.addView(actionLabel("📤 Share", R.color.primary) { shareOutcome(outcome) })
             row.addView(TextView(this).apply {
-                text = "💾 Save As…"
+                text = getString(R.string.workflow_save_as)
                 setTextColor(colorOf(R.color.primary))
                 setTypeface(Typeface.DEFAULT, Typeface.BOLD)
                 textSize = 12.5f
@@ -823,7 +823,7 @@ class WorkflowActivity : AppCompatActivity() {
         })
         row.addView(TextView(this).apply {
             val runInfo = workflow.lastRunAt?.let { "  •  last run ${dateLabel(it)}" } ?: ""
-            text = "$steppedPreview  •  ${workflow.stepCount} step(s)  •  saved ${dateLabel(workflow.createdAt)}$runInfo"
+            text = getString(R.string.workflow_step_s_saved, steppedPreview, workflow.stepCount, dateLabel(workflow.createdAt), runInfo)
             setTextColor(colorOf(R.color.text_secondary))
             textSize = 11.5f
             setPadding(0, dp(2), 0, 0)
@@ -948,7 +948,7 @@ class WorkflowActivity : AppCompatActivity() {
         })
         row.addView(headerRow)
         row.addView(TextView(this).apply {
-            text = "${dateLabel(item.timestamp)}  •  ${formatDuration(item.durationMs)}"
+            text = getString(R.string.conversion_text, dateLabel(item.timestamp), formatDuration(item.durationMs))
             setTextColor(colorOf(R.color.text_secondary))
             textSize = 11f
             setPadding(0, dp(2), 0, 0)

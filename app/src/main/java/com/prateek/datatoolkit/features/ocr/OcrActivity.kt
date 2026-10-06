@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.features.ocr
 
+import com.prateek.datatoolkit.R
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -49,6 +50,7 @@ class OcrActivity : AppCompatActivity() {
     // StoragePermissionHelper.
     private val storagePermission = StoragePermissionHelper(this)
 
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityOcrBinding.inflate(layoutInflater)
@@ -56,7 +58,10 @@ class OcrActivity : AppCompatActivity() {
         binding.etResult.setOnTouchListener { v, ev ->
             if (v.canScrollVertically(-1) || v.canScrollVertically(1)) {
                 v.parent.requestDisallowInterceptTouchEvent(true)
-                if (ev.action == android.view.MotionEvent.ACTION_UP) v.parent.requestDisallowInterceptTouchEvent(false)
+                if (ev.action == android.view.MotionEvent.ACTION_UP) {
+                    v.parent.requestDisallowInterceptTouchEvent(false)
+                    v.performClick()
+                }
             }
             false
         }
@@ -121,7 +126,7 @@ class OcrActivity : AppCompatActivity() {
                     val pct = (done * 100) / total
                     binding.progressBar.max = total
                     binding.progressBar.progress = done
-                    binding.tvStatus.text = "Processing page $done of $total ($pct%)..."
+                    binding.tvStatus.text = getString(R.string.ocr_processing_page_of, done, total, pct)
                 }
 
                 ocrResults = results
@@ -133,9 +138,8 @@ class OcrActivity : AppCompatActivity() {
                 val charCount = pageTexts.sumOf { it.length }
                 val wordCount = pageTexts.sumOf { p -> p.split(Regex("\\s+")).count { it.isNotBlank() } }
 
-                binding.tvStatus.text = "Done: ${bitmaps.size} page(s) processed  |  Quality: $quality/100 (${QualityScorer.label(quality)})"
-                binding.tvSummary.text = "Extracted text: $charCount characters ($wordCount words) across ${bitmaps.size} page(s)  |  " +
-                    "Time taken: ${formatDuration(lastDurationMs)}"
+                binding.tvStatus.text = getString(R.string.ocr_done_page_s_processed, bitmaps.size, quality, QualityScorer.label(quality))
+                binding.tvSummary.text = getString(R.string.ocr_extracted_text_characters_words, charCount, wordCount, bitmaps.size, formatDuration(lastDurationMs))
 
                 val bytes = java.io.ByteArrayOutputStream().also {
                     bitmaps.first().compress(Bitmap.CompressFormat.JPEG, 90, it)
@@ -152,7 +156,7 @@ class OcrActivity : AppCompatActivity() {
                 )
                 setExportEnabled(true)
             } catch (e: Exception) {
-                binding.tvStatus.text = "OCR failed: ${e.message}"
+                binding.tvStatus.text = getString(R.string.ocr_ocr_failed, e.message)
                 cache.record(
                     feature = "OCR",
                     inputText = uris.joinToString(",") { it.toString() },

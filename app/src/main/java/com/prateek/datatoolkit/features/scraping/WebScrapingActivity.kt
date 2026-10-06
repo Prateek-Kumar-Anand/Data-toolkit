@@ -94,7 +94,7 @@ class WebScrapingActivity : AppCompatActivity() {
         setBusy(true)
         binding.progressBar.max = urls.size
         binding.progressBar.progress = 0
-        binding.tvStatus.text = "Starting..."
+        binding.tvStatus.text = getString(R.string.scraping_starting)
         binding.tvItemCount.text = ""
         renderItemsPreview(emptyList())
 
@@ -109,8 +109,8 @@ class WebScrapingActivity : AppCompatActivity() {
 
             for ((index, url) in urls.withIndex()) {
                 val pct = ((index) * 100) / urls.size
-                binding.tvStatus.text = "Scraping page ${index + 1} of ${urls.size} ($pct%)"
-                binding.tvItemCount.text = "${allItems.size} item(s) found so far"
+                binding.tvStatus.text = getString(R.string.scraping_scraping_page_of, index + 1, urls.size, pct)
+                binding.tvItemCount.text = getString(R.string.scraping_item_s_found_so, allItems.size)
                 val start = System.currentTimeMillis()
 
                 // No cache shortcut here on purpose: a cached row only holds a text preview, so
@@ -152,7 +152,7 @@ class WebScrapingActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     pagesFailed++
                     if (urls.size == 1) {
-                        binding.tvStatus.text = "Scrape failed: ${e.message}"
+                        binding.tvStatus.text = getString(R.string.email_scrape_failed, e.message)
                     }
                     cache.record(
                         feature = "SCRAPING",
@@ -167,7 +167,7 @@ class WebScrapingActivity : AppCompatActivity() {
                 }
 
                 binding.progressBar.progress = index + 1
-                binding.tvItemCount.text = "${allItems.size} item(s) found so far"
+                binding.tvItemCount.text = getString(R.string.scraping_item_s_found_so, allItems.size)
             }
 
             lastItems = allItems
@@ -215,7 +215,7 @@ class WebScrapingActivity : AppCompatActivity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
         headerRow.addView(TextView(this).apply {
-            text = "${index + 1}. ${item.name?.ifBlank { null } ?: "(no name detected)"}"
+            text = getString(R.string.scraping_text, index + 1, item.name?.ifBlank { null } ?: "(no name detected)")
             setTextColor(colorOf(R.color.text_primary))
             setTypeface(Typeface.DEFAULT, Typeface.BOLD)
             textSize = 13f

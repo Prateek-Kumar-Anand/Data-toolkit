@@ -9,9 +9,9 @@
             android:orientation="vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="24dp">
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp"
-                android:text="Your Toolkit Stats" android:textColor="@color/text_primary" android:textSize="26sp" android:textStyle="bold" />
+                android:text="@string/dashboard_your_toolkit_stats" android:textColor="@color/text_primary" android:textSize="26sp" android:textStyle="bold" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="2dp" android:layout_marginBottom="14dp"
-                android:text="Totals, quality and per-feature activity" android:textColor="@color/text_secondary" android:textSize="13.5sp" />
+                android:text="@string/dashboard_totals_quality_and_per" android:textColor="@color/text_secondary" android:textSize="13.5sp" />
 
             <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal"
                 android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="10dp"
@@ -25,12 +25,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="30dp" android:layout_height="30dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_dashboard_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🗂️" android:textSize="14sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/dashboard_symbol" android:textSize="14sp" />
                         </FrameLayout>
                         <TextView android:id="@+id/tvTotalJobs" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
-                            android:text="0" android:textColor="@color/text_primary" android:textSize="24sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                            android:text="@string/dashboard_symbol_2" android:textColor="@color/text_primary" android:textSize="24sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                         <TextView  android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Total jobs" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                            android:text="@string/dashboard_total_jobs" android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -40,12 +40,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="30dp" android:layout_height="30dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_excel_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="✅" android:textSize="14sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/dashboard_symbol_3" android:textSize="14sp" />
                         </FrameLayout>
                         <TextView android:id="@+id/tvSuccessRate" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
-                            android:text="0%" android:textColor="@color/success" android:textSize="24sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                            android:text="@string/dashboard_symbol_4" android:textColor="@color/success" android:textSize="24sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                         <TextView  android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Success rate" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                            android:text="@string/dashboard_success_rate" android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -57,12 +57,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="30dp" android:layout_height="30dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_ocr_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🎯" android:textSize="14sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/dashboard_symbol_5" android:textSize="14sp" />
                         </FrameLayout>
                         <TextView android:id="@+id/tvAvgQuality" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
-                            android:text="0" android:textColor="@color/primary" android:textSize="24sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                            android:text="@string/dashboard_symbol_2" android:textColor="@color/primary" android:textSize="24sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                         <TextView  android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Avg. quality" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                            android:text="@string/dashboard_avg_quality" android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -72,12 +72,12 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                         <FrameLayout android:layout_width="30dp" android:layout_height="30dp"
                             android:background="@drawable/bg_icon_chip" android:backgroundTint="@color/accent_batch_bg">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="🏅" android:textSize="14sp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center" android:text="@string/dashboard_symbol_6" android:textSize="14sp" />
                         </FrameLayout>
                         <TextView android:id="@+id/tvTopFeature" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
-                            android:text="—" android:textColor="@color/text_primary" android:textSize="17sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+                            android:text="@string/dashboard_symbol_7" android:textColor="@color/text_primary" android:textSize="17sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
                         <TextView android:id="@+id/tvTopFeatureSub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
-                            android:text="Most used tool" android:textColor="@color/text_secondary" android:textSize="12sp" />
+                            android:text="@string/dashboard_most_used_tool" android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
@@ -86,11 +86,11 @@
                 android:layout_marginTop="12dp" android:gravity="center" android:textColor="@color/text_secondary" android:textSize="12.5sp" />
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="20dp" android:layout_marginBottom="10dp"
-                android:text="Jobs by feature" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
+                android:text="@string/dashboard_jobs_by_feature" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView android:id="@+id/tvChartEmptyState" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:text="No activity yet — run any tool to see a breakdown here."
+                        android:text="@string/dashboard_no_activity_yet_run"
                         android:textColor="@color/text_secondary" android:textSize="13sp" android:visibility="gone" />
                     <com.github.mikephil.charting.charts.BarChart android:id="@+id/barChart"
                         android:layout_width="match_parent" android:layout_height="230dp" />
@@ -98,15 +98,15 @@
             </com.google.android.material.card.MaterialCardView>
 
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="4dp" android:layout_marginTop="20dp" android:layout_marginBottom="10dp"
-                android:text="Recent activity" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
+                android:text="@string/dashboard_recent_activity" android:textAppearance="@style/TextAppearance.App.SectionTitle" android:textSize="17sp" />
             <com.google.android.material.card.MaterialCardView style="@style/Widget.App.Card" android:layout_width="match_parent" android:layout_height="wrap_content">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <TextView android:id="@+id/tvRecentEmptyState" android:layout_width="match_parent" android:layout_height="wrap_content"
-                        android:text="No activity yet — try any tool from the home screen."
+                        android:text="@string/dashboard_no_activity_yet_try"
                         android:textColor="@color/text_secondary" android:textSize="12.5sp" />
                     <LinearLayout android:id="@+id/recentContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
                     <com.google.android.material.button.MaterialButton android:id="@+id/btnClear" style="@style/Widget.App.Button.Danger"
-                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="Clear history" />
+                        android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="@string/dashboard_clear_history" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

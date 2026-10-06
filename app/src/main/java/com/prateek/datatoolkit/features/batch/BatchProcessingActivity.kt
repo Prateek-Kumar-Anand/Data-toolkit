@@ -1,5 +1,6 @@
 package com.prateek.datatoolkit.features.batch
 
+import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.ui.enableInnerScroll
 
 import android.net.Uri
@@ -58,7 +59,7 @@ class BatchProcessingActivity : AppCompatActivity() {
         if (picked.size > MAX_BATCH_FILES) {
             Toast.makeText(this, "Only the first $MAX_BATCH_FILES files were queued", Toast.LENGTH_LONG).show()
         }
-        binding.tvStatus.text = "Preparing ${uris.size} file(s)..."
+        binding.tvStatus.text = getString(R.string.batch_preparing_file_s, uris.size)
         binding.progressBar.progress = 0
         binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch {
@@ -86,7 +87,7 @@ class BatchProcessingActivity : AppCompatActivity() {
             }
 
             if (localUris.isEmpty()) {
-                binding.tvStatus.text = "Could not read any of the selected files"
+                binding.tvStatus.text = getString(R.string.batch_could_not_read_any)
                 binding.progressBar.visibility = View.GONE
                 return@launch
             }
@@ -113,20 +114,20 @@ class BatchProcessingActivity : AppCompatActivity() {
                 binding.progressBar.progress = done
 
                 when (info.state) {
-                    WorkInfo.State.RUNNING -> binding.tvStatus.text = "Processing $done / $total..."
+                    WorkInfo.State.RUNNING -> binding.tvStatus.text = getString(R.string.batch_processing, done, total)
                     WorkInfo.State.SUCCEEDED -> {
                         val succeeded = info.outputData.getInt("succeeded", 0)
                         val failed = info.outputData.getInt("failed", 0)
-                        binding.tvStatus.text = "Done: $succeeded succeeded, $failed failed"
+                        binding.tvStatus.text = getString(R.string.batch_done_succeeded_failed, succeeded, failed)
                         binding.progressBar.visibility = View.GONE
                         loadLog()
                     }
                     WorkInfo.State.FAILED -> {
-                        binding.tvStatus.text = "Batch job failed after retries"
+                        binding.tvStatus.text = getString(R.string.batch_batch_job_failed_after)
                         binding.progressBar.visibility = View.GONE
                     }
                     WorkInfo.State.CANCELLED -> binding.progressBar.visibility = View.GONE
-                    WorkInfo.State.BLOCKED, WorkInfo.State.ENQUEUED -> binding.tvStatus.text = "Queued..."
+                    WorkInfo.State.BLOCKED, WorkInfo.State.ENQUEUED -> binding.tvStatus.text = getString(R.string.batch_queued)
                     else -> {}
                 }
             }

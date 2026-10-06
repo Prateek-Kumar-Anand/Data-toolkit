@@ -159,7 +159,13 @@ class SpreadsheetGridView @JvmOverloads constructor(
         }
     }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean = gestureDetector.onTouchEvent(event)
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val handled = gestureDetector.onTouchEvent(event)
+        if (event.action == MotionEvent.ACTION_UP) performClick()
+        return handled
+    }
+
+    override fun performClick(): Boolean = super.performClick()
 
     override fun computeScroll() {
         if (scroller.computeScrollOffset()) {
