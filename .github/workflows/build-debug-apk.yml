@@ -17,15 +17,15 @@ on:
       run_tests:
         description: "Run unit tests"
         type: boolean
-        default: false
+        default: true
       run_lint:
         description: "Run Android lint"
         type: boolean
-        default: false
+        default: true
       clean_build:
         description: "Clean build (ignore previous build outputs)"
         type: boolean
-        default: false
+        default: true
       use_cache:
         description: "Use the Gradle cache (faster builds)"
         type: boolean
@@ -70,9 +70,9 @@ jobs:
       # Push / pull_request runs have no inputs, so every option has a default below.
       IN_BUILD_TYPE: ${{ inputs.build_type }}
       IN_SUFFIX: ${{ inputs.version_suffix }}
-      IN_TESTS: ${{ inputs.run_tests }}
-      IN_LINT: ${{ inputs.run_lint }}
-      IN_CLEAN: ${{ inputs.clean_build }}
+      IN_TESTS: ${{ github.event_name != 'workflow_dispatch' || inputs.run_tests }}
+      IN_LINT: ${{ github.event_name != 'workflow_dispatch' || inputs.run_lint }}
+      IN_CLEAN: ${{ github.event_name != 'workflow_dispatch' || inputs.clean_build }}
       IN_LOGS: ${{ github.event_name != 'workflow_dispatch' || inputs.upload_logs }}
       IN_RELEASE: ${{ inputs.create_release }}
       IN_EXTRA: ${{ inputs.extra_gradle_args }}
@@ -133,13 +133,17 @@ jobs:
             both)    TASKS="assembleDebug assembleRelease" ;;
             *)       BT="debug"; TASKS="assembleDebug" ;;
           esac
-          [ "$IN_CLEAN" = "true" ] && TASKS="clean $TASKS"
           SUFFIX="$(printf '%s' "$IN_SUFFIX" | tr -cd 'A-Za-z0-9._-')"
           VER="1.0.${GITHUB_RUN_NUMBER}${SUFFIX:+-$SUFFIX}"
           echo "tasks=$TASKS" >> "$GITHUB_OUTPUT"
           echo "build_type=$BT" >> "$GITHUB_OUTPUT"
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "VERSION_SUFFIX=$SUFFIX" >> "$GITHUB_ENV"
+
+      - name: Clean
+        if: env.IN_CLEAN == 'true'
+        shell: bash
+        run: ./gradlew clean $IN_EXTRA
 
       - name: Unit tests
         if: env.IN_TESTS == 'true'
