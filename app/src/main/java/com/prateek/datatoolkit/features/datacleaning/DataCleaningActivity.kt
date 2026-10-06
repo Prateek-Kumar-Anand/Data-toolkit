@@ -34,6 +34,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import com.prateek.datatoolkit.core.io.displayNameOf
+import com.prateek.datatoolkit.core.ui.dp
 
 /** The live controls for one column's per-column rule card (see [DataCleaningActivity.renderColumnRules]). */
 private data class ColumnRuleView(
@@ -142,7 +144,7 @@ class DataCleaningActivity : AppCompatActivity() {
         binding.tvColumnsPreview.text = "Reading file..."
         lifecycleScope.launch {
             try {
-                val name = queryDisplayName(uri) ?: uri.lastPathSegment ?: "file"
+                val name = displayNameOf(uri)
                 val format = DataCleaner.formatFromFileName(name)
 
                 val rows = withContext(Dispatchers.IO) {
@@ -187,20 +189,7 @@ class DataCleaningActivity : AppCompatActivity() {
         }
     }
 
-    private fun queryDisplayName(uri: Uri): String? {
-        var cursor: Cursor? = null
-        return try {
-            cursor = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-            if (cursor != null && cursor.moveToFirst()) {
-                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0) cursor.getString(idx) else null
-            } else null
-        } catch (e: Exception) {
-            null
-        } finally {
-            cursor?.close()
-        }
-    }
+
 
     /** Parses just the header line of whatever is in the paste box and (re)builds the per-column rule cards. */
     private fun detectColumns() {
@@ -218,8 +207,7 @@ class DataCleaningActivity : AppCompatActivity() {
         Toast.makeText(this, "${header.size} column(s) detected", Toast.LENGTH_SHORT).show()
     }
 
-    /** dp -> px, so the hand-built cards below use real dp values instead of raw pixels. */
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
 
     private fun colorOf(resId: Int) = ContextCompat.getColor(this, resId)
 
@@ -716,18 +704,14 @@ class DataCleaningActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val saved = withContext(Dispatchers.IO) {
-                    val temp = File.createTempFile("clean_out_", ".tmp", cacheDir)
-                    try {
+                    OutputStorage.saveViaTemp(
+                        this@DataCleaningActivity, OutputStorage.Module.DATA_CLEANING, name, mimeTypeFor(format)
+                    ) { temp ->
                         if (format == DataFormat.XLSX) {
                             ExcelCsvHelper.writeXlsx(lastOutputRows, temp, sheetName = "Cleaned Data")
                         } else {
                             temp.writeText(DataCleaner.serialize(lastOutputRows, format))
                         }
-                        OutputStorage.saveFile(
-                            this@DataCleaningActivity, OutputStorage.Module.DATA_CLEANING, temp, name, mimeTypeFor(format)
-                        )
-                    } finally {
-                        temp.delete()
                     }
                 }
                 Toast.makeText(this@DataCleaningActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()

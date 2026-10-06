@@ -52,13 +52,17 @@ object PdfHelper {
         val merger = PDFMergerUtility()
         inputs.forEach { merger.addSource(it) }
         merger.destinationFileName = output.absolutePath
-        merger.mergeDocuments(null)
+        // Page content is buffered on disk, not in memory, so merging big PDFs can't OOM the app.
+        merger.mergeDocuments(com.tom_roush.pdfbox.io.MemoryUsageSetting.setupTempFileOnly())
     }
 
     /** Splits [startPage]..[endPage] (1-indexed, inclusive) out of [input] into [output]. */
     fun splitRange(input: File, startPage: Int, endPage: Int, output: File) {
         PDDocument.load(input).use { doc ->
             val total = doc.numberOfPages
+            if (endPage < startPage) {
+                throw IllegalArgumentException("The end page ($endPage) is before the start page ($startPage)")
+            }
             if (startPage < 1 || startPage > total) {
                 throw IllegalArgumentException("This PDF has $total page(s) - the start page $startPage is outside it")
             }

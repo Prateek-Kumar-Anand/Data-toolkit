@@ -1,7 +1,5 @@
 package com.prateek.datatoolkit.features.ocr
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
@@ -9,10 +7,9 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.core.cache.CacheManager
+import com.prateek.datatoolkit.core.io.CameraCapture
 import com.prateek.datatoolkit.core.image.SafeBitmap
 import com.prateek.datatoolkit.core.export.DocxWriter
 import com.prateek.datatoolkit.core.quality.QualityScorer
@@ -25,26 +22,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.prateek.datatoolkit.core.ui.formatDuration
 
 class OcrActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOcrBinding
     private lateinit var cache: CacheManager
-    private var cameraImageUri: Uri? = null
 
     // Text recognized so far, one entry per page processed (single image = 1 entry).
     // Kept around so every export format (TXT/PDF/DOCX/XLSX) can re-use the same result.
     private var pageTexts: List<String> = emptyList()
     private var lastDurationMs: Long = 0
 
-    private val takePicture = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && cameraImageUri != null) loadAndRecognize(listOf(cameraImageUri!!))
-    }
-
-    private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) startCapture()
-        else Toast.makeText(this, "Camera permission is required to take a photo", Toast.LENGTH_LONG).show()
-    }
+    private val camera = CameraCapture(this, "ocr") { uri -> loadAndRecognize(listOf(uri)) }
 
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) loadAndRecognize(listOf(uri))
@@ -79,7 +69,7 @@ class OcrActivity : AppCompatActivity() {
             }
         }
 
-        binding.btnCamera.setOnClickListener { launchCamera() }
+        binding.btnCamera.setOnClickListener { camera.launch() }
         binding.btnGallery.setOnClickListener { pickImage.launch("image/*") }
         binding.btnMultiPage.setOnClickListener { pickMultipleImages.launch("image/*") }
 
@@ -104,25 +94,6 @@ class OcrActivity : AppCompatActivity() {
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ) { file -> ExcelCsvHelper.writeXlsx(pageTextsToRows(), file, sheetName = "OCR Text") }
             }
-        }
-    }
-
-    private fun launchCamera() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            startCapture()
-        } else {
-            cameraPermission.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    private fun startCapture() {
-        try {
-            val file = File(File(cacheDir, "camera").apply { mkdirs() }, "ocr_capture_${System.currentTimeMillis()}.jpg")
-            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-            cameraImageUri = uri
-            takePicture.launch(uri)
-        } catch (e: Exception) {
-            Toast.makeText(this, "Camera unavailable: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -221,8 +192,7 @@ class OcrActivity : AppCompatActivity() {
         return rows.map { r -> r + List(cols - r.size) { "" } }
     }
 
-    private fun formatDuration(ms: Long): String =
-        if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)
+
 
     private fun setExportEnabled(enabled: Boolean) {
         binding.btnSaveText.isEnabled = enabled
@@ -246,11 +216,7 @@ class OcrActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val saved = withContext(Dispatchers.IO) {
-                    val temp = File.createTempFile("ocr_export_", ".tmp", cacheDir)
-                    write(temp)
-                    OutputStorage.saveFile(this@OcrActivity, OutputStorage.Module.OCR, temp, name, mimeType).also {
-                        temp.delete()
-                    }
+                    OutputStorage.saveViaTemp(this@OcrActivity, OutputStorage.Module.OCR, name, mimeType, write)
                 }
                 Toast.makeText(this@OcrActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
             } catch (e: Exception) {

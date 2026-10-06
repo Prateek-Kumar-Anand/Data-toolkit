@@ -1,35 +1,116 @@
-name: Build Debug APK
+name: Build APK
 
 on:
   push:
   pull_request:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "What to build"
+        type: choice
+        options: [debug, release, both]
+        default: debug
+      version_suffix:
+        description: "Label added to the version name (e.g. beta, rc1). Leave empty for none"
+        type: string
+        default: ""
+      run_tests:
+        description: "Run unit tests"
+        type: boolean
+        default: false
+      run_lint:
+        description: "Run Android lint"
+        type: boolean
+        default: false
+      clean_build:
+        description: "Clean build (ignore previous build outputs)"
+        type: boolean
+        default: false
+      use_cache:
+        description: "Use the Gradle cache (faster builds)"
+        type: boolean
+        default: true
+      upload_logs:
+        description: "Upload build log, error list and reports"
+        type: boolean
+        default: true
+      create_release:
+        description: "Publish the APK(s) as a GitHub Release"
+        type: boolean
+        default: false
+      jdk_version:
+        description: "JDK version"
+        type: choice
+        options: ["17", "21"]
+        default: "17"
+      retention_days:
+        description: "Days to keep the uploaded files"
+        type: choice
+        options: ["7", "14", "30", "90"]
+        default: "30"
+      extra_gradle_args:
+        description: "Extra Gradle arguments (optional, e.g. --warning-mode all)"
+        type: string
+        default: ""
+
+# A newer run on the same branch replaces an older, still-running one.
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # only used when "Publish as GitHub Release" is ticked
 
 jobs:
   build:
-    name: Assemble debug APK
+    name: Assemble APK
     runs-on: ubuntu-24.04
+
+    env:
+      # Push / pull_request runs have no inputs, so every option has a default below.
+      IN_BUILD_TYPE: ${{ inputs.build_type }}
+      IN_SUFFIX: ${{ inputs.version_suffix }}
+      IN_TESTS: ${{ inputs.run_tests }}
+      IN_LINT: ${{ inputs.run_lint }}
+      IN_CLEAN: ${{ inputs.clean_build }}
+      IN_LOGS: ${{ github.event_name != 'workflow_dispatch' || inputs.upload_logs }}
+      IN_RELEASE: ${{ inputs.create_release }}
+      IN_EXTRA: ${{ inputs.extra_gradle_args }}
+      # Optional: keep the signing key private by storing it as repository secrets instead of
+      # relying on the key committed in app/keystore (see the next step). Empty = use the default.
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up JDK 17
+      - name: Use signing key from repository secret (optional)
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > app/keystore/datatoolkit.jks
+            echo "Using the signing key from the KEYSTORE_BASE64 secret"
+          fi
+
+      - name: Set up JDK
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: ${{ inputs.jdk_version || '17' }}
 
       - name: Install Android SDK packages
         shell: bash
         run: |
-          # ubuntu-latest already ships the Android SDK; use its sdkmanager directly.
           SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKM" --licenses > /dev/null || true
           "$SDKM" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools" > /dev/null
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Cache Gradle
+        if: github.event_name != 'workflow_dispatch' || inputs.use_cache
         uses: actions/cache@v5
         with:
           path: |
@@ -42,39 +123,112 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build debug APK
+      - name: Resolve options
+        id: opt
+        shell: bash
+        run: |
+          BT="${IN_BUILD_TYPE:-debug}"
+          case "$BT" in
+            release) TASKS="assembleRelease" ;;
+            both)    TASKS="assembleDebug assembleRelease" ;;
+            *)       BT="debug"; TASKS="assembleDebug" ;;
+          esac
+          [ "$IN_CLEAN" = "true" ] && TASKS="clean $TASKS"
+          SUFFIX="$(printf '%s' "$IN_SUFFIX" | tr -cd 'A-Za-z0-9._-')"
+          VER="1.0.${GITHUB_RUN_NUMBER}${SUFFIX:+-$SUFFIX}"
+          echo "tasks=$TASKS" >> "$GITHUB_OUTPUT"
+          echo "build_type=$BT" >> "$GITHUB_OUTPUT"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "VERSION_SUFFIX=$SUFFIX" >> "$GITHUB_ENV"
+
+      - name: Unit tests
+        if: env.IN_TESTS == 'true'
+        continue-on-error: true
+        shell: bash
+        run: ./gradlew testDebugUnitTest --stacktrace --continue $IN_EXTRA 2>&1 | tee tests.log
+
+      - name: Lint
+        if: env.IN_LINT == 'true'
+        continue-on-error: true
+        shell: bash
+        run: ./gradlew lintDebug --stacktrace --continue $IN_EXTRA 2>&1 | tee lint.log
+
+      - name: Build APK
         id: build
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew assembleDebug --stacktrace --continue 2>&1 | tee build.log
+          ./gradlew ${{ steps.opt.outputs.tasks }} --stacktrace --continue $IN_EXTRA 2>&1 | tee build.log
 
       - name: Collect error list
         if: always()
         shell: bash
         run: |
+          PATTERN="^e: |error:|FAILED|What went wrong|Execution failed|AAPT|Unresolved|Manifest merger"
           {
             echo "## Build errors"
             echo '```'
-            grep -E "^e: |error:|FAILED|What went wrong|Execution failed|AAPT|Unresolved|Manifest merger" build.log | head -300 || true
+            grep -E "$PATTERN" build.log | head -300 || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          grep -E "^e: |error:|FAILED|What went wrong|Execution failed|AAPT|Unresolved|Manifest merger" build.log > errors.txt || echo "No errors found" > errors.txt
+          grep -E "$PATTERN" build.log > errors.txt || echo "No errors found" > errors.txt
 
-      - name: Upload build log and error list
-        if: always()
+      - name: Name the APK files
+        if: steps.build.outcome == 'success'
+        shell: bash
+        run: |
+          VER="${{ steps.opt.outputs.version }}"
+          mkdir -p dist
+          for T in debug release; do
+            F="$(ls app/build/outputs/apk/$T/*.apk 2>/dev/null | head -1 || true)"
+            [ -n "$F" ] && cp "$F" "dist/DataToolkit-$T-v$VER.apk"
+          done
+          {
+            echo "## Build options"
+            echo "| Option | Value |"
+            echo "|---|---|"
+            echo "| Build | ${{ steps.opt.outputs.build_type }} |"
+            echo "| Version | $VER (code ${GITHUB_RUN_NUMBER}) |"
+            echo "| Tests | ${IN_TESTS:-false} |"
+            echo "| Lint | ${IN_LINT:-false} |"
+            echo "| Clean | ${IN_CLEAN:-false} |"
+            echo ""
+            echo "### APK files"
+            ls -lh dist | tail -n +2 | awk '{print "- " $9 " (" $5 ")"}'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build log and reports
+        if: always() && env.IN_LOGS == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: build-log-and-errors
+          retention-days: ${{ inputs.retention_days || 30 }}
           path: |
             build.log
             errors.txt
+            tests.log
+            lint.log
             app/build/reports/**
           if-no-files-found: warn
 
       - name: Upload APK artifact
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: DataToolkit-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: DataToolkit-apk-v${{ steps.opt.outputs.version }}
+          retention-days: ${{ inputs.retention_days || 30 }}
+          path: dist/*.apk
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: steps.build.outcome == 'success' && env.IN_RELEASE == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER="${{ steps.opt.outputs.version }}"
+          PRE=""
+          [ -n "$VERSION_SUFFIX" ] && PRE="--prerelease"
+          gh release create "v$VER" dist/*.apk \
+            --title "Data Toolkit v$VER" --generate-notes \
+            --target "${{ github.sha }}" $PRE

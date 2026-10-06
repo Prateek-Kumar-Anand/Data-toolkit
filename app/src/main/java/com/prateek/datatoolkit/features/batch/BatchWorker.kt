@@ -38,6 +38,8 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
         const val TYPE_PDF_TEXT = "PDF_TEXT"
         /** If more than this fraction of items fail, ask WorkManager to retry the whole batch. */
         const val FAILURE_RATIO_FOR_RETRY = 0.5
+        /** The only file names BatchProcessingActivity creates ("item_<millis>_<n>.img|.pdf"). */
+        private val SAFE_INPUT_NAME = Regex("item_\\d{1,20}_\\d{1,4}\\.(img|pdf)")
     }
 
     private val cache = CacheManager(applicationContext)
@@ -57,6 +59,11 @@ class BatchWorker(appContext: Context, params: WorkerParameters) : CoroutineWork
             // Inputs are plain file names inside our own batch_input folder - anything carrying a
             // path separator is rejected so a crafted value can't point the worker elsewhere.
             val safeName = uriString.substringAfterLast('/')
+            if (!SAFE_INPUT_NAME.matches(safeName)) {
+                failed++
+                done++
+                continue
+            }
             val localFile = File(inputDir, safeName)
             inputFiles += localFile
             val uri = Uri.fromFile(localFile)

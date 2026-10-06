@@ -15,7 +15,6 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.prateek.datatoolkit.R
 import com.prateek.datatoolkit.core.cache.AppDatabase
@@ -34,6 +33,10 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.prateek.datatoolkit.core.io.CameraCapture
+import com.prateek.datatoolkit.core.io.displayNameOf
+import com.prateek.datatoolkit.core.ui.dp
+import com.prateek.datatoolkit.core.ui.formatDuration
 
 /**
  * Invoice & Receipt OCR: photograph or pick invoices/receipts, run the same on-device ML Kit
@@ -49,7 +52,6 @@ class InvoiceOcrActivity : AppCompatActivity() {
     private lateinit var cache: CacheManager
     private lateinit var db: AppDatabase
 
-    private var cameraImageUri: Uri? = null
     private val batch = mutableListOf<ParsedInvoice>()
 
     // Field name -> its live EditText, for whatever this scan detected beyond the seven core
@@ -57,9 +59,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
     // every populateFields()/clearFields() call since the set of fields differs per scan.
     private val extraFieldRows = mutableListOf<Pair<String, EditText>>()
 
-    private val takePicture = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && cameraImageUri != null) processSingle(cameraImageUri!!)
-    }
+    private val camera = CameraCapture(this, "invoice") { uri -> processSingle(uri) }
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) processSingle(uri)
     }
@@ -79,7 +79,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         cache = CacheManager(this)
         db = AppDatabase.get(this)
 
-        binding.btnCamera.setOnClickListener { launchCamera() }
+        binding.btnCamera.setOnClickListener { camera.launch() }
         binding.btnGallery.setOnClickListener { pickImage.launch("image/*") }
         binding.btnBatchPick.setOnClickListener { pickBatch.launch("image/*") }
         binding.btnAddToBatch.setOnClickListener { addCurrentFieldsToBatch() }
@@ -88,13 +88,6 @@ class InvoiceOcrActivity : AppCompatActivity() {
 
         renderBatch()
         renderHistory()
-    }
-
-    private fun launchCamera() {
-        val file = File(File(cacheDir, "camera").apply { mkdirs() }, "invoice_capture_${System.currentTimeMillis()}.jpg")
-        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
-        cameraImageUri = uri
-        takePicture.launch(uri)
     }
 
     // ---- Single-image scan: OCR + parse, then let the user review/edit before adding ---------
@@ -418,12 +411,8 @@ class InvoiceOcrActivity : AppCompatActivity() {
                 else
                     "text/csv"
                 val saved = withContext(Dispatchers.IO) {
-                    val temp = File.createTempFile("invoices_", if (asXlsx) ".xlsx" else ".csv", cacheDir)
-                    try {
+                    OutputStorage.saveViaTemp(this@InvoiceOcrActivity, OutputStorage.Module.INVOICES, name, mimeType) { temp ->
                         if (asXlsx) ExcelCsvHelper.writeXlsx(rows, temp, sheetName = "Invoices") else ExcelCsvHelper.writeCsv(rows, temp)
-                        OutputStorage.saveFile(this@InvoiceOcrActivity, OutputStorage.Module.INVOICES, temp, name, mimeType)
-                    } finally {
-                        temp.delete()
                     }
                 }
                 Toast.makeText(this@InvoiceOcrActivity, "Exported ${batch.size} invoice(s) to ${saved.humanPath}", Toast.LENGTH_LONG).show()
@@ -538,20 +527,7 @@ class InvoiceOcrActivity : AppCompatActivity() {
         )
     }
 
-    private fun displayNameOf(uri: Uri): String {
-        var name = uri.lastPathSegment ?: "invoice"
-        try {
-            contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                if (c.moveToFirst()) {
-                    val idx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                    if (idx >= 0) c.getString(idx)?.let { name = it }
-                }
-            }
-        } catch (_: Exception) {
-            // Fall back to the lastPathSegment already captured above.
-        }
-        return name
-    }
+
 
     private fun setBusy(busy: Boolean) {
         binding.btnCamera.isEnabled = !busy
@@ -561,8 +537,8 @@ class InvoiceOcrActivity : AppCompatActivity() {
         binding.progressBar.visibility = if (busy) View.VISIBLE else View.GONE
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     private fun colorOf(resId: Int) = ContextCompat.getColor(this, resId)
-    private fun formatDuration(ms: Long): String = if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)
+
     private fun dateLabel(millis: Long): String = SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(millis))
 }

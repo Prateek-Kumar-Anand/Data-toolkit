@@ -67,6 +67,10 @@ enum class StepKind(
         "Load Excel / CSV", "📊", "Pick a spreadsheet to use as a table",
         setOf(DataKind.NONE), DataKind.TABLE, StepCategory.SOURCE
     ),
+    SCAN_TABLE(
+        "Scan Table (OCR)", "🧾", "Pick photos of tables, keep rows and columns",
+        setOf(DataKind.NONE), DataKind.TABLE, StepCategory.SOURCE
+    ),
     SCRAPE_URL(
         "Scrape a URL", "🌐", "Fetch a page — auto-detects product/article cards",
         setOf(DataKind.NONE), DataKind.TABLE, StepCategory.SOURCE
@@ -83,6 +87,34 @@ enum class StepKind(
     EXTRACT_EMAILS(
         "Extract Emails", "✉️", "Pull out valid, de-duplicated emails",
         setOf(DataKind.TEXT, DataKind.TABLE), DataKind.EMAILS, StepCategory.TRANSFORM
+    ),
+    TEXT_TO_TABLE(
+        "Text → Table", "🔀", "Split lines into columns (tab, comma, semicolon…)",
+        setOf(DataKind.TEXT), DataKind.TABLE, StepCategory.TRANSFORM
+    ),
+    TABLE_TO_TEXT(
+        "Table → Text", "📝", "Turn rows back into plain text lines",
+        setOf(DataKind.TABLE), DataKind.TEXT, StepCategory.TRANSFORM
+    ),
+    CLEAN_TEXT(
+        "Tidy Text", "✨", "Trim lines, collapse extra spaces and blank lines",
+        setOf(DataKind.TEXT), DataKind.TEXT, StepCategory.TRANSFORM
+    ),
+    FIND_REPLACE(
+        "Find & Replace", "🔎", "Replace a word or phrase in the text",
+        setOf(DataKind.TEXT), DataKind.TEXT, StepCategory.TRANSFORM
+    ),
+    FILTER_ROWS(
+        "Filter Rows", "🧮", "Keep only rows that match a rule (header is kept)",
+        setOf(DataKind.TABLE), DataKind.TABLE, StepCategory.TRANSFORM
+    ),
+    SORT_TABLE(
+        "Sort Table", "↕️", "Sort rows by a column (header stays on top)",
+        setOf(DataKind.TABLE), DataKind.TABLE, StepCategory.TRANSFORM
+    ),
+    KEEP_COLUMNS(
+        "Pick Columns", "🗂️", "Keep (and reorder) only the columns you list",
+        setOf(DataKind.TABLE), DataKind.TABLE, StepCategory.TRANSFORM
     ),
 
     EXPORT_CSV(
@@ -118,6 +150,19 @@ class WorkflowStep(val kind: StepKind) {
     var pickedUri: Uri? = null
     var pickedUris: List<Uri> = emptyList()
     var textInput: String = ""
+
+    /** Per-step settings (OCR mode, filter column, export file name...). Strings only, so they
+     *  save with a workflow; read with [opt] so a missing key just means "use the default". */
+    val options: MutableMap<String, String> = mutableMapOf()
+    fun opt(key: String, default: String = ""): String = options[key] ?: default
+
+    /** A fresh, un-run copy with the same settings and picked files. */
+    fun copyConfig(): WorkflowStep = WorkflowStep(kind).also {
+        it.pickedUri = pickedUri
+        it.pickedUris = pickedUris
+        it.textInput = textInput
+        it.options.putAll(options)
+    }
 
     // Filled in once the workflow runs.
     var status: StepStatus = StepStatus.PENDING

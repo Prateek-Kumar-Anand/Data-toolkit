@@ -23,6 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.prateek.datatoolkit.core.ui.dp
+import com.prateek.datatoolkit.core.ui.saveFileWithToast
 
 class WebScrapingActivity : AppCompatActivity() {
 
@@ -363,22 +365,11 @@ class WebScrapingActivity : AppCompatActivity() {
         }
     }
 
-    private fun writePendingXlsx(file: File) {
-        lifecycleScope.launch {
-            try {
-                val saved = withContext(Dispatchers.IO) {
-                    OutputStorage.saveFile(
-                        this@WebScrapingActivity, OutputStorage.Module.WEB_SCRAPING, file, file.name,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                }
-                Toast.makeText(this@WebScrapingActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@WebScrapingActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
+    private fun writePendingXlsx(file: File) = saveFileWithToast(
+        OutputStorage.Module.WEB_SCRAPING, file, file.name,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     private fun colorOf(resId: Int) = ContextCompat.getColor(this, resId)
 }

@@ -51,6 +51,7 @@ class ToolkitApp : Application() {
         dir.listFiles()?.forEach { f ->
             if (f.isDirectory) {
                 purgeOld(f, cutoff)
+                f.delete() // only succeeds when the folder is now empty (per-export scratch folders)
             } else if (f.lastModified() < cutoff) {
                 f.delete()
             }

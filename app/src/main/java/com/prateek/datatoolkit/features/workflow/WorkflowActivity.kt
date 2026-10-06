@@ -1,6 +1,7 @@
 package com.prateek.datatoolkit.features.workflow
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
@@ -19,6 +20,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.widget.TextViewCompat
 import androidx.core.widget.doOnTextChanged
 import androidx.lifecycle.lifecycleScope
@@ -36,6 +38,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.prateek.datatoolkit.core.io.displayNameOf
+import com.prateek.datatoolkit.core.ui.dp
+import com.prateek.datatoolkit.core.ui.formatDuration
 
 /**
  * Workflow Builder: lets the user chain the app's existing tools into one
@@ -111,7 +116,7 @@ class WorkflowActivity : AppCompatActivity() {
         renderHistory()
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     private fun colorOf(resId: Int) = ContextCompat.getColor(this, resId)
 
     /** What the *next* added step must accept, based on where the chain currently ends. */
@@ -148,6 +153,43 @@ class WorkflowActivity : AppCompatActivity() {
         loadedWorkflowId = null
         renderSteps()
         renderAddStepOptions()
+    }
+
+    /** After any edit the old run results no longer describe the chain, so clear them. */
+    private fun clearRunState() {
+        steps.forEach { it.status = StepStatus.PENDING; it.resultPreview = ""; it.errorMessage = null }
+        loadedWorkflowId = null
+        renderSteps()
+        renderAddStepOptions()
+    }
+
+    private fun moveStep(index: Int, delta: Int) {
+        if (isRunning) return
+        val to = index + delta
+        if (index !in steps.indices || to !in steps.indices) return
+        java.util.Collections.swap(steps, index, to)
+        clearRunState()
+    }
+
+    private fun removeStep(index: Int) {
+        if (isRunning || index !in steps.indices) return
+        steps.removeAt(index)
+        clearRunState()
+    }
+
+    private fun duplicateStep(index: Int) {
+        if (isRunning || index !in steps.indices || steps.size >= WorkflowStorage.MAX_STEPS) return
+        steps.add(index + 1, steps[index].copyConfig())
+        clearRunState()
+    }
+
+    /** Free reordering can leave a step with the wrong kind of input; say so instead of failing at run time. */
+    private fun chainProblem(index: Int): String? {
+        val before = if (index == 0) DataKind.NONE else steps[index - 1].kind.produces
+        val kind = steps[index].kind
+        if (before in kind.accepts) return null
+        val needs = kind.accepts.joinToString(" or ") { it.label }
+        return "Needs $needs, but the step before it gives ${before.label} — move or remove a step"
     }
 
     private fun resetWorkflow() {
@@ -221,7 +263,7 @@ class WorkflowActivity : AppCompatActivity() {
         // Inline input controls for source steps - the only ones that need something from
         // the user before a run, since every other step just consumes the previous one's output.
         when (step.kind) {
-            StepKind.SCAN_IMAGES -> card.addView(pickChip(
+            StepKind.SCAN_IMAGES, StepKind.SCAN_TABLE -> card.addView(pickChip(
                 label = if (step.pickedUris.isEmpty()) "📷  Choose Photos" else "📷  ${step.pickedUris.size} photo(s) selected — change",
                 onClick = {
                     pendingMultiUriPick = { uris -> step.pickedUris = uris; renderSteps() }
@@ -250,36 +292,105 @@ class WorkflowActivity : AppCompatActivity() {
                 hint = "Type or paste text here", current = step.textInput, singleLine = false,
                 onChange = { step.textInput = it }
             ))
-            else -> { /* transforms and exports need no input from the user */ }
+            else -> { /* other steps have no file/text input */ }
+        }
+        addOptionControls(card, step)
+
+        chainProblem(index)?.let { problem ->
+            card.addView(TextView(this).apply {
+                text = "⚠ $problem"
+                setTextColor(colorOf(R.color.error))
+                textSize = 12f
+                setPadding(0, dp(6), 0, 0)
+            })
         }
 
-        // Every step can be removed, not just the last one - removing an earlier step also
-        // drops everything chained after it (their input would no longer make sense once
-        // what feeds them is gone), so the label says exactly what will happen before it does.
-        val trailingCount = steps.size - index - 1
-        val removeRow = LinearLayout(this).apply {
+        // Edit row: move up / down, duplicate, remove just this step (long-press Remove drops
+        // this step and everything after it). Disabled while a run is in progress.
+        val actions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = dp(6) }
         }
-        removeRow.addView(TextView(this).apply {
-            text = if (isLast) "✕ Remove this step" else "✕ Remove this + $trailingCount step(s) after it"
-            setTextColor(colorOf(R.color.error))
-            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
-            textSize = 11.5f
-            alpha = if (isRunning) 0.4f else 1f
-            isClickable = !isRunning
-            isFocusable = !isRunning
-            val outValue = TypedValue()
-            this@WorkflowActivity.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
-            setBackgroundResource(outValue.resourceId)
-            setPadding(dp(6), dp(2), dp(6), dp(2))
-            setOnClickListener { confirmRemoveFrom(index, trailingCount) }
+        fun miniAction(label: String, colorRes: Int, enabled: Boolean, onClick: () -> Unit): TextView =
+            actionLabel(label, colorRes) { if (enabled) onClick() }.apply {
+                alpha = if (enabled) 1f else 0.35f
+                isClickable = enabled
+            }
+        actions.addView(miniAction("↑", R.color.primary, index > 0 && !isRunning) { moveStep(index, -1) })
+        actions.addView(miniAction("↓", R.color.primary, !isLast && !isRunning) { moveStep(index, 1) })
+        actions.addView(miniAction("⧉ Duplicate", R.color.primary, !isRunning) { duplicateStep(index) })
+        val trailingCount = steps.size - index - 1
+        actions.addView(miniAction("✕ Remove", R.color.error, !isRunning) { removeStep(index) }.apply {
+            setOnLongClickListener {
+                if (!isRunning && trailingCount > 0) confirmRemoveFrom(index, trailingCount)
+                true
+            }
         })
-        card.addView(removeRow)
+        card.addView(actions)
 
         return card
+    }
+
+    /** A chip that cycles through [choices] (value to label) each tap and stores the value in the step. */
+    private fun cycleChip(step: WorkflowStep, key: String, title: String, choices: List<Pair<String, String>>, default: String): View {
+        val current = choices.indexOfFirst { it.first == step.opt(key, default) }.coerceAtLeast(0)
+        return pickChip(label = "⚙  $title: ${choices[current].second}  ›") {
+            if (isRunning) return@pickChip
+            step.options[key] = choices[(current + 1) % choices.size].first
+            loadedWorkflowId = null
+            renderSteps()
+        }
+    }
+
+    private fun optionField(step: WorkflowStep, key: String, hint: String): View =
+        inlineTextField(hint = hint, current = step.opt(key), singleLine = true) {
+            step.options[key] = it
+            loadedWorkflowId = null
+        }
+
+    /** Settings that belong to one kind of step: OCR mode, filter / sort rules, export name and look. */
+    private fun addOptionControls(card: LinearLayout, step: WorkflowStep) {
+        val v = mutableListOf<View>()
+        when (step.kind) {
+            StepKind.SCAN_IMAGES -> v += cycleChip(step, "mode", "Mode", listOf(
+                "layout" to "Text + tables", "book" to "Book (headings & paragraphs)", "plain" to "Plain text"
+            ), "layout")
+            StepKind.TEXT_TO_TABLE -> v += cycleChip(step, "delimiter", "Split by", listOf(
+                "auto" to "Auto-detect", "tab" to "Tab", "comma" to "Comma", "semicolon" to "Semicolon", "spaces" to "2+ spaces"
+            ), "auto")
+            StepKind.TABLE_TO_TEXT -> v += cycleChip(step, "separator", "Join cells with", listOf(
+                "tab" to "Tab", "comma" to "Comma", "pipe" to "Pipe |"
+            ), "tab")
+            StepKind.FIND_REPLACE -> {
+                v += optionField(step, "find", "Find…")
+                v += optionField(step, "replace", "Replace with (empty = delete)")
+                v += cycleChip(step, "case", "Match", listOf("ignore" to "Ignore case", "match" to "Exact case"), "ignore")
+            }
+            StepKind.FILTER_ROWS -> {
+                v += optionField(step, "column", "Column number or name (empty = any column)")
+                v += cycleChip(step, "rule", "Keep rows that", listOf(
+                    "contains" to "contain", "not" to "do not contain", "equals" to "equal", "starts" to "start with"
+                ), "contains")
+                v += optionField(step, "value", "Value")
+            }
+            StepKind.SORT_TABLE -> {
+                v += optionField(step, "column", "Column number or name")
+                v += cycleChip(step, "order", "Order", listOf("asc" to "A→Z / low→high", "desc" to "Z→A / high→low"), "asc")
+            }
+            StepKind.KEEP_COLUMNS -> v += optionField(step, "columns", "Columns to keep, e.g. 1, 3, Name")
+            else -> {}
+        }
+        if (step.kind.category == StepCategory.EXPORT) {
+            v += optionField(step, "fileName", "File name (optional)")
+            if (step.kind == StepKind.EXPORT_PDF || step.kind == StepKind.EXPORT_DOCX) {
+                v += cycleChip(step, "style", "Look", listOf(
+                    "auto" to "Auto", "book" to "Book (headings)", "table" to "Tables", "plain" to "Plain text"
+                ), "auto")
+            }
+        }
+        v.forEach { card.addView(it) }
     }
 
     private fun statusBadge(status: StepStatus): View = TextView(this).apply {
@@ -341,20 +452,7 @@ class WorkflowActivity : AppCompatActivity() {
             doOnTextChanged { text, _, _, _ -> onChange(text?.toString().orEmpty()) }
         }
 
-    private fun displayNameOf(uri: Uri): String {
-        var name = uri.lastPathSegment ?: "file"
-        try {
-            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                if (c.moveToFirst()) {
-                    val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (idx >= 0) c.getString(idx)?.let { name = it }
-                }
-            }
-        } catch (e: Exception) {
-            // Fall back to the lastPathSegment already captured above.
-        }
-        return name
-    }
+
 
     // ---- Rendering: "add a step" chips -------------------------------------------------------
 
@@ -416,8 +514,13 @@ class WorkflowActivity : AppCompatActivity() {
 
     private fun validateBeforeRun(): String? {
         for ((index, step) in steps.withIndex()) {
+            chainProblem(index)?.let { return "Step ${index + 1}: $it" }
             val problem = when (step.kind) {
-                StepKind.SCAN_IMAGES -> if (step.pickedUris.isEmpty()) "Step ${index + 1}: pick at least one photo" else null
+                StepKind.FIND_REPLACE -> if (step.opt("find").isEmpty()) "Step ${index + 1}: enter the text to find" else null
+                StepKind.FILTER_ROWS -> if (step.opt("value").isEmpty()) "Step ${index + 1}: enter the value to match" else null
+                StepKind.SORT_TABLE -> if (step.opt("column").isBlank()) "Step ${index + 1}: enter the column to sort by" else null
+                StepKind.KEEP_COLUMNS -> if (step.opt("columns").isBlank()) "Step ${index + 1}: list the columns to keep" else null
+                StepKind.SCAN_IMAGES, StepKind.SCAN_TABLE -> if (step.pickedUris.isEmpty()) "Step ${index + 1}: pick at least one photo" else null
                 StepKind.LOAD_PDF -> if (step.pickedUri == null) "Step ${index + 1}: pick a PDF" else null
                 StepKind.LOAD_SHEET -> if (step.pickedUri == null) "Step ${index + 1}: pick a file" else null
                 StepKind.SCRAPE_URL -> if (step.textInput.isBlank()) "Step ${index + 1}: enter a URL" else null
@@ -538,11 +641,13 @@ class WorkflowActivity : AppCompatActivity() {
                     .apply { topMargin = dp(8) }
             }
             row.addView(TextView(this).apply {
-                text = "${outcome.kind.emoji}  ${outcome.file.name}"
+                val kb = (outcome.file.length() + 512) / 1024
+                text = "${outcome.kind.emoji}  ${outcome.file.name}  (${if (kb == 0L) "<1" else kb.toString()} KB)"
                 setTextColor(colorOf(R.color.text_primary))
                 textSize = 13f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             })
+            row.addView(actionLabel("📤 Share", R.color.primary) { shareOutcome(outcome) })
             row.addView(TextView(this).apply {
                 text = "💾 Save As…"
                 setTextColor(colorOf(R.color.primary))
@@ -557,6 +662,27 @@ class WorkflowActivity : AppCompatActivity() {
                 setOnClickListener { launchSaveAs(outcome) }
             })
             binding.resultsContainer.addView(row)
+        }
+    }
+
+    private fun shareOutcome(outcome: ExportOutcome) {
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", outcome.file)
+            val mime = when (outcome.kind) {
+                StepKind.EXPORT_CSV -> "text/csv"
+                StepKind.EXPORT_XLSX -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                StepKind.EXPORT_TXT -> "text/plain"
+                StepKind.EXPORT_PDF -> "application/pdf"
+                else -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            }
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(send, "Share ${outcome.file.name}"))
+        } catch (e: Exception) {
+            Toast.makeText(this, "Could not share: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -603,7 +729,7 @@ class WorkflowActivity : AppCompatActivity() {
         renderAddStepOptions()
     }
 
-    private fun formatDuration(ms: Long): String = if (ms < 1000) "${ms}ms" else "%.1fs".format(ms / 1000.0)
+
 
     private suspend fun recordRun(okCount: Int, failCount: Int, totalMs: Long) {
         val label = "${steps.size}-step workflow"
@@ -746,7 +872,7 @@ class WorkflowActivity : AppCompatActivity() {
             renderSteps()
             renderAddStepOptions()
             val needsPicks = steps.any {
-                it.kind == StepKind.SCAN_IMAGES || it.kind == StepKind.LOAD_PDF || it.kind == StepKind.LOAD_SHEET
+                it.kind == StepKind.SCAN_IMAGES || it.kind == StepKind.SCAN_TABLE || it.kind == StepKind.LOAD_PDF || it.kind == StepKind.LOAD_SHEET
             }
             Toast.makeText(
                 this,

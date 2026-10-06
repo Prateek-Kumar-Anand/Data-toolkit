@@ -20,6 +20,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import com.prateek.datatoolkit.core.io.displayNameOf
+import com.prateek.datatoolkit.core.ui.formatSize
+import com.prateek.datatoolkit.core.ui.saveFileWithToast
 
 class FileConversionActivity : AppCompatActivity() {
 
@@ -236,35 +239,13 @@ class FileConversionActivity : AppCompatActivity() {
         val ext = file.extension.lowercase()
         val mime = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
         val base = sourceFileName.substringBeforeLast('.', sourceFileName).ifBlank { "converted" }
-        lifecycleScope.launch {
-            try {
-                val saved = withContext(Dispatchers.IO) {
-                    OutputStorage.saveFile(this@FileConversionActivity, OutputStorage.Module.CONVERSION, file, "$base.$ext", mime)
-                }
-                Toast.makeText(this@FileConversionActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@FileConversionActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
+        saveFileWithToast(OutputStorage.Module.CONVERSION, file, "$base.$ext", mime)
     }
 
     private fun copyUriToTempFile(uri: Uri, suffix: String): File =
         FileGuards.copyToTemp(this, uri, "conv_", suffix, maxBytes = 500L * 1024 * 1024)
 
-    private fun displayNameOf(uri: Uri): String {
-        var name = uri.lastPathSegment ?: "file"
-        try {
-            contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-                if (c.moveToFirst()) {
-                    val idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (idx >= 0) c.getString(idx)?.let { name = it }
-                }
-            }
-        } catch (e: Exception) {
-            // Fall back to the lastPathSegment already captured above.
-        }
-        return name.substringAfterLast('/')
-    }
+
 
     private fun categoryLabel(category: FileConversionHelper.FileCategory): String = when (category) {
         FileConversionHelper.FileCategory.DOCUMENT -> "Document"
@@ -274,9 +255,5 @@ class FileConversionActivity : AppCompatActivity() {
         FileConversionHelper.FileCategory.UNKNOWN -> "Unknown"
     }
 
-    private fun formatSize(bytes: Long): String = when {
-        bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
-        bytes >= 1_000 -> "%.1f KB".format(bytes / 1_000.0)
-        else -> "$bytes B"
-    }
+
 }

@@ -380,11 +380,8 @@ class ExcelCsvActivity : AppCompatActivity(), SpreadsheetGridView.Listener {
             runSaveOperation("Exporting...") {
                 val name = "export_${System.currentTimeMillis()}.${if (asXlsx) "xlsx" else "csv"}"
                 val mimeType = if (asXlsx) "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" else "text/csv"
-                val tempFile = writeToTempFile(asXlsx)
-                val saved = try {
-                    OutputStorage.saveFile(this@ExcelCsvActivity, OutputStorage.Module.EXCEL, tempFile, name, mimeType)
-                } finally {
-                    tempFile.delete()
+                val saved = OutputStorage.saveViaTemp(this@ExcelCsvActivity, OutputStorage.Module.EXCEL, name, mimeType) { temp ->
+                    if (asXlsx) ExcelCsvHelper.writeWorkbook(workbook, temp) else ExcelCsvHelper.writeCsv(activeSheetAsRows(), temp)
                 }
                 val multiSheetNote = if (!asXlsx && workbook.sheets.size > 1) " (active sheet only - CSV can't hold more than one)" else ""
                 "Saved to ${saved.humanPath}$multiSheetNote"

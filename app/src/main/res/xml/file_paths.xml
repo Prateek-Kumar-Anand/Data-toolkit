@@ -2,4 +2,6 @@
 <paths>
     <!-- Only the camera capture folder is shareable with the camera app - not the whole cache. -->
     <cache-path name="camera" path="camera/" />
+    <!-- Workflow export results, shared via the "Share" button on the results list. -->
+    <cache-path name="workflow" path="workflow_out/" />
 </paths>

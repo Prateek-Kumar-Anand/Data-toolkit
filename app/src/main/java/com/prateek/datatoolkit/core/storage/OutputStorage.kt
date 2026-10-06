@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.prateek.datatoolkit.core.io.FileGuards
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -65,6 +66,20 @@ object OutputStorage {
      *  scratch/temp file still own deleting it afterwards, same as before this existed. */
     fun saveFile(context: Context, module: Module, source: File, desiredName: String, mimeType: String): SavedFile =
         write(context, module, desiredName, mimeType) { out -> source.inputStream().use { it.copyTo(out) } }
+
+    /** Builds an export into a scratch file with [write], saves it like [saveFile], and always
+     *  deletes the scratch file - including when [write] or the save throws (several screens used
+     *  to leave it behind on failure). Blocking: call from a background dispatcher. */
+    fun saveViaTemp(context: Context, module: Module, desiredName: String, mimeType: String, write: (File) -> Unit): SavedFile {
+        val ext = desiredName.substringAfterLast('.', "")
+        val temp = File.createTempFile("export_", FileGuards.safeSuffix(ext), context.cacheDir)
+        try {
+            write(temp)
+            return saveFile(context, module, temp, desiredName, mimeType)
+        } finally {
+            temp.delete()
+        }
+    }
 
     /** Same as [saveFile], for callers that already have the output in memory rather than on
      *  disk (e.g. a CSV/plain-text string). */

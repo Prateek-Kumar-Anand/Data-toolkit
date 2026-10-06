@@ -74,6 +74,27 @@ object OcrLayout {
         return out.toString().trimEnd('\n')
     }
 
+    /**
+     * Pulls just the tables out of [toLayoutText] output: every tab-separated line becomes a
+     * row, an empty row separates one table from the next, and rows are padded to equal width.
+     */
+    fun tableRows(layoutText: String): List<List<String>> {
+        val rows = mutableListOf<List<String>>()
+        var inTable = false
+        for (line in layoutText.lines()) {
+            if (line.contains('\t')) {
+                rows.add(line.split('\t'))
+                inTable = true
+            } else if (inTable) {
+                rows.add(emptyList())
+                inTable = false
+            }
+        }
+        while (rows.isNotEmpty() && rows.last().isEmpty()) rows.removeAt(rows.lastIndex)
+        val cols = rows.maxOfOrNull { it.size } ?: return emptyList()
+        return rows.map { r -> r + List(cols - r.size) { "" } }
+    }
+
     private fun buildRows(words: List<OcrWord>): List<Row> {
         val rows = mutableListOf<Row>()
         for (w in words.sortedBy { it.top + it.bottom }) {

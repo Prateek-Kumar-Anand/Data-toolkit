@@ -16,7 +16,9 @@ android {
         // accepts it as an update over the installed one (local builds fall back to 1).
         def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
         versionCode runNumber
-        versionName "1.0.${runNumber}"
+        // Optional label from the workflow (e.g. "beta") -> versionName 1.0.42-beta.
+        def versionSuffix = System.getenv("VERSION_SUFFIX") ?: ""
+        versionName "1.0.${runNumber}" + (versionSuffix ? "-${versionSuffix}" : "")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 

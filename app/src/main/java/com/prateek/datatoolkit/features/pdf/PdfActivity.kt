@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import com.prateek.datatoolkit.core.ui.saveFileWithToast
 
 class PdfActivity : AppCompatActivity() {
 
@@ -214,18 +215,8 @@ class PdfActivity : AppCompatActivity() {
         storagePermission.runWithPermission { saveTextResult(text) }
     }
 
-    private fun savePdfResult(file: File) {
-        lifecycleScope.launch {
-            try {
-                val saved = withContext(Dispatchers.IO) {
-                    OutputStorage.saveFile(this@PdfActivity, OutputStorage.Module.PDF, file, file.name, "application/pdf")
-                }
-                Toast.makeText(this@PdfActivity, "Saved to ${saved.humanPath}", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(this@PdfActivity, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
-            }
-        }
-    }
+    private fun savePdfResult(file: File) =
+        saveFileWithToast(OutputStorage.Module.PDF, file, file.name, "application/pdf")
 
     private fun saveTextResult(text: String) {
         lifecycleScope.launch {

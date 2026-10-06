@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.prateek.datatoolkit.core.ui.dp
 
 /**
  * Analytics Dashboard: reads the shared ProcessedItem history (every feature
@@ -179,7 +180,7 @@ class DashboardActivity : AppCompatActivity() {
         else -> R.color.error
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
     private fun colorOf(resId: Int) = ContextCompat.getColor(this, resId)
     private fun dateLabel(millis: Long): String =
         SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(millis))

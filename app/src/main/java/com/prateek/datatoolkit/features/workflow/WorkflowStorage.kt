@@ -6,8 +6,8 @@ import org.json.JSONObject
 /**
  * Turns a workflow's step chain into a small JSON string (for [com.prateek.datatoolkit.core.cache.SavedWorkflow.stepsJson])
  * and back. Deliberately only persists what's safe to restore later - each step's [StepKind]
- * and its [WorkflowStep.textInput] (a typed URL or pasted text, both plain strings that stay
- * valid forever). Picked file/photo Uris are never encoded - see the note on [com.prateek.datatoolkit.core.cache.SavedWorkflow]
+ * its [WorkflowStep.textInput] (a typed URL or pasted text, both plain strings that stay
+ * valid forever) and its [WorkflowStep.options] (OCR mode, filter column, file name...). Picked file/photo Uris are never encoded - see the note on [com.prateek.datatoolkit.core.cache.SavedWorkflow]
  * for why re-running a loaded workflow asks the user to pick those again instead.
  */
 object WorkflowStorage {
@@ -21,6 +21,9 @@ object WorkflowStorage {
             val obj = JSONObject()
             obj.put("kind", step.kind.name)
             obj.put("textInput", step.textInput.take(MAX_TEXT_CHARS))
+            val opts = JSONObject()
+            step.options.forEach { (k, v) -> opts.put(k, v.take(MAX_TEXT_CHARS)) }
+            obj.put("options", opts)
             array.put(obj)
         }
         return array.toString()
@@ -44,6 +47,9 @@ object WorkflowStorage {
             }
             val step = WorkflowStep(kind)
             step.textInput = obj.optString("textInput", "")
+            obj.optJSONObject("options")?.let { o ->
+                o.keys().forEach { k -> step.options[k] = o.optString(k, "") }
+            }
             steps.add(step)
         }
         return steps
